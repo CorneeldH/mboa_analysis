@@ -1,0 +1,85 @@
+---
+title: "How To"
+author: "Corneel den Hartogh"
+format: html
+editor: visual
+---
+
+## How To
+
+This guide walks you through setting up a project with `renv` for package management and `config` for environment configuration.
+
+### 0. Initial Project Setup
+
+#### 0.1. Initialize renv
+
+We have ensured reproducability with renv. Renv keeps track of all the packages and versions and install these within the project. We have already done this for you and it should work the first time you open the project. The following code is a check and activates renv manually if it hasn't done automatically.
+
+For more information about renv, see their [documentation](https://rstudio.github.io/renv/articles/renv.html).
+
+```{r}
+#| eval: false
+if (!require("renv")) {
+  install.packages("renv")
+  renv::init()
+} 
+```
+
+#### 0.2. Prepare project environment
+
+In addition to renv there are some other things we need to set up. We have created a few functions to help you with this. The following code will load these functions.
+
+```{r}
+
+# This determines the packages for renv and restores renv if needed
+source("utils/manage_packages.R")
+devtools::load_all()
+# Within utils/proj_settings/renviron.csv we have set system variables, this makes code more flexible and clean
+# source("utils/set_system_variables.R")
+
+#'*INFO* Temporary additional functions. These are functions that should be in supporting packages, but aren't yet.
+# source("utils/read_and_write_functions.R")
+# source("utils/mapping_functions.R")
+# source("utils/other_functions.R")
+
+#'*INFO* If you don't want to run this code block every time manually, you can the following line (without #) to .Rprofile in the main directory:
+# source("utils/00_set_up_environment.R")
+```
+
+#### 0.3. Configure your own data
+
+In order to make the scripts run for every institution, we use the config package to set specific settings. The only you have to is adapt the **config.yml** file in the main directory. You see the 'default' and the 'vu' settings. You can add your own institution. You only have to add configurations there are different from the default settings. It inherits other settings.
+
+**Update the active config with your new config** (or run the code with the default, synthetic, settings)
+
+For more information about config, see their [documentation](https://rstudio.github.io/config/).
+
+```{r}
+# TODO: Set new environment
+Sys.setenv(R_CONFIG_ACTIVE = "default")
+
+```
+
+### 1. Ingest and prepare
+
+```{r}
+cohorts <- ingest_cohorts()
+enrollment_flex_status <- ingest_enrollment_flex_status() |>
+    create_flex_boolean()
+enrollments <- ingest_enrollments() |>
+    combine_enrollment_numbers_for_order()
+enrollment_levels <- ingest_enrollment_levels() 
+programmes <- ingest_programmes()
+teams <- ingest_teams()
+applications <- ingest_applications() |>
+    calculate_application_duration()
+```
+
+### 2. Combine
+
+```{r}
+
+
+```
+
+### 4. Export

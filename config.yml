@@ -1,0 +1,39 @@
+
+default:
+  proj_name: "MBOA Analysis - Cefero"
+  copyright_holder: "Cefero"
+  proj_web_page: "www.cefero.nl"
+  proj_email: "corneel@cefero.nl"
+
+  data_raw_dir: "data/exports"
+  data_ingested_dir: "data/ingested"
+
+
+  # The following settings are general settings that determine which data sources are use
+  cohorts:
+    name: "cohorts"
+    filename: "Cohort zonder AVG.csv"
+
+  flex:
+    name: "flex"
+    filename: "IsFlex.csv"
+
+  teams:
+    name: "teams"
+    filename: "Intern.OrganisatieEenheidMBOA.csv"
+
+  programmes:
+    name: "programmes"
+    filename: "s_edu_Opleiding (zonder AVG kolommen).csv"
+
+  enrollments:
+    name: "enrollments"
+    filename: "Verbintenis zonder AVG.csv"
+
+  enrollment_levels:
+    name: "enrollment_levels"
+    filename: "VerbintenisNiveau.csv"
+
+  applications:
+    name: "applications"
+    filename: "s_edu_aanmelding (zonder AVG).csv"
