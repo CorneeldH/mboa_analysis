@@ -1,0 +1,11 @@
+^renv$
+^renv\.lock$
+^config.yml
+^how_to.qmd
+^utils/renv$
+^utils/renv\.lock$
+^utils
+^mboa_analysis\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^data/*
