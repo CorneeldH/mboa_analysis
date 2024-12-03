@@ -20,7 +20,8 @@ utils::globalVariables(c(
     "ORG1ID",
     "org1id",
 
-    # ingest_programmes
+    # ingest_programmes_basic
+    "ID",
     "CODE",
     "WERVINGSNAAM",
     "LEERWEG",
@@ -28,11 +29,11 @@ utils::globalVariables(c(
     "COMMUNICERENMETBRON",
     "NEGEERLANDELIJKECRITERIA",
     "NEGEERLANDELIJKEPRODUCTREGELS",
+    "id",
 
     # ingest_flex
     "ID Verbintenis",
     "IsFlex",
-    "VERBINTENIS_is_flex",
 
     # ingest_applications
     "BEGINDATUM",
@@ -44,9 +45,14 @@ utils::globalVariables(c(
     "AANMELDING_begin_datum",
     "AANMELDING_laatst_gewijzigd_datum",
 
+    # create_flex_boolean
+    "VERBINTENIS_is_flex_omschrijving",
+
     # combine_enrollment_numbers_for_order
     "VERBINTENIS_volgnummer",
-    "VERBINTENIS_bladnummer"
+    "VERBINTENIS_bladnummer",
 
+    # combine
+    "VERBINTENIS_ID"
 
 ))

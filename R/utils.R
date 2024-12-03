@@ -1,3 +1,47 @@
+#' Load Data File
+#'
+#' @description
+#' Reads a raw data file based on configuration settings or direct file specifications.
+#' Uses config package to retrieve file paths and names if not directly specified.
+#'
+#' @param config_key Character string specifying the configuration key to lookup file information
+#' @param ... Additional arguments passed to readr::read_delim
+#' @param filename Optional character string specifying the name of the file to read.
+#'                If NULL, filename is retrieved from config using config_key.
+#' @param path Optional character string specifying the path to read from.
+#'            If NULL, path is retrieved from config using config_raw_data.
+#' @param config_raw_data Character string specifying the config key for raw data directory.
+#'                        Defaults to "data_raw_dir".
+#'
+#' @return A tibble containing the raw data from the specified file
+#'
+#' @details
+#' The function will first try to use provided filename and path.
+#' If these are NULL, it will look up values in the config file using config_key
+#' and config_raw_data respectively.
+#'
+#' @export
+load_data <- function(config_key,
+                          ...,
+                          filename = NULL,
+                          path = NULL,
+                          config_data_path = NULL) {
+
+    if (is.null(filename) || is.null(path)) {
+        requireNamespace("config", quietly = TRUE)
+    }
+
+    if (is.null(filename)) {
+        filename <- get_filename_from_config(config_key)
+    }
+
+    if (is.null(path)) {
+        path <- config::get(config_data_path)
+    }
+
+    data_raw <- safe_read_csv(filename, ..., path = path)
+}
+
 #' Safe CSV Reader with Flexible Arguments
 #'
 #' @description
@@ -6,12 +50,22 @@
 #'
 #' @param filename Required filename
 #' @param ... Additional arguments passed to readr::read_delim
+#' @param path Optional path to prepend to filename
 #'
 #' @return A tibble containing the CSV data
 #' @importFrom readr read_delim cols col_guess locale
 #'
 #' @export
-safe_read_csv <- function(filename, ...) {
+safe_read_csv <- function(filename, ..., path = NULL) {
+
+    # Construct full file path
+    filename <- if (is.null(path)) {
+        filename
+    } else {
+        file.path(path, filename)
+    }
+
+    filename <- normalizePath(filename, mustWork = FALSE)
 
     # Check if file exists
     if (!file.exists(filename)) {
@@ -22,7 +76,7 @@ safe_read_csv <- function(filename, ...) {
     default_args <- list(
         file = filename,
         delim = ";",
-        name_repair = "minimal",
+        name_repair = "unique",
         escape_double = FALSE,
         locale = locale(decimal_mark = ",", grouping_mark = "."),
         trim_ws = TRUE,
@@ -69,7 +123,7 @@ safe_read_csv <- function(filename, ...) {
 #' @export
 get_filename_from_config <- function(config_key, argument = "filename") {
     if (!requireNamespace("config", quietly = TRUE)) {
-        stop("The 'config' package is not available")
+        stop("The 'config' package is not available. Either define the filename directly or install the package.")
     }
 
     config_value <- try(config::get(config_key), silent = TRUE)
@@ -79,18 +133,21 @@ get_filename_from_config <- function(config_key, argument = "filename") {
     }
 
     # If config_value is a list, look for the specified argument
-    if (is.list(config_value)) {
-        if (argument %in% names(config_value)) {
-            return(config_value[[argument]])
-        } else {
-            available_args <- paste(names(config_value), collapse = ", ")
-            stop(sprintf(
-                "Argument '%s' not found in config key '%s'. Available arguments are: %s",
-                argument, config_key, available_args
-            ))
-        }
+    if (!is.list(config_value)) {
+        filename <- config_value
+    }
+
+
+    if (argument %in% names(config_value)) {
+        filename <- (config_value[[argument]])
+    } else {
+        available_args <- paste(names(config_value), collapse = ", ")
+        stop(sprintf(
+            "Argument '%s' not found in config key '%s'. Available arguments are: %s",
+            argument, config_key, available_args
+        ))
     }
 
     # If not a list, return the value directly
-    return(config_value)
+    return(filename)
 }

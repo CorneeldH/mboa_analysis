@@ -12,7 +12,7 @@ Imports:
     readr,
     dplyr,
     janitor,
+    config,
     stringr
 Suggests:
-    config,
     testthat (>= 3.0.0)
