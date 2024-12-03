@@ -62,24 +62,115 @@ Sys.setenv(R_CONFIG_ACTIVE = "default")
 
 ### 1. Ingest and prepare
 
+#### 1.1 Everything related to enrollments
+
 ```{r}
-cohorts <- ingest_cohorts()
-enrollment_flex_status <- ingest_enrollment_flex_status() |>
-    create_flex_boolean()
-enrollments <- ingest_enrollments() |>
+
+enrollments_basic <- ingest_enrollments_basic() |>
     combine_enrollment_numbers_for_order()
 enrollment_levels <- ingest_enrollment_levels() 
-programmes <- ingest_programmes()
-teams <- ingest_teams()
+enrollment_flex_status <- ingest_enrollment_flex_status() |>
+    create_flex_boolean()
+
+study_advices <- ingest_study_advices |>
+    transform_advices_to_enrollments()
+reasons_for_leaving <- ingest_reasons_for_leaving() |>
+    distinct()
+
+# enrollment_absences <- ingest_enrollment_absences()
+# group_participation <- ingest_group_participation()
+
 applications <- ingest_applications() |>
     calculate_application_duration()
+
+cohorts <- ingest_cohorts()
+
+
+
+
+```
+
+#### 1.2 Everything related to employees
+
+```{r}
+
+# job_contracts <- ingest_job_contracts()
+# employee_absences <- ingest_employee_absences()
+
+```
+
+#### 1.3 Everything related to programmes and teams
+
+```{r}
+
+# TODO in opleiding zit geen team ID
+programmes_basic <- ingest_programmes_basic()
+# TODO still questions, see below
+programme_bc_codes <- ingest_programme_bc_codes()
+teams <- ingest_teams()
+
+programmes_enriched <- programmes_basic |>
+    left_join(programme_bc_codes, by = join_by(OPLEIDING_code),
+              relationship = "one-to-one") |>
+    left_join(teams, by = join_by(TEAM_ID), relationship = "many-to-one")
+
 ```
 
 ### 2. Combine
 
 ```{r}
 
+enrollments_combined <- enrollments_basic |>
+        left_join(enrollment_levels, by = join_by(VERBINTENIS_ID), relationship = "many-to-one") |>
+        left_join(enrollment_flex_status, by = join_by(VERBINTENIS_ID), relationship = "many-to-one") |>
+        left_join(applications, by = join_by(VERBINTENIS_ID), relationship = "many-to-one") |>
+        left_join(programmes_basic, by = join_by(OPLEIDING_ID), relationship = "many-to-one") |>
+        left_join(cohorts, by = join_by(COHORT_ID), relationship = "many-to-one") |>
+        left_join(teams, by = join_by(TEAM_ID), relationship = "many-to-one")
 
 ```
 
-### 4. Export
+### 4. Controle
+
+```{r}
+
+# Ga ik per cohort of niet?
+# Zou aanmelding per verbintenis of verbintenisblad moeten zijn?
+# sum(is.na(data$AANMELDING_begin_datum))
+# [1] 18362
+# ## Is flex per verbintenis of per cohort?
+# > sum(is.na(data$VERBINTENIS_is_flex))
+# [1] 121
+# > sum(is.na(data$VERBINTENIS_niveau))
+# [1] 12
+
+
+enrollments_nieuw_zonder_aanmeldingsdatum <- enrollments_combined |> 
+    filter(is.na(AANMELDING_begin_datum)) |>
+    count(VERBINTENIS_volgnummer, VERBINTENIS_bladnummer)
+# ~300
+
+programme_bc_codes_differences <- programme_bc_codes %>% count(Niveau, NiveauBeroep)
+# soms niveau beroep niet van toepassing
+# soms niveau beroep anders dan niveau
+    
+
+# waarnemingen, waarop koppelen? # Kan verbintenis worden toegevoegd?
+# groepsdeelname, waarop koppelen? # Kan verbintenis worden toegevoegd?
+
+# medewerker fte's, heeft geen functie ID en geen arb ID, waarop kan ik dit het beste koppelen aan verzuim medewerkers? 
+## lijkt ook recente jaren data te ontbreken, misschien door gemaakte koppelingen?
+
+
+# als we het per jaar doen, dan is medewerker-jaar-kostenplaats misschien genoeg? of hebben medewerkers meerdere functies?
+# medewerkers ftes
+job_contracts |> tabyl(CONTRACT_afwijking_kostenplaats) %>% arrange(desc(n)) %>% slice_head(n = 1)
+
+
+
+
+# Redenuitschrijving
+## TODO Hier zit OVERLIJDEN in en ACTIEF, die kunnen eruit
+
+```
+

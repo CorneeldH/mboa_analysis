@@ -10,30 +10,70 @@ default:
 
 
   # The following settings are general settings that determine which data sources are use
-  cohorts:
-    name: "cohorts"
-    filename: "Cohort zonder AVG.csv"
 
-  flex:
-    name: "flex"
-    filename: "IsFlex.csv"
-
-  teams:
-    name: "teams"
-    filename: "Intern.OrganisatieEenheidMBOA.csv"
-
-  programmes:
-    name: "programmes"
-    filename: "s_edu_Opleiding (zonder AVG kolommen).csv"
-
-  enrollments:
-    name: "enrollments"
+  # Data grelated to enrollments (verbintenis / inschrijving)
+  enrollments_basic:
+    name: "enrollments_basic"
     filename: "Verbintenis zonder AVG.csv"
 
   enrollment_levels:
     name: "enrollment_levels"
     filename: "VerbintenisNiveau.csv"
 
+  flex:
+    name: "flex"
+    filename: "IsFlex.csv"
+
+  cohorts:
+    name: "cohorts"
+    filename: "Cohort zonder AVG.csv"
+
+  reasons_for_leaving:
+    name: "reasons_for_leaving"
+    filename: "Reden uitschrijvingen.csv"
+
+  study_advices:
+    name: "study_advices"
+    filename: "Studieadvies.csv"
+
   applications:
     name: "applications"
     filename: "s_edu_aanmelding (zonder AVG).csv"
+
+# Data related to programmes (opleidingen)
+
+  programmes_basic:
+    name: "programmes_basic"
+    filename: "s_edu_Opleiding (zonder AVG kolommen).csv"
+
+  teams:
+    name: "teams"
+    filename: "Intern.OrganisatieEenheidMBOA.csv"
+
+
+
+## Vragen
+
+  programme_bc_codes:
+    name: "programme_bc_codes"
+    filename: "Opleiding met bc-code.csv"
+
+  enrollment_absences:
+    name: "enrollment_absences"
+    filename: "Waarnemingen.csv"
+
+  group_participation:
+    name: "group_participation"
+    filename: "Groepsdeelname.csv"
+
+  job_contracts:
+    name: "job_contracts"
+    filename: "FTE alle medewerkers.csv"
+
+  employee_absences:
+    name: "employee_absences"
+    filename: "Verzuim medewerkers.csv"
+
+
+
+
