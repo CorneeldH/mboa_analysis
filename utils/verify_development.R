@@ -11,7 +11,11 @@
 ##
 ## +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+# TODO I added inst/WORDLIST but casing remains an issue
+# devtools::spell_check() #
+
 devtools::load_all()
 devtools::document()
+quarto_render("how_to.qmd")
 check_result <- devtools::check()
 print(check_result)
