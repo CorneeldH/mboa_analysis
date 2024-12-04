@@ -1,9 +1,9 @@
 Package: mboaAnalysis
-Title: Scripts for study success analysis MBO Amersfoort
+Title: Study Success Analysis for MBO Amersfoort
 Version: 0.0.0.9000
 Authors@R: 
     person("Corneel", "den Hartogh", , "corneel@cefero.nl", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Description: Analysis study succes for MBO Amersfoort. It was a short assignment (4 weeks of coding). The data is mostly from different layers of the DPO-powered data warehouse.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -13,6 +13,8 @@ Imports:
     dplyr,
     janitor,
     config,
-    stringr
+    stringr,
+    tidyr,
+    lubridate
 Suggests:
     testthat (>= 3.0.0)
