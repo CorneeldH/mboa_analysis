@@ -16,11 +16,11 @@ default:
     name: "enrollments_basic"
     filename: "Verbintenis zonder AVG.csv"
 
-  enrollment_levels:
-    name: "enrollment_levels"
+  enrollments_level:
+    name: "enrollments_level"
     filename: "VerbintenisNiveau.csv"
 
-  flex:
+  enrollments_flex:
     name: "flex"
     filename: "IsFlex.csv"
 

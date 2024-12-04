@@ -119,7 +119,7 @@ ingest_teams <- function(..., filename = NULL, path = NULL, config_key = "teams"
 #' @importFrom dplyr select rename mutate
 #'
 #' @export
-ingest_enrollment_flex_status <- function(..., filename = NULL, path = NULL, config_key = "enrollment_flex_status", config_data_path = "data_raw_dir") {
+ingest_enrollments_flex <- function(..., filename = NULL, path = NULL, config_key = "enrollments_flex", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_raw <- load_data(config_key,
@@ -205,7 +205,7 @@ ingest_programmes_basic <- function(..., filename = NULL, path = NULL, config_ke
 #'   }
 #'
 #' @export
-ingest_enrollment_levels <- function(..., filename = NULL, path = NULL, config_key = "enrollment_levels", config_data_path = "data_raw_dir") {
+ingest_enrollments_level <- function(..., filename = NULL, path = NULL, config_key = "enrollments_level", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_raw <- load_data(config_key,
@@ -214,6 +214,8 @@ ingest_enrollment_levels <- function(..., filename = NULL, path = NULL, config_k
                           filename = filename,
                           path = path,
                           config_data_path = config_data_path)
+
+    data_clean <- data_raw
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
