@@ -34,6 +34,9 @@ packages_cran <- c(
     "usethis",
     "roxygen2",
 
+    # quarto
+    "quarto",
+
 
     "LaF",            # Read data files without encoding (like ASCII)
     "dataReporter",   # Create a data audit report
