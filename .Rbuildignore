@@ -1,7 +1,7 @@
 ^renv$
 ^renv\.lock$
 ^config.yml
-^how_to.qmd
+^how_to
 ^utils/renv$
 ^utils/renv\.lock$
 ^utils
