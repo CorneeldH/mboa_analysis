@@ -4,8 +4,12 @@ Sys.setenv(
     RENV_PATHS_RENV = file.path("utils/renv"),
     RENV_PATHS_LOCKFILE = file.path("utils/proj_settings/renv.lock")
 )
+options(.pal_dir = "utils/pal_prompts")
+
 source("utils/renv/activate.R")
 
-Sys.setenv(R_CHECK_SYSTEM_CLOCK = 0)
-
-#source("utils/manage_packages.R")
+# if (!requireNamespace("renv")) {
+#     install.packages("renv")
+# }
+#
+# source("utils/manage_packages.R")
