@@ -16,6 +16,9 @@
 
 devtools::load_all()
 devtools::document()
-quarto_render("how_to.qmd")
+source("utils/function_checker.R")
+check_exported_function_usage("how_to.qmd")
+
+#quarto_render("how_to.qmd")
 check_result <- devtools::check()
 print(check_result)
