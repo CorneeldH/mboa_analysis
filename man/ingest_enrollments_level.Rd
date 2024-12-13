@@ -16,6 +16,12 @@ ingest_enrollments_level(
 \item{...}{Additional arguments passed to readr::read_delim}
 
 \item{filename}{Character string specifying the name of the CSV file to read}
+
+\item{path}{Character string specifying the path to the CSV file}
+
+\item{config_key}{Character string specifying the configuration key to use (default: "enrollments_level")}
+
+\item{config_data_path}{Character string specifying the config path for raw data (default: "data_raw_dir")}
 }
 \value{
 A tibble containing enrollment level data with columns:

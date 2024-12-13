@@ -24,6 +24,6 @@ by 1000 and adding VERBINTENIS_bladnummer to ensure unique combinations.
 }
 \examples{
 \dontrun{
-enrollments_basic <- combine_enrollment_numbers_for_order(raw_enrollments_basic)
+enrollments_basics <- combine_enrollment_numbers_for_order(raw_enrollments_basics)
 }
 }

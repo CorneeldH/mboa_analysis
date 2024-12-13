@@ -38,3 +38,32 @@
 #
 # # Test the calls
 # function_A()
+
+# #' @importFrom dplyr left_join join_by
+# combine_enrollments <- function(enrollments_basics, enrollments_flex, enrollments_level, enrollments_application, cohorts, teams) {
+#     data <- enrollments_basics |>
+#         left_join(enrollments_level, by = join_by(VERBINTENIS_ID), relationship = "many-to-one") |>
+#         left_join(enrollments_flex, by = join_by(VERBINTENIS_ID), relationship = "many-to-one") |>
+#         left_join(enrollments_application, by = join_by(VERBINTENIS_ID), relationship = "many-to-one") |>
+#         left_join(programmes_basics, by = join_by(OPLEIDING_ID), relationship = "many-to-one") |>
+#         left_join(cohorts, by = join_by(COHORT_ID), relationship = "many-to-one") |>
+#         left_join(teams, by = join_by(TEAM_ID), relationship = "many-to-one")
+# }
+
+
+# extract_globals_to_wordlist <- function() {
+#     # Read globals
+#     globals_content <- readLines("R/globals.R")
+#     vars <- globals_content[grep("^[[:space:]]*\"[^\"]+\"", globals_content)]
+#     vars <- gsub("[[:space:]\"#,]+", "", vars)
+#
+#     # Add both cases
+#     vars_both_cases <- unique(c(vars, tolower(vars), toupper(vars)))
+#
+#     dir.create("inst", showWarnings = FALSE)
+#     writeLines(sort(vars_both_cases), "inst/WORDLIST")
+# }
+
+
+
+

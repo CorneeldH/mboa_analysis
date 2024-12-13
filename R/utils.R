@@ -10,8 +10,8 @@
 #'                If NULL, filename is retrieved from config using config_key.
 #' @param path Optional character string specifying the path to read from.
 #'            If NULL, path is retrieved from config using config_raw_data.
-#' @param config_raw_data Character string specifying the config key for raw data directory.
-#'                        Defaults to "data_raw_dir".
+#' @param config_data_path Character string specifying the config key for raw data directory.
+#'                        Defaults to NULL.
 #'
 #' @return A tibble containing the raw data from the specified file
 #'
@@ -36,7 +36,10 @@ load_data <- function(config_key,
     }
 
     if (is.null(path)) {
-        path <- config::get(config_data_path)
+
+        if (!is.null(config_data_path)) {
+            path <- config::get(config_data_path)
+        }
     }
 
     data_raw <- safe_read_csv(filename, ..., path = path)

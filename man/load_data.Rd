@@ -23,8 +23,8 @@ If NULL, filename is retrieved from config using config_key.}
 \item{path}{Optional character string specifying the path to read from.
 If NULL, path is retrieved from config using config_raw_data.}
 
-\item{config_raw_data}{Character string specifying the config key for raw data directory.
-Defaults to "data_raw_dir".}
+\item{config_data_path}{Character string specifying the config key for raw data directory.
+Defaults to NULL.}
 }
 \value{
 A tibble containing the raw data from the specified file

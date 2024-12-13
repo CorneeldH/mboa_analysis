@@ -24,6 +24,6 @@ and AANMELDING_begin_datum, rounds the result, and adds it as a new column.
 }
 \examples{
 \dontrun{
-applications <- calculate_application_duration(raw_applications)
+enrollments_application <- calculate_application_duration(raw_enrollments_application)
 }
 }
