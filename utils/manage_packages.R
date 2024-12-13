@@ -47,6 +47,7 @@ packages_cran <- c(
     "purrr",          # Work with functions and vectors
     #"readxl",         # Read xlsx
     "readr",          # Read data (csv, tsv, and fwf)
+    "fs",             # Work with file systems
     #"rvest",          # Read html
     "slackr",         # Send messages in Slack
     "stringi",        # Work with other strings
@@ -62,11 +63,13 @@ packages_cran <- c(
 
 # Include both the package name (for loading) and the account name (for renv snapshot)
 packages_github <- c(
-    "vusa"            # Utilise packages from the VU team
+    "vusa",            # Utilise packages from the VU team
+    "pal"              # pal for using llm assistants
 )
 
 packages_github_with_account <- c(
-    "vusaverse/vusa"  # Utilise packages from the VU team
+    "vusaverse/vusa",
+    "simonpcouch/pal"
 )
 
 
@@ -80,8 +83,16 @@ packages_renv <- c(packages_cran, packages_github)
 ## 2. EXECUTE ####
 ## +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-# TODO Github packages installation is a bit weird
-# renv:install(packages_github_with_account)
+#'*INFO* Fix for packages from github, install them first
+install_if_missing <- function(packages, packages_to_install) {
+    missing <- !sapply(packages, requireNamespace, quietly = TRUE)
+    if (any(missing)) {
+        install.packages(packages_to_install[missing])
+    }
+}
+
+install_if_missing(packages_github, packages_github_with_account)
+
 
 options(renv.snapshot.filter = function(project) {
     return(packages_renv)
@@ -105,4 +116,4 @@ suppressMessages(purrr::walk(packages, ~library(.x,
 ## WRITE-AND-CLEAR ####
 ## +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-clear_script_objects()
+suppressWarnings(clear_script_objects())
