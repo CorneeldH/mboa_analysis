@@ -1,146 +1,275 @@
 ---
 title: "How To"
 author: "Corneel den Hartogh"
-format: html
+date: last-modified
+toc: true
+format: 
+  html:
+    code-link: true
 editor: visual
+execute:
+  cache: true
 ---
 
 ## How To
 
-This guide walks you through setting up a project with `renv` for package management and `config` for environment configuration.
+Deze gids laat zien hoe stap voor stap de exports uit het data warehouse worden bewerkt in R tot diverse statistische analyses. Het begint met uitleg van de project setup in R, daarna wordt de data ingelezen en geprepareerd. Vervolgens combineren we de data tot een zogenoemde data asset, die klaar is voor analyse. Dan komen de diverse analyses.
 
-### 0. Initial Project Setup
+### 0. Project Setup
 
-#### 0.1. Initialize renv
+#### 0.1. Opzetten renv
 
-We have ensured reproducability with renv. Renv keeps track of all the packages and versions and install these within the project. We have already done this for you and it should work the first time you open the project. The following code is a check and activates renv manually if it hasn't done automatically.
+R maakt gebruik van packages om extra functionaliteit te bieden. Renv houdt bij welke packages er zijn geinstalleerd en welke versie. Dit zorgt ervoor dat de analyses in de toekomst reproduceerbaar zijn.
 
-For more information about renv, see their [documentation](https://rstudio.github.io/renv/articles/renv.html).
+De eerste keer dat je het proejct opent, moet je renv initialiseren met de volgende code. Voor meer informatie over renv, zie de [documentatie](https://rstudio.github.io/renv/articles/renv.html).
 
 ```{r}
-#| eval: false
-if (!require("renv")) {
+#| cache: false
+#| output: false
+
+if (!requireNamespace("renv")) {
   install.packages("renv")
   renv::init()
 } 
+
 ```
 
-#### 0.2. Prepare project environment
+#### 0.2. Zet je R omgeving klaar
 
-In addition to renv there are some other things we need to set up. We have created a few functions to help you with this. The following code will load these functions.
+Zodra renv werkt kunnen we de packages installeren en inladen. De eerste keer duurt het inladen even, omdat de packages nog geinstalleerd moeten worden. De volgende keren hoeven de packages alleen nog maar ingeladen te worden. Dat gaat erg snel.
+
+Naast de packages, laden we ook all functies in die we in dit project gemaakt hebben. Deze functies kun je vinden in de map /R.
 
 ```{r}
+#| cache: false
+#| output: false
 
-# This determines the packages for renv and restores renv if needed
 source("utils/manage_packages.R")
-devtools::load_all()
-# Within utils/proj_settings/renviron.csv we have set system variables, this makes code more flexible and clean
-# source("utils/set_system_variables.R")
+load_all()
 
-#'*INFO* Temporary additional functions. These are functions that should be in supporting packages, but aren't yet.
-# source("utils/read_and_write_functions.R")
-# source("utils/mapping_functions.R")
-# source("utils/other_functions.R")
-
-#'*INFO* If you don't want to run this code block every time manually, you can the following line (without #) to .Rprofile in the main directory:
-# source("utils/00_set_up_environment.R")
 ```
 
-#### 0.3. Configure your own data
+#### 0.3. Configureer je data verbindingen en settings
 
-In order to make the scripts run for every institution, we use the config package to set specific settings. The only you have to is adapt the **config.yml** file in the main directory. You see the 'default' and the 'vu' settings. You can add your own institution. You only have to add configurations there are different from the default settings. It inherits other settings.
+Om de scripts voor elke instelling te laten draaien, gebruiken we het config-pakket om specifieke instellingen te bepalen. Het enige wat je hoeft te doen is het [**config.yml**](config.yml) bestand in de hoofdmap aanpassen. Je ziet de 'default' en instellingen. Je kunt je eigen onderwijsinstelling toevoegen.
 
-**Update the active config with your new config** (or run the code with the default, synthetic, settings)
-
-For more information about config, see their [documentation](https://rstudio.github.io/config/).
+Je hoeft alleen configuraties toe te voegen die anders zijn dan de standaardinstellingen. Het neemt andere instellingen over. Werk de actieve configuratie bij met je nieuwe configuratie (of voer de code uit met de standaard, de, default instellingen). Voor meer informatie over config, zie hun [documentatie](https://rstudio.github.io/config/).
 
 ```{r}
-# TODO: Set new environment
+#| cache: false
+
+# TODO Change default in own config if needed
 Sys.setenv(R_CONFIG_ACTIVE = "default")
 
 ```
 
-### 1. Ingest and prepare
+### 1. Inladen en voorbereiden
 
-#### 1.1 Everything related to enrollments
+Voordat we met de analyse beginnen, importeren we de data en bereiden we deze (indien nodig) voor. De functies die je hieronder ziet zijn te vinden in R/ingest.R of R/prepare.R.
+
+#### 1.1 Alles gerelateerd aan verbintenissen (enrollments)
+
+We laden eerst alle data in die al op verbintenis-niveau is. Een aantal tabellen zijn niet op verbintenis-niveau en bevatten ook geen verbintenis ID. Deze tabellen transformeren we naar student-jaar om het zo te kunnen koppelen aan verbintenis. Tenslotte zijn er nog een aantal mapping tables met extra informatie over een specifieke aspecten van een verbintenis.
 
 ```{r}
 
-enrollments_basic <- ingest_enrollments_basic() |>
-    # TODO studiesucces, doorstroom, uitval etc
+enrollments_basics <- ingest_enrollments_basics() |>
+    # TODO prepare derived variables regarding 'studiesucces'
     combine_enrollment_numbers_for_order()
 enrollments_level <- ingest_enrollments_level()
 enrollments_flex <- ingest_enrollments_flex() |>
     create_flex_boolean()
-
-study_advices <- ingest_study_advices() |>
+enrollments_special_needs <- ingest_enrollments_special_needs() |>
+    summarise_special_needs()
+enrollments_study_advices <- ingest_study_advices() |>
     transform_advices_to_enrollments()
-reasons_for_leaving <- ingest_reasons_for_leaving() |>
-    distinct()
-
-# enrollment_absences <- ingest_enrollment_absences()
-# group_participation <- ingest_group_participation()
-
-applications <- ingest_applications() |>
+enrollments_application <- ingest_enrollments_application() |>
     calculate_application_duration()
 
-cohorts <- ingest_cohorts()
+#' *INFO* An enrollment can be longer or shorter than one year
+# TODO Make extra calculations regarding demographics
+student_years_demographics <- ingest_students_demographics() |>
+    transform_students_to_student_year()
+student_years_prior_education <- ingest_students_prior_education() |>
+    transform_prior_education_to_student_year() |>
+    transform_prior_education_vo_and_highest_degree()
 
+# Additional mapping tables
+reasons_for_leaving <- ingest_reasons_for_leaving() |>
+    distinct()
+cohorts <- ingest_cohorts() |>
+    filter_cohorts()
+#'*INFO* The following data is also linked to enrollments foremost, not programmes
 teams <- ingest_teams()
-
+locations <- ingest_locations()
 ```
 
-#### 1.2 Everything related to employees
+#### 1.2 Alles gerelateerd aan medewerkers (employees)
+
+We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met aanpassingen.
 
 ```{r}
 
-# job_contracts <- ingest_job_contracts()
-# employee_absences <- ingest_employee_absences()
+job_contracts <- bind_rows(
+    ingest_job_contracts_basics_2023(),
+    ingest_job_contracts_basics_2022(),
+    ingest_job_contracts_basics_2021(),
+    ingest_job_contracts_basics_2020(),
+    ingest_job_contracts_basics_2019()
+)
+
+job_contracts_extra_fte <- bind_rows(
+    ingest_job_components_extra_fte_2023(),
+    ingest_job_components_extra_fte_2022(),
+    ingest_job_components_extra_fte_2021(),
+    ingest_job_components_extra_fte_2020(),
+    ingest_job_components_extra_fte_2019()
+) |>
+    summarise_components_to_contracts()
+
+job_contracts_enriched <- job_contracts |>
+    left_join(job_contracts_extra_fte,
+              by = join_by(MEDEWERKER_ID, 
+                           MEDEWERKER_contract_kostenplaats_code, 
+                           MEDEWERKER_contract_fte_peildatum),
+              relationship = "one-to-one")
+
 
 ```
 
-#### 1.3 Everything related to programmes
+```{r}
+
+# TODO within map to keep the transformations separate
+employee_absences <- ingest_employee_absences() |>
+    distinct() |>
+    convert_absence_types() |>
+    split_into_school_years() |>
+    map(expand_to_daily) |>
+    map(aggregate_to_weeks) |>
+    map_dfr(bind_rows)
+
+```
+
+#### 1.3 Alles gerelateerd aan programma's en bpv
 
 ```{r}
 
-programmes_basic <- ingest_programmes_basic()
+programmes_exam_plan_info <- ingest_exam_plans() |> 
+    summarise_plan_dates_to_programmes()
+
+programmes_basics <- ingest_programmes_basics()
 programme_bc_codes <- ingest_programme_bc_codes()
 
 
+programmes_enriched <- programmes_basics |>
+    left_join(programme_bc_codes, 
+              by = join_by(OPLEIDING_code),
+              relationship = "one-to-one") |>
+    left_join(programmes_exam_plan_info,
+              by = join_by(OPLEIDING_ID),
+              relationship = "one-to-many") |>
+    left_join(cohorts,
+              by = join_by(COHORT_ID),
+              relationship = "many-to-one")
+
+bpv_registrations <- ingest_bpv_registrations()
+
+bpv_statusses <- ingest_bpv_statusses()
+
+# TODO Hoe dit in regulier variabelen om te zetten?
+bpv_statusses_enriched <- bpv_statusses |>
+    left_join(bpv_registrations,
+              by = join_by(BPV_ID),
+              relationship = "many-to-one")
+
 ```
 
-### 2. Combine
+#### 1.4 Alles gerelateerd aan groepen en absenties
+
+```{r}
+attendance_observations <- ingest_attendance_observations()
+enrollment_to_sk_mapping <- ingest_enrollment_to_sk_mapping()
+group_placements <- ingest_group_placements()
+
+```
 
 ```{r}
 
-programmes_enriched <- programmes_basic |>
-    left_join(programme_bc_codes, 
-              by = join_by(OPLEIDING_code),
-              relationship = "one-to-one") 
+group_participation_attendance <- attendance_observations |>
+    transform_observations_to_enrollments()
 
-enrollments_combined <- enrollments_basic |>
+group_placements_enriched <- group_placements |>
+    # Enrollments absences only have SK_inschrijving that started over 2018, therefore this     # inner join removes half of rows
+    inner_join(enrollment_to_sk_mapping,
+               by = join_by(SK_inschrijving),
+               relationship = "many-to-one")
+
+group_participation_attendance_enriched <- group_participation_attendance |>
+    # TODO I lose ~2400 enrollments
+    # maybe these are students from before 2018, mabye some are filtered in data     # warehouse or quiery
+    inner_join(group_placements_enriched,
+                by = join_by(SK_GroepInschrijving == SK_groep_inschrijving),
+               relationship = "one-to-one")
+                
+```
+
+### 2. Combineren van alle data
+
+```{r}
+
+
+enrollments_combined <- enrollments_basics |>
     left_join(enrollments_level,
               by = join_by(VERBINTENIS_ID),
               relationship = "many-to-one") |>
     left_join(enrollments_flex,
               by = join_by(VERBINTENIS_ID),
               relationship = "many-to-one") |>
-    left_join(applications,
+    left_join(enrollments_special_needs,
+              by = join_by(VERBINTENIS_ID),
+              relationship = "many-to-one") |>
+    # TODO For now not used since data is incomplete
+    # left_join(enrollments_ibp,
+    #           by = join_by(VERBINTENIS_ID),
+    #           relationship = "many-to-one") |>
+    left_join(enrollments_application,
               by = join_by(VERBINTENIS_ID),
               relationship = "many-to-one") |>
     left_join(programmes_enriched,
-              by = join_by(OPLEIDING_ID),
+              #'*INFO* extra cohort variables are added to ensure there are no duplicate 
+              # column names
+              by = join_by(OPLEIDING_ID, COHORT_ID),
               relationship = "many-to-one") |>
-    left_join(cohorts, 
-              by = join_by(COHORT_ID), 
+#    left_join(cohorts, 
+#              by = join_by(COHORT_ID, COHORT_naam, COHORT_start_year), 
+#              relationship = "many-to-one") |>
+    left_join(student_years_demographics,
+              by = join_by(DEELNEMER_ID, COHORT_naam),
+              relationship = "many-to-one") |>
+    left_join(student_years_prior_education,
+              by = join_by(DEELNEMER_ID, COHORT_naam),
               relationship = "many-to-one") |>
     left_join(teams, 
               by = join_by(TEAM_ID), 
+              relationship = "many-to-one") |>
+    left_join(locations,
+              by = join_by(LOCATIE_ID),
               relationship = "many-to-one")
 
 ```
 
-### 4. Controle
+### 4. Controleren
+
+```{r}
+# group_participation_count <- group_participation %>% count(GROEP_ID, GROEP_code)
+# View(group_participation_count)
+# group_participation_count %>% distinct(GROEP_ID) %>% nrow()
+# # [1] 14931
+# group_participation_count %>% distinct(GROEP_code) %>% nrow()
+# [1] 14771
+
+## Groep code is (net) niet uniek
+```
 
 ```{r}
 
@@ -155,15 +284,10 @@ enrollments_combined <- enrollments_basic |>
 # [1] 12
 
 
-enrollments_nieuw_zonder_aanmeldingsdatum <- enrollments_combined |> 
-    filter(is.na(AANMELDING_begin_datum)) |>
-    count(VERBINTENIS_volgnummer, VERBINTENIS_bladnummer)
+# enrollments_nieuw_zonder_aanmeldingsdatum <- enrollments_combined |> 
+#     filter(is.na(AANMELDING_begin_datum)) |>
+#     count(VERBINTENIS_volgnummer, VERBINTENIS_bladnummer)
 # ~300
-
-programme_bc_codes_differences <- programme_bc_codes %>% count(OPLEIDING_niveau, OPLEIDING_niveau_beroep)
-# soms niveau beroep niet van toepassing
-# soms niveau beroep anders dan niveau
-    
 
 # waarnemingen, waarop koppelen? # Kan verbintenis worden toegevoegd?
 # groepsdeelname, waarop koppelen? # Kan verbintenis worden toegevoegd?
@@ -174,12 +298,24 @@ programme_bc_codes_differences <- programme_bc_codes %>% count(OPLEIDING_niveau,
 
 # als we het per jaar doen, dan is medewerker-jaar-kostenplaats misschien genoeg? of hebben medewerkers meerdere functies?
 # medewerkers ftes
-job_contracts |> tabyl(CONTRACT_afwijking_kostenplaats) %>% arrange(desc(n)) %>% slice_head(n = 1)
+# job_contracts |> tabyl(CONTRACT_afwijking_kostenplaats) %>% arrange(desc(n))
 
 
+# test <- enrollments_combined |>
+#     filter(!is.na(VERBINTENIS_ibp_datum) |
+#                !is.na(VERBINTENIS_passend_onderwijs_kenmerk)) |>
+#     select(VERBINTENIS_ID,
+#            VERBINTENIS_ibp_datum,
+#            VERBINTENIS_passend_onderwijs_kenmerk) |>
+#     mutate(
+#         both_na = is.na(VERBINTENIS_ibp_datum) &
+#             is.na(VERBINTENIS_passend_onderwijs_kenmerk),
+#         both_fill = (
+#             !is.na(VERBINTENIS_ibp_datum) &
+#                 !is.na(VERBINTENIS_passend_onderwijs_kenmerk)
+#         )
+#     )
 
 
-# Redenuitschrijving
-## TODO Hier zit OVERLIJDEN in en ACTIEF, die kunnen eruit
 
 ```
