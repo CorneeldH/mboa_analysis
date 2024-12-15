@@ -154,3 +154,82 @@ get_filename_from_config <- function(config_key, argument = "filename") {
     # If not a list, return the value directly
     return(filename)
 }
+
+#' Get School Year from Date
+#'
+#' @description
+#' Convert a date into a school year format (e.g., "2023/2024")
+#'
+#' @param date A Date or POSIXct object
+#'
+#' @returns
+#' A character string in the format "YYYY/YYYY+1". The school year is considered
+#' to start in August, so dates before August are assigned to the previous year.
+#' Will error if input is not a Date or POSIXct object.
+#'
+#' @importFrom lubridate month year
+#'
+#' @export
+get_school_year <- function(date) {
+
+    if (!inherits(date, "Date") & !inherits(date, "POSIXct")) {
+        stop("Input must be a Date object")
+    }
+
+    # TODO This doesn't work when a vector is passed
+    # if (is.na(month(date))) {
+    #     return(NA)
+    # }
+
+    adjusted_year <- ifelse(month(date) < 8,
+                            year(date) - 1,
+                            year(date))
+
+    school_year_name <- paste0(adjusted_year, "/", adjusted_year + 1)
+
+
+    return(school_year_name)
+}
+
+#' Save Combined Data to RDS
+#'
+#' @description
+#' Save a data object to an RDS file in a specified directory
+#'
+#' @param data The data object to save.
+#' @param ... Additional arguments passed to saveRDS().
+#' @param filename Optional. A string for the output filename. If NULL, uses the data object's name.
+#' @param path Optional. A string specifying the save location.
+#' @param config_data_path Optional. A string specifying the config key for the save location.
+#'
+#' @returns
+#' Invisibly returns the full path to the saved file. Creates directory if it
+#' doesn't exist.
+#'
+#' @importFrom config get
+#'
+#' @export
+save_combined <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_combined_dir") {
+
+    ## Set the object name to the file name if not given
+    if (is.null(filename)) {
+        filename <- deparse(substitute(data))
+    }
+
+    if (!requireNamespace("config", quietly = TRUE)) {
+        stop("The 'config' package is not available. Either define the filename directly or install the package.")
+    }
+
+    path <- config::get(config_data_path)
+
+    if (!dir.exists(path)) {
+        dir.create(path, recursive = TRUE)
+    }
+
+    file_full_path <- file.path(path, filename)
+
+    saveRDS(data,
+            paste0(file_full_path,".rds"),
+            version = 3,
+            ...)
+}
