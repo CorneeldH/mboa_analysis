@@ -121,7 +121,7 @@ ingest_teams <- function(..., filename = NULL, path = NULL, config_key = "teams"
 #' @return A tibble containing processed flex status data with columns:
 #'   \itemize{
 #'     \item VERBINTENIS_ID: Unique connection identifier
-#'     \item VERBINTENIS_is_flex_omschrijving: Text description of flex status
+#'     \item VERBINTENIS_flex_omschrijving: Text description of flex status
 #'   }
 #'
 #' @importFrom dplyr select rename mutate
@@ -139,7 +139,7 @@ ingest_enrollments_flex <- function(..., filename = NULL, path = NULL, config_ke
     data_clean <- data_raw |>
         select(`ID Verbintenis`, IsFlex) |>
         rename(VERBINTENIS_ID = `ID Verbintenis`,
-               VERBINTENIS_is_flex_omschrijving = IsFlex)
+               VERBINTENIS_flex_omschrijving = IsFlex)
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
@@ -224,7 +224,7 @@ ingest_programmes_basics <- function(..., filename = NULL, path = NULL, config_k
 #' @return A tibble containing enrollment level data with columns:
 #'   \itemize{
 #'     \item VERBINTENIS_ID: Unique enrollment identifier
-#'     \item VERBINTENIS_niveau: Enrollment level
+#'     \item VERBINTENIS_niveau_omschrijving: Enrollment level description
 #'   }
 #'
 #' @export
@@ -239,7 +239,7 @@ ingest_enrollments_level <- function(..., filename = NULL, path = NULL, config_k
     data_clean <- data_raw |>
         select(
             VERBINTENIS_ID = `ID Verbintenis`,
-            VERBINTENIS_niveau = Niveau
+            VERBINTENIS_niveau_omschrijving = Niveau
         )
 
     # keep the config with the data for later use
@@ -612,7 +612,7 @@ ingest_reasons_for_leaving <- function(..., filename = NULL, path = NULL, config
 #'
 #' @return A tibble containing processed employee absence data with columns:
 #'   \itemize{
-#'     \item MEDEWERKER_kostenplaats_code: Department cost center code
+#'     \item MEDEWERKER_contract_kostenplaats_code: Department cost center code
 #'     \item MEDEWERKER_ID: Employee identifier
 #'     \item FUNCTIE_ID: Function identifier
 #'     \item MEDEWERKER_eerste_verzuimdag: First day of absence
@@ -637,11 +637,11 @@ ingest_employee_absences <- function(..., filename = NULL, path = NULL, config_k
     data_clean <- data_raw |>
         select(
             `ID Medewerker`,
-            kostenplaats_code = `Kostenplaats Afdeling`,
+            # contract_kostenplaats_code = `Kostenplaats Afdeling`,
             `Eerste verzuimdag`,
             `Laatste verzuimdag`,
             #`Soort Verzuim`, privacy-gevoelig
-            percentage_verzuim = HR2D__SICKPERC__C
+            percentage_verzuim_omschrijving = HR2D__SICKPERC__C
         ) |>
         clean_names() |>
         rename_with(
@@ -1000,8 +1000,7 @@ ingest_bpv_statusses <- function(..., filename = NULL, path = NULL, config_key =
             BPV_ID = ID_BPVInschrijving,
             BPV_status_begin_datum = CREATED_AT,
             BPV_status_eind_datum = LAST_MODIFIED_AT,
-            BPV_status = NAARSTATUS,
-            TEAM_ID = ORGANISATIE
+            BPV_status = NAARSTATUS
         )
 
     # keep the config with the data for later use
@@ -1036,7 +1035,7 @@ ingest_bpv_statusses <- function(..., filename = NULL, path = NULL, config_key =
 #' @importFrom lubridate ymd
 #'
 #' @keywords internal
-ingest_job_contracts_basics_helper <- function(config_key,..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
+ingest_employees_contract_basics_helper <- function(config_key,..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_raw <- load_data(config_key,
@@ -1067,23 +1066,23 @@ ingest_job_contracts_basics_helper <- function(config_key,..., filename = NULL, 
 #'
 #' @description
 #' Reads and processes basic job contract data specific to the year 2023.
-#' Uses the helper function ingest_job_contracts_basics_helper for processing.
+#' Uses the helper function ingest_employees_contract_basics_helper for processing.
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_basics_2023")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_basics_2023")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
 #' @return A tibble containing processed basic job contract data for 2023
 #'
-#' @seealso ingest_job_contracts_basics_helper
+#' @seealso ingest_employees_contract_basics_helper
 #'
 #' @export
-ingest_job_contracts_basics_2023 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_basics_2023", config_data_path = "data_raw_dir") {
+ingest_employees_contract_basics_2023 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_basics_2023", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
-    data_clean <- ingest_job_contracts_basics_helper(
+    data_clean <- ingest_employees_contract_basics_helper(
         config_key,
         ...,
         filename = filename,
@@ -1097,23 +1096,23 @@ ingest_job_contracts_basics_2023 <- function(..., filename = NULL, path = NULL, 
 #'
 #' @description
 #' Reads and processes basic job contract data specific to the year 2022.
-#' Uses the helper function ingest_job_contracts_basics_helper for processing.
+#' Uses the helper function ingest_employees_contract_basics_helper for processing.
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_basics_2022")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_basics_2022")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
 #' @return A tibble containing processed basic job contract data for 2022
 #'
-#' @seealso ingest_job_contracts_basics_helper
+#' @seealso ingest_employees_contract_basics_helper
 #'
 #' @export
-ingest_job_contracts_basics_2022 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_basics_2022", config_data_path = "data_raw_dir") {
+ingest_employees_contract_basics_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_basics_2022", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
-    data_clean <- ingest_job_contracts_basics_helper(
+    data_clean <- ingest_employees_contract_basics_helper(
         config_key,
         ...,
         filename = filename,
@@ -1127,23 +1126,23 @@ ingest_job_contracts_basics_2022 <- function(..., filename = NULL, path = NULL, 
 #'
 #' @description
 #' Reads and processes basic job contract data specific to the year 2021.
-#' Uses the helper function ingest_job_contracts_basics_helper for processing.
+#' Uses the helper function ingest_employees_contract_basics_helper for processing.
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_basics_2020")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_basics_2020")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
 #' @return A tibble containing processed basic job contract data for 2021
 #'
-#' @seealso ingest_job_contracts_basics_helper
+#' @seealso ingest_employees_contract_basics_helper
 #'
 #' @export
-ingest_job_contracts_basics_2021 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_basics_2021", config_data_path = "data_raw_dir") {
+ingest_employees_contract_basics_2021 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_basics_2021", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
-    data_clean <- ingest_job_contracts_basics_helper(
+    data_clean <- ingest_employees_contract_basics_helper(
         config_key,
         ...,
         filename = filename,
@@ -1157,23 +1156,23 @@ ingest_job_contracts_basics_2021 <- function(..., filename = NULL, path = NULL, 
 #'
 #' @description
 #' Reads and processes basic job contract data specific to the year 2020.
-#' Uses the helper function ingest_job_contracts_basics_helper for processing.
+#' Uses the helper function ingest_employees_contract_basics_helper for processing.
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_basics_2020")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_basics_2020")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
 #' @return A tibble containing processed basic job contract data for 2020
 #'
-#' @seealso ingest_job_contracts_basics_helper
+#' @seealso ingest_employees_contract_basics_helper
 #'
 #' @export
-ingest_job_contracts_basics_2020 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_basics_2020", config_data_path = "data_raw_dir") {
+ingest_employees_contract_basics_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_basics_2020", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
-    data_clean <- ingest_job_contracts_basics_helper(
+    data_clean <- ingest_employees_contract_basics_helper(
         config_key,
         ...,
         filename = filename,
@@ -1187,23 +1186,23 @@ ingest_job_contracts_basics_2020 <- function(..., filename = NULL, path = NULL, 
 #'
 #' @description
 #' Reads and processes basic job contract data specific to the year 2019.
-#' Uses the helper function ingest_job_contracts_basics_helper for processing.
+#' Uses the helper function ingest_employees_contract_basics_helper for processing.
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_basics_2019")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_basics_2019")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
 #' @return A tibble containing processed basic job contract data for 2019
 #'
-#' @seealso ingest_job_contracts_basics_helper
+#' @seealso ingest_employees_contract_basics_helper
 #'
 #' @export
-ingest_job_contracts_basics_2019 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_basics_2019", config_data_path = "data_raw_dir") {
+ingest_employees_contract_basics_2019 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_basics_2019", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
-    data_clean <- ingest_job_contracts_basics_helper(
+    data_clean <- ingest_employees_contract_basics_helper(
         config_key,
         ...,
         filename = filename,
@@ -1278,7 +1277,7 @@ ingest_job_components_extra_fte_helper <- function(config_key, ..., filename = N
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_extra_fte_2023")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_extra_fte_2023")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
@@ -1287,7 +1286,7 @@ ingest_job_components_extra_fte_helper <- function(config_key, ..., filename = N
 #' @seealso ingest_job_components_extra_fte_helper
 #'
 #' @export
-ingest_job_components_extra_fte_2023 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_extra_fte_2023", config_data_path = "data_raw_dir") {
+ingest_job_components_extra_fte_2023 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_extra_fte_2023", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_job_components_extra_fte_helper(
@@ -1308,7 +1307,7 @@ ingest_job_components_extra_fte_2023 <- function(..., filename = NULL, path = NU
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_extra_fte_2022")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_extra_fte_2022")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
@@ -1317,7 +1316,7 @@ ingest_job_components_extra_fte_2023 <- function(..., filename = NULL, path = NU
 #' @seealso ingest_job_components_extra_fte_helper
 #'
 #' @export
-ingest_job_components_extra_fte_2022 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_extra_fte_2022", config_data_path = "data_raw_dir") {
+ingest_job_components_extra_fte_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_extra_fte_2022", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_job_components_extra_fte_helper(
@@ -1338,7 +1337,7 @@ ingest_job_components_extra_fte_2022 <- function(..., filename = NULL, path = NU
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_extra_fte_2021")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_extra_fte_2021")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
@@ -1347,7 +1346,7 @@ ingest_job_components_extra_fte_2022 <- function(..., filename = NULL, path = NU
 #' @seealso ingest_job_components_extra_fte_helper
 #'
 #' @export
-ingest_job_components_extra_fte_2021 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_extra_fte_2021", config_data_path = "data_raw_dir") {
+ingest_job_components_extra_fte_2021 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_extra_fte_2021", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_job_components_extra_fte_helper(
@@ -1368,7 +1367,7 @@ ingest_job_components_extra_fte_2021 <- function(..., filename = NULL, path = NU
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_extra_fte_2020")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_extra_fte_2020")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
@@ -1377,7 +1376,7 @@ ingest_job_components_extra_fte_2021 <- function(..., filename = NULL, path = NU
 #' @seealso ingest_job_components_extra_fte_helper
 #'
 #' @export
-ingest_job_components_extra_fte_2020 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_extra_fte_2020", config_data_path = "data_raw_dir") {
+ingest_job_components_extra_fte_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_extra_fte_2020", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_job_components_extra_fte_helper(
@@ -1398,7 +1397,7 @@ ingest_job_components_extra_fte_2020 <- function(..., filename = NULL, path = NU
 #'
 #' @param filename Character string specifying the name of the CSV file to read
 #' @param path Character string specifying the path to the CSV file
-#' @param config_key Character string specifying the configuration key to use (default: "job_contracts_extra_fte_2019")
+#' @param config_key Character string specifying the configuration key to use (default: "employees_contract_extra_fte_2019")
 #' @param config_data_path Character string specifying the config path for raw data (default: "data_raw_dir")
 #' @param ... Additional arguments passed to readr::read_delim
 #'
@@ -1407,7 +1406,7 @@ ingest_job_components_extra_fte_2020 <- function(..., filename = NULL, path = NU
 #' @seealso ingest_job_components_extra_fte_helper
 #'
 #' @export
-ingest_job_components_extra_fte_2019 <- function(..., filename = NULL, path = NULL, config_key = "job_contracts_extra_fte_2019", config_data_path = "data_raw_dir") {
+ingest_job_components_extra_fte_2019 <- function(..., filename = NULL, path = NULL, config_key = "employees_contract_extra_fte_2019", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_job_components_extra_fte_helper(
@@ -1562,6 +1561,55 @@ ingest_students_prior_education <- function(..., filename = NULL, path = NULL, c
             paste0("DEELNEMER_vooropleiding_", rest_part)
             },
             !contains("_ID")
+        )
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+
+    # audit(data_clean, data_raw)
+    return(data_clean)
+}
+
+#' Ingest Team Retention Results
+#'
+#' @description
+#' Reads and processes team retention data, including first-year student counts and progression numbers
+#'
+#' @param filename Optional. A string specifying the filename to read.
+#' @param path Optional. A string specifying the path to the file.
+#' @param config_key Optional. A string specifying the configuration key (default: "team_results_retention_start").
+#' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
+#' @param ... Additional arguments passed to load_data().
+#'
+#' @returns
+#' A tibble containing cleaned team retention data with columns:
+#'   \itemize{
+#'     \item SCHOOLJAAR_naam: School year
+#'     \item TEAM_naam: Team name
+#'     \item TEAM_aantal_eerstejaars: Number of first-year students
+#'     \item TEAM_aantal_doorstroom: Number of continuing students
+#'   }
+#'
+#' @importFrom janitor clean_names
+#' @importFrom dplyr rename rename_with
+#'
+#' @export
+ingest_team_results_retention_start <- function(..., filename = NULL, path = NULL, config_key = "team_results_retention_start", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          delim = ",",
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names() |>
+        rename_with(~ paste0("TEAM_", .)) |>
+        rename(SCHOOLJAAR_naam = TEAM_teljaar,
+               TEAM_naam = TEAM_team,
+               TEAM_aantal_eerstejaars = TEAM_noemer_sr_1_jaars,
+               TEAM_aantal_doorstroom = TEAM_teller_sr_1_jaars
         )
 
     # keep the config with the data for later use

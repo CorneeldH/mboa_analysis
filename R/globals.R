@@ -93,7 +93,7 @@ utils::globalVariables(
         # "NAAM...6",
         # "NAAM...11",
 
-        # ingest_job_contracts
+        # ingest_employees_contract
         # "Naam afdeling",
         # "HR2D__GELDIG_VAN__C...8",
         # "HR2D__GELDIG_TOT__C...9",
@@ -127,7 +127,7 @@ utils::globalVariables(
         "type",
         "VERBINTENIS_advies_aanmaakdatum",
 
-        # transform_job_contracts_to_teacher_terms
+        # transform_employees_contract_to_teacher_terms
         # "CONTRACT_begin_datum_omschrijving",
         # "CONTRACT_eind_datum_omschrijving",
         # "CONTRACT_fte",
@@ -181,7 +181,7 @@ utils::globalVariables(
         "AFKORTING",
         "VERPLICHT",
 
-        # ingest_job_contracts_basics_helper
+        # ingest_employees_contract_basics_helper
         "FTE",
 
         # ingest_job_components_extra_fte_helper
@@ -200,7 +200,101 @@ utils::globalVariables(
         "BPV_status",
         "BPV_omvang",
         "BPV_verwachte_eind_datum",
-        "VERBINTENIS_bpv_status_begin_datum"
+        "VERBINTENIS_bpv_status_begin_datum",
+
+        # add_school_year
+        "MEDEWERKER_contract_fte_peildatum",
+
+        # summarise_employee_absence_to_weeks
+        "datum",
+        "MEDEWERKER_ID",
+        "MEDEWERKER_contract_kostenplaats_code",
+        "MEDEWERKER_verzuim_week_nummer",
+        "SCHOOLJAAR_naam",
+        "verzuim_percentage",
+        "MEDEWERKER_verzuim_totaal_week",
+
+        # calculate_application_duration
+        "VERBINTENIS_aanmelding_laatst_gewijzigd_datum",
+        "VERBINTENIS_aanmelding_begin_datum",
+
+        # convert_absence_types
+        "MEDEWERKER_percentage_verzuim",
+
+        # expand_to_daily
+        "datum",
+        "MEDEWERKER_ID",
+        "MEDEWERKER_contract_kostenplaats_code",
+        "SCHOOLJAAR_naam",
+        "verzuim_percentage",
+
+        # filter_cohorts
+        "COHORT_startjaar",
+
+        # split_absences_into_school_years
+        "SCHOOLJAAR_startdatum",
+        "SCHOOLJAAR_einddatum",
+        "SCHOOLJAAR_naam",
+
+        # summarise_components_to_employees
+        "MEDEWERKER_ID",
+        "MEDEWERKER_contract_kostenplaats_code",
+        "MEDEWERKER_contract_fte_peildatum",
+        "MEDEWERKER_contract_fte_aanpassing",
+
+        # transform_prior_education_to_student_year
+        "COHORT_startdatum",
+        "DEELNEMER_vooropleiding_einddatum",
+
+        # transform_prior_education_vo_and_highest_degree
+        "DEELNEMER_vooropleiding_hoogst_vo",
+        "DEELNEMER_vooropleiding_vooropleiding",
+        "DEELNEMER_vooropleiding_vooropleidings_categorie",
+        "DEELNEMER_vooropleiding_soort",
+        "DEELNEMER_vooropleiding_soort_naam",
+        "DEELNEMER_vooropleiding_soort_code",
+        "DEELNEMER_vooropleiding_begin_datum",
+        "DEELNEMER_vooropleiding_einddatum",
+        "DEELNEMER_vooropleiding_vo_begin_datum",
+        "DEELNEMER_vooropleiding_hoogst_gediplomeerde",
+        "DEELNEMER_vooropleiding_hoogste_diploma_begin_datum",
+
+        # transform_students_to_student_year
+        "peildatum",
+
+        # convert_absence_types
+        "MEDEWERKER_percentage_verzuim_omschrijving",
+
+        # parse_enrollment_level
+        "VERBINTENIS_niveau_omschrijving",
+
+        # pivot_weeks_to_years
+        "MEDEWERKER_verzuim_totaal",
+        "MEDEWERKER_verzuim_percentage",
+        "MEDEWERKER_verzuim_duur",
+
+        # summarise_employee_absence_to_weeks
+        "MEDEWERKER_verzuim_totaal",
+        "days_in_week",
+
+        # summarise_observations_to_weekly_attendance
+        "VERBINTENIS_verzuim_week_nummer",
+        "VERBINTENIS_waarneming_totale_duur",
+        "GROEP_groepcode",
+        "GROEP_organisatie_eenheid",
+        "GROEP_groepnaam",
+        "GROEP_type_omschrijving",
+        "GROEP_groepdeelname_begindatum",
+        "GROEP_groepdeelname_einddatum",
+
+        # transform_attendance_weekly_to_enrollments
+        "VERBINTENIS_groep_code",
+        "VERBINTENIS_groep_organisatie_eenheid",
+        "VERBINTENIS_groep_naam",
+        "VERBINTENIS_groep_type_omschrijving",
+        "VERBINTENIS_groepdeelname_begindatum",
+        "VERBINTENIS_groepdeelname_einddatum",
+        "VERBINTENIS_verzuim_week_nummer"
 
     )
 )

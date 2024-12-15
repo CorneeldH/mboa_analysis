@@ -27,7 +27,7 @@ ingest_enrollments_level(
 A tibble containing enrollment level data with columns:
 \itemize{
 \item VERBINTENIS_ID: Unique enrollment identifier
-\item VERBINTENIS_niveau: Enrollment level
+\item VERBINTENIS_niveau_omschrijving: Enrollment level description
 }
 }
 \description{

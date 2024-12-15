@@ -9,13 +9,13 @@ expand_to_daily(data)
 \arguments{
 \item{data}{A data frame containing employee absence records with columns:
 MEDEWERKER_ID, MEDEWERKER_eerste_verzuimdag, MEDEWERKER_laatste_verzuimdag,
-MEDEWERKER_percentage_verzuim, MEDEWERKER_kostenplaats_code, SCHOOLJAAR_naam}
+MEDEWERKER_percentage_verzuim, MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam}
 }
 \value{
 A data frame with daily absence records containing:
 \itemize{
 \item MEDEWERKER_ID: Employee identifier
-\item MEDEWERKER_kostenplaats_code: Cost center code
+\item MEDEWERKER_contract_kostenplaats_code: Cost center code
 \item datum: Date
 \item SCHOOLJAAR_naam: School year
 \item verzuim_percentage: Absence percentage (0-1)

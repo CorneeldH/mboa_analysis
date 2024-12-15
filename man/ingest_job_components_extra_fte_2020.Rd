@@ -8,7 +8,7 @@ ingest_job_components_extra_fte_2020(
   ...,
   filename = NULL,
   path = NULL,
-  config_key = "job_contracts_extra_fte_2020",
+  config_key = "employees_contract_extra_fte_2020",
   config_data_path = "data_raw_dir"
 )
 }
@@ -19,7 +19,7 @@ ingest_job_components_extra_fte_2020(
 
 \item{path}{Character string specifying the path to the CSV file}
 
-\item{config_key}{Character string specifying the configuration key to use (default: "job_contracts_extra_fte_2020")}
+\item{config_key}{Character string specifying the configuration key to use (default: "employees_contract_extra_fte_2020")}
 
 \item{config_data_path}{Character string specifying the config path for raw data (default: "data_raw_dir")}
 }

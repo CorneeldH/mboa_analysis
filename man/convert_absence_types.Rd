@@ -13,7 +13,7 @@ convert_absence_types(data)
 A data frame with converted column types:
 \itemize{
 \item MEDEWERKER_ID as character
-\item MEDEWERKER_kostenplaats_code as character
+\item MEDEWERKER_contract_kostenplaats_code as character
 \item MEDEWERKER_eerste_verzuimdag as Date
 \item MEDEWERKER_laatste_verzuimdag as Date
 \item MEDEWERKER_percentage_verzuim as numeric (proportion)
