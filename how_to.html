@@ -5,7 +5,7 @@
 <meta name="generator" content="quarto-1.5.57">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <meta name="author" content="Corneel den Hartogh">
-<meta name="dcterms.date" content="2024-12-12">
+<meta name="dcterms.date" content="2024-12-15">
 <title>How To</title>
 <style>
 code{white-space: pre-wrap;}
@@ -79,7 +79,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><a href="#project-setup" id="toc-project-setup" class="nav-link" data-scroll-target="#project-setup">0. Project Setup</a></li>
   <li><a href="#inladen-en-voorbereiden" id="toc-inladen-en-voorbereiden" class="nav-link" data-scroll-target="#inladen-en-voorbereiden">1. Inladen en voorbereiden</a></li>
   <li><a href="#combineren-van-alle-data" id="toc-combineren-van-alle-data" class="nav-link" data-scroll-target="#combineren-van-alle-data">2. Combineren van alle data</a></li>
-  <li><a href="#controleren" id="toc-controleren" class="nav-link" data-scroll-target="#controleren">4. Controleren</a></li>
+  <li><a href="#analyseren" id="toc-analyseren" class="nav-link" data-scroll-target="#analyseren">3. Analyseren</a></li>
+  <li><a href="#x.-test" id="toc-x.-test" class="nav-link" data-scroll-target="#x.-test">X. Test</a></li>
   </ul>
 </li>
   </ul></nav>
@@ -102,7 +103,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">December 12, 2024</p>
+      <p class="date">December 15, 2024</p>
     </div>
   </div>
   
@@ -138,12 +139,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html">Sys.setenv</a></span><span class="op">(</span>R_CONFIG_ACTIVE <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section></section><section id="inladen-en-voorbereiden" class="level3"><h3 class="anchored" data-anchor-id="inladen-en-voorbereiden">1. Inladen en voorbereiden</h3>
-<p>Voordat we met de analyse beginnen, importeren we de data en bereiden we deze (indien nodig) voor. De functies die je hieronder ziet zijn te vinden in R/ingest.R of R/prepare.R.</p>
-<section id="alles-gerelateerd-aan-verbintenissen-enrollments" class="level4"><h4 class="anchored" data-anchor-id="alles-gerelateerd-aan-verbintenissen-enrollments">1.1 Alles gerelateerd aan verbintenissen (enrollments)</h4>
+<p>Voordat we met de analyse beginnen, lade we eerst de data in. De functies hiervoor zijn te vinden in R/ingest.R.</p>
+<p>Naast het inladen van de data, wordt ook data geprepareerd. Soms is dit een afgeleide variabele maken, maar het kan ook zijn dat de data wordt omgezet naar een ander detailniveau (bijvoorbeeld van een tabel met per regel een status, naar een tabel met per regel een verbintenis en kolommen met info per status). Deze functies zijn de vinden in R/prepare.R.</p>
+<section id="alles-gerelateerd-aan-verbintenissen-enrollments-inladen-en-voorbereiden." class="level4"><h4 class="anchored" data-anchor-id="alles-gerelateerd-aan-verbintenissen-enrollments-inladen-en-voorbereiden.">1.1 Alles gerelateerd aan verbintenissen (enrollments) inladen en voorbereiden.</h4>
 <p>We laden eerst alle data in die al op verbintenis-niveau is. Een aantal tabellen zijn niet op verbintenis-niveau en bevatten ook geen verbintenis ID. Deze tabellen transformeren we naar student-jaar om het zo te kunnen koppelen aan verbintenis. Tenslotte zijn er nog een aantal mapping tables met extra informatie over een specifieke aspecten van een verbintenis.</p>
 <div class="cell">
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">enrollments_basics</span> <span class="op">&lt;-</span> <span class="fu">ingest_enrollments_basics</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="co"># TODO prepare derived variables regarding 'studiesucces'</span></span>
+<span>    <span class="co">#'*INFO* prepare derived variables regarding 'studiesucces' after combining data with programmes</span></span>
 <span>    <span class="fu">combine_enrollment_numbers_for_order</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">enrollments_level</span> <span class="op">&lt;-</span> <span class="fu">ingest_enrollments_level</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">enrollments_flex</span> <span class="op">&lt;-</span> <span class="fu">ingest_enrollments_flex</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -154,6 +156,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span>    <span class="fu">transform_advices_to_enrollments</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">enrollments_application</span> <span class="op">&lt;-</span> <span class="fu">ingest_enrollments_application</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">calculate_application_duration</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># BPV statusses transformed</span></span>
+<span><span class="va">bpv_registrations</span> <span class="op">&lt;-</span> <span class="fu">ingest_bpv_registrations</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">bpv_statusses</span> <span class="op">&lt;-</span> <span class="fu">ingest_bpv_statusses</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">enrollments_bpv</span> <span class="op">&lt;-</span> <span class="va">bpv_statusses</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">bpv_registrations</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">BPV_ID</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">convert_bpv_status_types</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">transform_bpv_statusses_to_enrollments</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">#' *INFO* An enrollment can be longer or shorter than one year</span></span>
 <span><span class="co"># TODO Make extra calculations regarding demographics</span></span>
@@ -167,125 +180,96 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span><span class="va">reasons_for_leaving</span> <span class="op">&lt;-</span> <span class="fu">ingest_reasons_for_leaving</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">distinct</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">cohorts</span> <span class="op">&lt;-</span> <span class="fu">ingest_cohorts</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">filter_cohorts</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#'*INFO* The following data is also linked to enrollments foremost, not programmes</span></span>
+<span>    <span class="fu">filter_cohorts</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">add_cohort_start_date</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co"># The following data is also linked to enrollments foremost, not programmes</span></span>
 <span><span class="va">teams</span> <span class="op">&lt;-</span> <span class="fu">ingest_teams</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">locations</span> <span class="op">&lt;-</span> <span class="fu">ingest_locations</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span><span class="va">locations</span> <span class="op">&lt;-</span> <span class="fu">ingest_locations</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Programmes</span></span>
+<span><span class="va">programmes_exam_plan</span> <span class="op">&lt;-</span> <span class="fu">ingest_exam_plans</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>    <span class="fu">summarise_plan_dates_to_programmes</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">programmes_basics</span> <span class="op">&lt;-</span> <span class="fu">ingest_programmes_basics</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">programme_bc_codes</span> <span class="op">&lt;-</span> <span class="fu">ingest_programme_bc_codes</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section><section id="alles-gerelateerd-aan-medewerkers-employees" class="level4"><h4 class="anchored" data-anchor-id="alles-gerelateerd-aan-medewerkers-employees">1.2 Alles gerelateerd aan medewerkers (employees)</h4>
-<p>We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met aanpassingen.</p>
-<div class="cell">
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">job_contracts</span> <span class="op">&lt;-</span> <span class="fu">bind_rows</span><span class="op">(</span></span>
-<span>    <span class="fu">ingest_job_contracts_basics_2023</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu">ingest_job_contracts_basics_2022</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu">ingest_job_contracts_basics_2021</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu">ingest_job_contracts_basics_2020</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    <span class="fu">ingest_job_contracts_basics_2019</span><span class="op">(</span><span class="op">)</span></span>
+<p>We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met aanpassingen. Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar wekelijkse verzuimpercentages en één tabel per schooljaar.</p>
+<div class="cell" data-freeze="true">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">employees_contract</span> <span class="op">&lt;-</span> <span class="fu">bind_rows</span><span class="op">(</span></span>
+<span>    <span class="fu">ingest_employees_contract_basics_2023</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu">ingest_employees_contract_basics_2022</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu">ingest_employees_contract_basics_2021</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu">ingest_employees_contract_basics_2020</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="fu">ingest_employees_contract_basics_2019</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">job_contracts_extra_fte</span> <span class="op">&lt;-</span> <span class="fu">bind_rows</span><span class="op">(</span></span>
+<span><span class="va">employees_contract_extra_fte</span> <span class="op">&lt;-</span> <span class="fu">bind_rows</span><span class="op">(</span></span>
 <span>    <span class="fu">ingest_job_components_extra_fte_2023</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    <span class="fu">ingest_job_components_extra_fte_2022</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    <span class="fu">ingest_job_components_extra_fte_2021</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    <span class="fu">ingest_job_components_extra_fte_2020</span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    <span class="fu">ingest_job_components_extra_fte_2019</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">summarise_components_to_contracts</span><span class="op">(</span><span class="op">)</span></span>
+<span>    <span class="fu">summarise_components_to_employees</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">job_contracts_enriched</span> <span class="op">&lt;-</span> <span class="va">job_contracts</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">job_contracts_extra_fte</span>,</span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">MEDEWERKER_ID</span>, </span>
-<span>                           <span class="va">MEDEWERKER_contract_kostenplaats_code</span>, </span>
-<span>                           <span class="va">MEDEWERKER_contract_fte_peildatum</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"one-to-one"</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">employee_absences</span> <span class="op">&lt;-</span> <span class="fu">ingest_employee_absences</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="co"># Within map to keep the transformations separate by years, this makes it less memory intensive</span></span>
+<span><span class="va">employees_absence_yearly</span> <span class="op">&lt;-</span> <span class="fu">ingest_employee_absences</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">distinct</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">convert_absence_types</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">split_into_school_years</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">split_absences_into_school_years</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">map</span><span class="op">(</span><span class="va">expand_to_daily</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">map</span><span class="op">(</span><span class="va">aggregate_to_weeks</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">map_dfr</span><span class="op">(</span><span class="va">bind_rows</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># aggregate_to_weeks()</span></span>
-<span><span class="co"># test_anti_join &lt;- anti_join(employee_absences, employee_absences2)</span></span>
-<span><span class="co"># </span></span>
-<span><span class="co"># employee_absences3 &lt;- employee_absences %&gt;% </span></span>
-<span><span class="co">#     arrange(MEDEWERKER_ID, </span></span>
-<span><span class="co">#             MEDEWERKER_kostenplaats_code,</span></span>
-<span><span class="co">#             datum,</span></span>
-<span><span class="co">#             SCHOOLJAAR_naam,</span></span>
-<span><span class="co">#             verzuim_percentage,</span></span>
-<span><span class="co">#             verzuim_duur)</span></span>
-<span><span class="co"># </span></span>
-<span><span class="co"># employee_absences4 &lt;- employee_absences2 %&gt;%</span></span>
-<span><span class="co">#     arrange(MEDEWERKER_ID, </span></span>
-<span><span class="co">#             MEDEWERKER_kostenplaats_code,</span></span>
-<span><span class="co">#             datum,</span></span>
-<span><span class="co">#             SCHOOLJAAR_naam,</span></span>
-<span><span class="co">#             verzuim_percentage,</span></span>
-<span><span class="co">#             verzuim_duur)</span></span>
-<span><span class="co"># </span></span>
-<span><span class="co"># identical(employee_absences3, employee_absences4)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span>    <span class="fu">map</span><span class="op">(</span><span class="va">summarise_employee_absence_to_years</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="co">#map(summarise_employee_absence_to_weeks) |&gt;</span></span>
+<span>    <span class="co">#map(pivot_weeks_to_years) |&gt;</span></span>
+<span>    <span class="fu">map_dfr</span><span class="op">(</span><span class="va">bind_rows</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section><section id="alles-gerelateerd-aan-programmas-en-bpv" class="level4"><h4 class="anchored" data-anchor-id="alles-gerelateerd-aan-programmas-en-bpv">1.3 Alles gerelateerd aan programma’s en bpv</h4>
+</section><section id="alles-gerelateerd-aan-officiële-rendementen" class="level4"><h4 class="anchored" data-anchor-id="alles-gerelateerd-aan-officiële-rendementen">1.3 Alles gerelateerd aan officiële rendementen</h4>
 <div class="cell">
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">programmes_exam_plan_info</span> <span class="op">&lt;-</span> <span class="fu">ingest_exam_plans</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
-<span>    <span class="fu">summarise_plan_dates_to_programmes</span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">programmes_basics</span> <span class="op">&lt;-</span> <span class="fu">ingest_programmes_basics</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">programme_bc_codes</span> <span class="op">&lt;-</span> <span class="fu">ingest_programme_bc_codes</span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span></span>
-<span><span class="va">programmes_enriched</span> <span class="op">&lt;-</span> <span class="va">programmes_basics</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">programme_bc_codes</span>, </span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">OPLEIDING_code</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"one-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">programmes_exam_plan_info</span>,</span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">OPLEIDING_ID</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"one-to-many"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">cohorts</span>,</span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">COHORT_ID</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span></span>
-<span></span>
-<span></span>
-<span><span class="va">bpv_registrations</span> <span class="op">&lt;-</span> <span class="fu">ingest_bpv_registrations</span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">bpv_statusses</span> <span class="op">&lt;-</span> <span class="fu">ingest_bpv_statusses</span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># TODO Hoe dit in regulier variabelen om te zetten?</span></span>
-<span><span class="va">bpv_statusses_enriched</span> <span class="op">&lt;-</span> <span class="va">bpv_statusses</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">bpv_registrations</span>,</span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">BPV_ID</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">team_results_retention_start</span> <span class="op">&lt;-</span> <span class="fu">ingest_team_results_retention_start</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section><section id="alles-gerelateerd-aan-groepen-en-absenties" class="level4"><h4 class="anchored" data-anchor-id="alles-gerelateerd-aan-groepen-en-absenties">1.4 Alles gerelateerd aan groepen en absenties</h4>
-<div class="cell">
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">attendance_observations</span> <span class="op">&lt;-</span> <span class="fu">ingest_attendance_observations</span><span class="op">(</span><span class="op">)</span></span>
+<div class="cell" data-freeze="true">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">attendance_observations</span> <span class="op">&lt;-</span> <span class="fu">ingest_attendance_observations</span><span class="op">(</span><span class="op">)</span> <span class="co">#|&gt;</span></span>
+<span>    <span class="co">#transform_observations_to_enrollments()</span></span>
+<span></span>
+<span><span class="co"># attendance_observations %&gt;% mutate(jaar = get_school_year(Datum)) %&gt;% tabyl(jaar)</span></span>
+<span><span class="co">#      jaar       n    percent</span></span>
+<span><span class="co"># 2021/2022 6146808 0.32698424</span></span>
+<span><span class="co"># 2022/2023 5592001 0.29747085</span></span>
+<span><span class="co"># 2023/2024 5303850 0.28214243</span></span>
+<span><span class="co"># 2024/2025 1755825 0.09340248</span></span>
+<span></span>
 <span><span class="va">enrollment_to_sk_mapping</span> <span class="op">&lt;-</span> <span class="fu">ingest_enrollment_to_sk_mapping</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">group_placements</span> <span class="op">&lt;-</span> <span class="fu">ingest_group_placements</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">group_participation_attendance</span> <span class="op">&lt;-</span> <span class="va">attendance_observations</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">transform_observations_to_enrollments</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">group_placements</span> <span class="op">&lt;-</span> <span class="fu">ingest_group_placements</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
 <span></span>
 <span><span class="va">group_placements_enriched</span> <span class="op">&lt;-</span> <span class="va">group_placements</span> <span class="op">|&gt;</span></span>
-<span>    <span class="co"># Enrollments absences only have SK_inschrijving that started over 2018, therefore this     # inner join removes half of rows</span></span>
+<span>    <span class="co"># Enrollments absences only have SK_inschrijving that started over 2018, therefore this</span></span>
+<span>    <span class="co"># inner join removes half of rows</span></span>
 <span>    <span class="fu">inner_join</span><span class="op">(</span><span class="va">enrollment_to_sk_mapping</span>,</span>
 <span>               by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">SK_inschrijving</span><span class="op">)</span>,</span>
 <span>               relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">group_participation_attendance_enriched</span> <span class="op">&lt;-</span> <span class="va">group_participation_attendance</span> <span class="op">|&gt;</span></span>
-<span>    <span class="co"># TODO I lose ~2400 enrollments</span></span>
-<span>    <span class="co"># maybe these are students from before 2018, mabye some are filtered in data     # warehouse or quiery</span></span>
+<span><span class="va">attendance_observations_enriched</span> <span class="op">&lt;-</span> <span class="va">attendance_observations</span> <span class="op">|&gt;</span></span>
+<span>    <span class="co"># I lose ~2400 enrollments</span></span>
+<span>    <span class="co"># maybe these are students from before 2018, mabye some are filtered in data warehouse </span></span>
 <span>    <span class="fu">inner_join</span><span class="op">(</span><span class="va">group_placements_enriched</span>,</span>
 <span>                by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">SK_GroepInschrijving</span> <span class="op">==</span> <span class="va">SK_groep_inschrijving</span><span class="op">)</span>,</span>
-<span>               relationship <span class="op">=</span> <span class="st">"one-to-one"</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span>               relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># TODO too big for rendering</span></span>
+<span><span class="co"># enrollments_attendance_weekly &lt;- attendance_observations_enriched |&gt;</span></span>
+<span><span class="co">#     summarise_observations_to_weekly_attendance() |&gt;</span></span>
+<span><span class="co">#     transform_attendance_weekly_to_enrollments()</span></span>
+<span></span>
+<span><span class="va">enrollments_attendance_yearly</span> <span class="op">&lt;-</span> <span class="va">attendance_observations_enriched</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">split_observations_in_school_years</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">map</span><span class="op">(</span><span class="va">summarise_observations_to_yearly_attendance</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">map_dfr</span><span class="op">(</span><span class="va">bind_rows</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section></section><section id="combineren-van-alle-data" class="level3"><h3 class="anchored" data-anchor-id="combineren-van-alle-data">2. Combineren van alle data</h3>
 <div class="cell">
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">enrollments_combined</span> <span class="op">&lt;-</span> <span class="va">enrollments_basics</span> <span class="op">|&gt;</span></span>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">enrollments_combined</span> <span class="op">&lt;-</span> <span class="va">enrollments_basics</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">enrollments_level</span>,</span>
 <span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">VERBINTENIS_ID</span><span class="op">)</span>,</span>
 <span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -302,40 +286,134 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">enrollments_application</span>,</span>
 <span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">VERBINTENIS_ID</span><span class="op">)</span>,</span>
 <span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">programmes_enriched</span>,</span>
-<span>              <span class="co">#'*INFO* extra cohort variables are added to ensure there are no duplicate </span></span>
-<span>              <span class="co"># column names</span></span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">OPLEIDING_ID</span>, <span class="va">COHORT_ID</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span><span class="co">#    left_join(cohorts, </span></span>
-<span><span class="co">#              by = join_by(COHORT_ID, COHORT_naam, COHORT_start_year), </span></span>
-<span><span class="co">#              relationship = "many-to-one") |&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">student_years_demographics</span>,</span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">DEELNEMER_ID</span>, <span class="va">COHORT_naam</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">student_years_prior_education</span>,</span>
-<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">DEELNEMER_ID</span>, <span class="va">COHORT_naam</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">teams</span>, </span>
 <span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">TEAM_ID</span><span class="op">)</span>, </span>
 <span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">locations</span>,</span>
 <span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">LOCATIE_ID</span><span class="op">)</span>,</span>
-<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</section><section id="controleren" class="level3"><h3 class="anchored" data-anchor-id="controleren">4. Controleren</h3>
-<div class="cell">
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># group_participation_count &lt;- group_participation %&gt;% count(GROEP_ID, GROEP_code)</span></span>
-<span><span class="co"># View(group_participation_count)</span></span>
-<span><span class="co"># group_participation_count %&gt;% distinct(GROEP_ID) %&gt;% nrow()</span></span>
-<span><span class="co"># # [1] 14931</span></span>
-<span><span class="co"># group_participation_count %&gt;% distinct(GROEP_code) %&gt;% nrow()</span></span>
-<span><span class="co"># [1] 14771</span></span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">reasons_for_leaving</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">REDEN_UITSCHRIJVING_ID</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">enrollments_bpv</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">VERBINTENIS_ID</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">programmes_basics</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">OPLEIDING_ID</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">programme_bc_codes</span>, </span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">OPLEIDING_code</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">programmes_exam_plan</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">OPLEIDING_ID</span>, <span class="va">COHORT_ID</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">cohorts</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">COHORT_ID</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">student_years_prior_education</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">DEELNEMER_ID</span>, <span class="va">COHORT_naam</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">student_years_demographics</span>,</span>
+<span>          by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">DEELNEMER_ID</span>, <span class="va">COHORT_naam</span><span class="op">)</span>,</span>
+<span>          relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co">## Groep code is (net) niet uniek</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span><span class="fu">save_combined</span><span class="op">(</span><span class="va">enrollments_combined</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># Ga ik per cohort of niet?</span></span>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">employees_contract_enriched</span> <span class="op">&lt;-</span> <span class="va">employees_contract</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">employees_contract_extra_fte</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">MEDEWERKER_ID</span>, </span>
+<span>                           <span class="va">MEDEWERKER_contract_kostenplaats_code</span>, </span>
+<span>                           <span class="va">MEDEWERKER_contract_fte_peildatum</span><span class="op">)</span>,</span>
+<span>              relationship <span class="op">=</span> <span class="st">"one-to-one"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">add_school_year</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">left_join</span><span class="op">(</span><span class="va">employees_absence_yearly</span>,</span>
+<span>              by <span class="op">=</span> <span class="fu">join_by</span><span class="op">(</span><span class="va">MEDEWERKER_ID</span>,</span>
+<span>                           <span class="va">SCHOOLJAAR_naam</span><span class="op">)</span>,</span>
+<span>              <span class="co"># This can many since there is no kostenplaats in the absence data</span></span>
+<span>              relationship <span class="op">=</span> <span class="st">"many-to-one"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">save_combined</span><span class="op">(</span><span class="va">employees_contract_enriched</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">enrollments_combined_enriched</span> <span class="op">&lt;-</span> <span class="va">enrollments_combined</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">calculate_exam_plan_to_start</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">calculate_application_to_start</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section><section id="analyseren" class="level3"><h3 class="anchored" data-anchor-id="analyseren">3. Analyseren</h3>
+<div class="cell">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/exists.html">exists</a></span><span class="op">(</span><span class="st">"enrollments_combined"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">enrollments_combined</span> <span class="op">&lt;-</span> <span class="fu">load_data</span><span class="op">(</span><span class="st">"enrollments_combined"</span>, config_data_path <span class="op">=</span> <span class="st">"data_combined_dir"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">test</span> <span class="op">&lt;-</span> <span class="va">enrollments_combined</span> <span class="op">%&gt;%</span> </span>
+<span>        <span class="fu">select</span><span class="op">(</span></span>
+<span>            <span class="fu">where</span><span class="op">(</span><span class="va">is.numeric</span><span class="op">)</span>,</span>
+<span>            <span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span></span>
+<span>                <span class="fu">contains</span><span class="op">(</span><span class="st">"ID"</span><span class="op">)</span>,</span>
+<span>                <span class="fu">contains</span><span class="op">(</span><span class="st">"datum"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">filter_single_value_vars</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">verbose</span> <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># Get columns to keep</span></span>
+<span>  <span class="va">cols_to_keep</span> <span class="op">&lt;-</span> <span class="va">data</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">summarise</span><span class="op">(</span><span class="fu">across</span><span class="op">(</span><span class="fu">everything</span><span class="op">(</span><span class="op">)</span>, <span class="op">~</span><span class="fu">n_distinct</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/na.fail.html">na.omit</a></span><span class="op">(</span><span class="va">.</span><span class="op">)</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">select</span><span class="op">(</span><span class="fu">where</span><span class="op">(</span><span class="op">~</span><span class="va">.</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  </span>
+<span>  <span class="co"># Get removed columns for verbose output</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">verbose</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">removed_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sets.html">setdiff</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span>, <span class="va">cols_to_keep</span><span class="op">)</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html">length</a></span><span class="op">(</span><span class="va">removed_cols</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/message.html">message</a></span><span class="op">(</span><span class="st">"Removing columns with single unique non-NA value: "</span>,</span>
+<span>              <span class="fu"><a href="https://rdrr.io/r/base/paste.html">paste</a></span><span class="op">(</span><span class="va">removed_cols</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>  <span class="op">}</span></span>
+<span>  </span>
+<span>  <span class="va">data_to_keep</span> <span class="op">&lt;-</span> <span class="va">data</span> <span class="op">%&gt;%</span></span>
+<span>      <span class="fu">select</span><span class="op">(</span><span class="fu">all_of</span><span class="op">(</span><span class="va">cols_to_keep</span><span class="op">)</span><span class="op">)</span></span>
+<span>  </span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html">return</a></span><span class="op">(</span><span class="va">data_to_keep</span><span class="op">)</span></span>
+<span>  </span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">test</span> <span class="op">&lt;-</span> <span class="va">enrollments_combined</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/stats/filter.html">filter</a></span><span class="op">(</span><span class="fu">month</span><span class="op">(</span><span class="va">VERBINTENIS_begindatum</span><span class="op">)</span> <span class="op">==</span> <span class="fl">8</span><span class="op">)</span> </span>
+<span></span>
+<span>           </span>
+<span><span class="va">test2</span> <span class="op">&lt;-</span> <span class="va">test</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">filter_single_value_vars</span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Removing columns with single unique non-NA value: VERBINTENIS_is_flex, VERBINTENIS_aanmelding_is_eerste_jaar, REDEN_actief, OPLEIDING_negeerlandelijkecriteria, OPLEIDING_negeerlandelijkeproductregels</code></pre>
+</div>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># test2 %&gt;%</span></span>
+<span><span class="co">#     select(VERBINTENIS_volgnummer, BPV_omvang, COHORT_startjaar, VERBINTENIS_aanmelding_dagen_in_proces) %&gt;%</span></span>
+<span><span class="co">#     correlate() %&gt;%</span></span>
+<span><span class="co">#     rearrange() %&gt;%</span></span>
+<span><span class="co">#     shave()</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="hr-en-onderwijs-koppelen" class="level4"><h4 class="anchored" data-anchor-id="hr-en-onderwijs-koppelen">2.1 HR en Onderwijs koppelen</h4>
+<div class="cell">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">test_enrollments_teams</span> <span class="op">&lt;-</span> <span class="va">enrollments_combined</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">group_by</span><span class="op">(</span><span class="va">TEAM_kostenplaats</span>,</span>
+<span>             <span class="va">TEAM_naam</span>,</span>
+<span>           <span class="va">TEAM_sk_kostenplaats_hr2day</span>,</span>
+<span>           <span class="va">TEAM_sk_kostenplaats</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">count</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">test_employees_contract_enriched</span> <span class="op">&lt;-</span> <span class="va">employees_contract_enriched</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">group_by</span><span class="op">(</span><span class="va">MEDEWERKER_contract_kostenplaats_code</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">count</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">test_overig</span> <span class="op">&lt;-</span> <span class="fu">anti_join</span><span class="op">(</span><span class="va">test_employees_contract_enriched</span>, <span class="va">test_enrollments_teams</span>, by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"MEDEWERKER_contract_kostenplaats_code"</span> <span class="op">=</span> <span class="st">"TEAM_kostenplaats"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">test_overig_omgekeerd</span> <span class="op">&lt;-</span> <span class="fu">anti_join</span><span class="op">(</span><span class="va">test_enrollments_teams</span>, <span class="va">test_employees_contract_enriched</span>, by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"TEAM_kostenplaats"</span> <span class="op">=</span> <span class="st">"MEDEWERKER_contract_kostenplaats_code"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">test_enrollments</span> <span class="op">&lt;-</span> <span class="va">enrollments_combined</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/stats/filter.html">filter</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html">is.na</a></span><span class="op">(</span><span class="va">TEAM_kostenplaats</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section></section><section id="x.-test" class="level3"><h3 class="anchored" data-anchor-id="x.-test">X. Test</h3>
+<div class="cell">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># Ga ik per cohort of niet?</span></span>
 <span><span class="co"># Zou aanmelding per verbintenis of verbintenisblad moeten zijn?</span></span>
 <span><span class="co"># sum(is.na(data$AANMELDING_begin_datum))</span></span>
 <span><span class="co"># [1] 18362</span></span>
@@ -346,8 +424,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span><span class="co"># [1] 12</span></span>
 <span></span>
 <span></span>
-<span><span class="co"># enrollments_nieuw_zonder_aanmeldingsdatum &lt;- enrollments_combined |&gt; </span></span>
-<span><span class="co">#     filter(is.na(AANMELDING_begin_datum)) |&gt;</span></span>
+<span><span class="co"># enrollments_nieuw_zonder_aanmeldingsdatum &lt;- enrollments_combined |&gt;</span></span>
+<span><span class="co">#     filter(is.na(VERBINTENIS_aanmelding_begin_datum)) |&gt;</span></span>
 <span><span class="co">#     count(VERBINTENIS_volgnummer, VERBINTENIS_bladnummer)</span></span>
 <span><span class="co"># ~300</span></span>
 <span></span>
@@ -360,7 +438,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span></span>
 <span><span class="co"># als we het per jaar doen, dan is medewerker-jaar-kostenplaats misschien genoeg? of hebben medewerkers meerdere functies?</span></span>
 <span><span class="co"># medewerkers ftes</span></span>
-<span><span class="co"># job_contracts |&gt; tabyl(CONTRACT_afwijking_kostenplaats) %&gt;% arrange(desc(n))</span></span>
+<span><span class="co"># employees_contract |&gt; tabyl(CONTRACT_afwijking_kostenplaats) %&gt;% arrange(desc(n))</span></span>
 <span></span>
 <span></span>
 <span><span class="co"># test &lt;- enrollments_combined |&gt;</span></span>
