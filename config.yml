@@ -7,6 +7,9 @@ default:
 
   data_raw_dir: "data/exports"
   data_ingested_dir: "data/ingested"
+  data_prepared_dir: "data/prepared"
+  data_transformed_dir: "data/transformed"
+  data_combined_dir: "data/combined"
   first_year: 2019
   last_year: 2023
 
@@ -99,47 +102,48 @@ default:
   #   name: "group_participation"
   #   filename: "Groepsdeelname.csv"
 
-  job_contracts_basics_2023:
-    name: "job_contracts_basics_2023"
+  employees_contract_basics_2023:
+    name: "employees_contract_basics_2023"
     filename: "Medewerkers MBOA 2023-10-01.csv"
 
-  job_contracts_basics_2022:
-    name: "job_contracts_basics_2022"
+  employees_contract_basics_2022:
+    name: "employees_contract_basics_2022"
     filename: "Medewerkers MBOA 2022-10-01.csv"
 
-  job_contracts_basics_2021:
-    name: "job_contracts_basics_2021"
+  employees_contract_basics_2021:
+    name: "employees_contract_basics_2021"
     filename: "Medewerkers MBOA 2021-10-01.csv"
 
-  job_contracts_basics_2020:
-    name: "job_contracts_basics_2020"
+  employees_contract_basics_2020:
+    name: "employees_contract_basics_2020"
     filename: "Medewerkers MBOA 2020-10-01.csv"
 
-  job_contracts_basics_2019:
-    name: "job_contracts_basics_2019"
+  employees_contract_basics_2019:
+    name: "employees_contract_basics_2019"
     filename: "Medewerkers MBOA 2019-10-01.csv"
 
-  job_contracts_extra_fte_2023:
-    name: "job_contracts_extra_fte_2023"
+  employees_contract_extra_fte_2023:
+    name: "employees_contract_extra_fte_2023"
     filename: "Aanvulling FTE uit Looncomponent 2023-10-01 .csv"
 
-  job_contracts_extra_fte_2022:
-    name: "job_contracts_extra_fte_2022"
+  employees_contract_extra_fte_2022:
+    name: "employees_contract_extra_fte_2022"
     filename: "Aanvulling FTE uit Looncomponent 2022-10-01 .csv"
 
-  job_contracts_extra_fte_2021:
-    name: "job_contracts_extra_fte_2021"
+  employees_contract_extra_fte_2021:
+    name: "employees_contract_extra_fte_2021"
     filename: "Aanvulling FTE uit Looncomponent 2021-10-01 .csv"
 
-  job_contracts_extra_fte_2020:
-    name: "job_contracts_extra_fte_2020"
+  employees_contract_extra_fte_2020:
+    name: "employees_contract_extra_fte_2020"
     filename: "Aanvulling FTE uit Looncomponent 2020-10-01 .csv"
 
-  job_contracts_extra_fte_2019:
-    name: "job_contracts_extra_fte_2019"
+  employees_contract_extra_fte_2019:
+    name: "employees_contract_extra_fte_2019"
     filename: "Aanvulling FTE uit Looncomponent 2019-10-01 .csv"
 
 # TODO
+
   employee_absences:
     name: "employee_absences"
     filename: "Verzuim medewerkers.csv"
@@ -147,6 +151,10 @@ default:
   students_prior_education:
     name: "students_prior_education"
     filename: "Vooropleiding studenten.csv"
+
+  team_results_retention_start:
+    name: "team_results_retention_start"
+    filename: "startersresultaat_per_jaar_per_team.csv"
 
 # TODO
 # vooropleiding prepare, meerdere rijen per deelnemer
