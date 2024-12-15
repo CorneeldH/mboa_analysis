@@ -58,7 +58,8 @@ packages_cran <- c(
     #"fst",            # Perform operations with large data files
     "dplyr",          # Utilise the dplyr environment
     "vvmover",
-    "vvconverter"
+    "vvconverter",
+    "corrr"           # Correlation matrix
 )
 
 # Include both the package name (for loading) and the account name (for renv snapshot)
