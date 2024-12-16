@@ -1,0 +1,159 @@
+---
+editor: source
+---
+
+```{r}
+#| include: false
+#| freeze: false
+#| cache: false
+source("utils/manage_packages.R")
+load_all()
+
+```
+
+
+# Inladen en voorbereiden
+
+Voordat we met de analyse beginnen, lade we eerst de data in. De functies hiervoor zijn te vinden in R/ingest.R.
+
+Naast het inladen van de data, wordt ook data geprepareerd. Soms is dit een afgeleide variabele maken, maar het kan ook zijn dat de data wordt omgezet naar een ander detailniveau (bijvoorbeeld van een tabel met per regel een status, naar een tabel met per regel een verbintenis en kolommen met info per status). Deze functies zijn de vinden in R/prepare.R.
+
+## Alles gerelateerd aan verbintenissen (enrollments) inladen en voorbereiden.
+
+We laden eerst alle data in die al op verbintenis-niveau is. Een aantal tabellen zijn niet op verbintenis-niveau en bevatten ook geen verbintenis ID. Deze tabellen transformeren we naar student-jaar om het zo te kunnen koppelen aan verbintenis. Tenslotte zijn er nog een aantal mapping tables met extra informatie over een specifieke aspecten van een verbintenis.
+
+```{r}
+
+enrollments_basics <- ingest_enrollments_basics() |>
+    #'*INFO* prepare derived variables regarding 'studiesucces' after combining data with programmes
+    combine_enrollment_numbers_for_order()
+enrollments_level <- ingest_enrollments_level() |>
+    parse_enrollment_level()
+enrollments_flex <- ingest_enrollments_flex() |>
+    create_flex_boolean()
+enrollments_special_needs <- ingest_enrollments_special_needs() |>
+    summarise_special_needs()
+enrollments_study_advices <- ingest_study_advices() |>
+    transform_advices_to_enrollments()
+enrollments_application <- ingest_enrollments_application() |>
+    calculate_application_duration()
+
+# BPV statusses transformed
+bpv_registrations <- ingest_bpv_registrations()
+bpv_statusses <- ingest_bpv_statusses()
+
+enrollments_bpv <- bpv_statusses |>
+    left_join(bpv_registrations,
+              by = join_by(BPV_ID),
+              relationship = "many-to-one") |>
+    convert_bpv_status_types() |>
+    transform_bpv_statusses_to_enrollments() 
+
+#' *INFO* An enrollment can be longer or shorter than one year
+# TODO Make extra calculations regarding demographics
+student_years_demographics <- ingest_students_demographics() |>
+    transform_students_to_student_year()
+student_years_prior_education <- ingest_students_prior_education() |>
+    transform_prior_education_to_student_year() |>
+    transform_prior_education_vo_and_highest_degree()
+
+# Additional mapping tables
+reasons_for_leaving <- ingest_reasons_for_leaving() 
+cohorts <- ingest_cohorts() |>
+    filter_cohorts() |>
+    add_cohort_start_date()
+
+# The following data is also linked to enrollments foremost, not programmes
+teams <- ingest_teams()
+locations <- ingest_locations()
+
+# Programmes
+programmes_exam_plan <- ingest_exam_plans() |> 
+    summarise_plan_dates_to_programmes()
+programmes_basics <- ingest_programmes_basics()
+programme_bc_codes <- ingest_programme_bc_codes()
+
+```
+
+## Alles gerelateerd aan medewerkers (employees)
+
+We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met aanpassingen. Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar wekelijkse verzuimpercentages en één tabel per schooljaar.
+
+```{r}
+#| freeze: true
+
+employees_contract <- bind_rows(
+    ingest_employees_contract_basics_2023(),
+    ingest_employees_contract_basics_2022(),
+    ingest_employees_contract_basics_2021(),
+    ingest_employees_contract_basics_2020(),
+    ingest_employees_contract_basics_2019()
+)
+
+employees_contract_extra_fte <- bind_rows(
+    ingest_job_components_extra_fte_2023(),
+    ingest_job_components_extra_fte_2022(),
+    ingest_job_components_extra_fte_2021(),
+    ingest_job_components_extra_fte_2020(),
+    ingest_job_components_extra_fte_2019()
+) |>
+    summarise_components_to_employees()
+
+# Within map to keep the transformations separate by years, this makes it less memory intensive
+employees_absence_yearly <- ingest_employee_absences() |>
+    # TODO
+    distinct() |>
+    convert_absence_types() |>
+    # TODO interne functies maken
+    split_absences_into_school_years() |>
+    map(expand_to_daily) |>
+    map(summarise_employee_absence_to_years) |>
+    #map(summarise_employee_absence_to_weeks) |>
+    #map(pivot_weeks_to_years) |>
+    # TODO
+    map_dfr(bind_rows)
+
+```
+
+## Alles gerelateerd aan groepen en absenties
+
+```{r}
+#| freeze: true
+#| cache: false
+
+attendance_observations <- ingest_attendance_observations() 
+
+enrollment_to_sk_mapping <- ingest_enrollment_to_sk_mapping()
+group_placements <- ingest_group_placements()
+
+group_placements_enriched <- group_placements |>
+    # Enrollments absences only have SK_inschrijving that started over 2018, therefore this
+    # inner join removes half of rows
+    inner_join(enrollment_to_sk_mapping,
+               by = join_by(SK_inschrijving),
+               relationship = "many-to-one")
+
+attendance_observations_enriched <- attendance_observations |>
+    # I lose ~2400 enrollments
+    # maybe these are students from before 2018, mabye some are filtered in data warehouse 
+    inner_join(group_placements_enriched,
+                by = join_by(SK_GroepInschrijving == SK_groep_inschrijving),
+               relationship = "many-to-one")
+
+enrollments_attendance_yearly <- attendance_observations_enriched |>
+    summarise_observations_to_yearly_attendance()
+
+
+```
+
+## Alles gerelateerd aan officiële rendementen
+
+```{r}
+
+teams_results_retention_start <- ingest_teams_results_retention_start() |>
+    format_school_year_name() |>
+    parse_result_pct()
+
+
+```
+

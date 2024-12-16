@@ -1,0 +1,30 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "How TO - MBOA Correlaties op teamniveau"
+  author: "Corneel den Hartogh"
+  page-navigation: true
+  chapters:
+    - index.qmd
+    - 00_project_setup.qmd
+    - 01_ingest.qmd
+
+# Custom chapter numbering
+number-sections: true
+
+format:
+  html:
+    theme: cosmo
+    code-fold: true
+    code-summary: "Laat code zien"
+
+editor: source
+execute:
+  cache: true
+  freeze: auto
+  include: true
+  setup-global:
+    code: |
+      devtools::load_all()

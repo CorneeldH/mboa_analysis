@@ -1,0 +1,54 @@
+---
+format: html
+editor: source
+date: last-modified
+toc: true
+---
+
+# 0. Project set-up {-}
+
+## 0.1. Opzetten renv
+
+R maakt gebruik van packages om extra functionaliteit te bieden. Renv houdt bij welke packages er zijn geinstalleerd en welke versie. Dit zorgt ervoor dat de analyses in de toekomst reproduceerbaar zijn.
+
+De eerste keer dat je het proejct opent, moet je renv initialiseren met de volgende code. Voor meer informatie over renv, zie de [documentatie](https://rstudio.github.io/renv/articles/renv.html).
+
+```{r}
+#| cache: false
+#| output: false
+
+if (!requireNamespace("renv")) {
+  install.packages("renv")
+  renv::init()
+} 
+
+```
+
+## 0.2. Zet je R omgeving klaar
+
+Zodra renv werkt kunnen we de packages installeren en inladen. De eerste keer duurt het inladen even, omdat de packages nog geinstalleerd moeten worden. De volgende keren hoeven de packages alleen nog maar ingeladen te worden. Dat gaat erg snel.
+
+Naast de packages, laden we ook all functies in die we in dit project gemaakt hebben. Deze functies kun je vinden in de map /R.
+
+```{r}
+#| cache: false
+#| output: false
+
+source("utils/manage_packages.R")
+load_all()
+
+```
+
+## 0.3. Configureer je data verbindingen en settings
+
+Om de scripts voor elke instelling te laten draaien, gebruiken we het config-pakket om specifieke instellingen te bepalen. Het enige wat je hoeft te doen is het [**config.yml**](config.yml) bestand in de hoofdmap aanpassen. Je ziet de 'default' en instellingen. Je kunt je eigen onderwijsinstelling toevoegen.
+
+Je hoeft alleen configuraties toe te voegen die anders zijn dan de standaardinstellingen. Het neemt andere instellingen over. Werk de actieve configuratie bij met je nieuwe configuratie (of voer de code uit met de standaard, de, default instellingen). Voor meer informatie over config, zie hun [documentatie](https://rstudio.github.io/config/).
+
+```{r}
+#| cache: false
+
+# TODO Change default in own config if needed
+Sys.setenv(R_CONFIG_ACTIVE = "default")
+
+```

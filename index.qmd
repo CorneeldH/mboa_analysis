@@ -1,0 +1,9 @@
+---
+format: html
+---
+
+# Introductie {.unnumbered}
+
+Deze gids laat zien hoe stap voor stap de exports uit het data warehouse worden bewerkt in R tot een correlatioe onderzoek op teamniveau. Het begint met uitleg van de project setup in R, daarna wordt de data ingelezen en geprepareerd. Vervolgens combineren we de data tot een zogenoemde data asset, die klaar is voor analyse.
+
+Tenslotte kunnen we de data op teamniveau correleren en zo enkele grafieken maken.
