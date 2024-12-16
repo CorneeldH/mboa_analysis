@@ -1,0 +1,169 @@
+
+default:
+  proj_name: "MBOA Analysis - Cefero"
+  copyright_holder: "Cefero"
+  proj_web_page: "www.cefero.nl"
+  proj_email: "corneel@cefero.nl"
+
+  data_raw_dir: "data/exports"
+  data_ingested_dir: "data/ingested"
+  data_prepared_dir: "data/prepared"
+  data_transformed_dir: "data/transformed"
+  data_combined_dir: "data/combined"
+  first_year: 2019
+  last_year: 2023
+
+  # The following settings are general settings that determine which data sources are use
+
+  # Data grelated to enrollments (verbintenis / inschrijving)
+  enrollments_basics:
+    name: "enrollments_basics"
+    filename: "Verbintenis zonder AVG.csv"
+
+  enrollments_level:
+    name: "enrollments_level"
+    filename: "VerbintenisNiveau.csv"
+
+  enrollments_flex:
+    name: "flex"
+    filename: "IsFlex.csv"
+
+  cohorts:
+    name: "cohorts"
+    filename: "Cohort zonder AVG.csv"
+
+  reasons_for_leaving:
+    name: "reasons_for_leaving"
+    filename: "Reden uitschrijvingen.csv"
+
+  study_advices:
+    name: "study_advices"
+    filename: "Studieadvies.csv"
+
+  enrollments_application:
+    name: "enrollments_application"
+    filename: "s_edu_aanmelding (zonder AVG).csv"
+
+  students_demographics:
+    name: "students_demographics"
+    filename: "Demografie.csv"
+
+  enrollments_special_needs:
+    name: "enrollments_special_needs"
+    filename: "Passend onderwijs.csv"
+
+  enrollments_ibp:
+    name: "enrollments_ibp"
+    filename: "Studenten met IBP.csv"
+
+  bpv_registrations:
+    name: "bpv_registrations"
+    filename: "BPV Inschrijving.csv"
+
+  bpv_statusses:
+    name: "bpv_statusses"
+    filename: "BPV Statusovergangen.csv"
+
+  teams:
+    name: "teams"
+    filename: "Intern.OrganisatieEenheidMBOA.csv"
+
+  locations:
+    name: "locations"
+    filename: "s_edu_locatie.csv"
+
+  attendance_observations:
+    name: "attendance_observations"
+    filename: "Waarnemingen.csv"
+
+  enrollment_to_sk_mapping:
+    name: "enrollment_to_sk_mapping"
+    filename: "Koppeltabel SK_Ins - Verbintenis.csv"
+
+  group_placements:
+    name: "group_placements"
+    filename: "Groepsinschrijving (dwh).csv"
+
+# Data related to programmes (opleidingen)
+
+  programmes_basics:
+    name: "programmes_basics"
+    filename: "s_edu_Opleiding (zonder AVG kolommen).csv"
+
+  programme_bc_codes:
+    name: "programme_bc_codes"
+    filename: "Opleiding met bc-code.csv"
+
+  exam_plans:
+    name: "exam_plans"
+    filename: "Examenplan.csv"
+
+  # group_participation:
+  #   name: "group_participation"
+  #   filename: "Groepsdeelname.csv"
+
+  employees_contract_basics_2023:
+    name: "employees_contract_basics_2023"
+    filename: "Medewerkers MBOA 2023-10-01.csv"
+
+  employees_contract_basics_2022:
+    name: "employees_contract_basics_2022"
+    filename: "Medewerkers MBOA 2022-10-01.csv"
+
+  employees_contract_basics_2021:
+    name: "employees_contract_basics_2021"
+    filename: "Medewerkers MBOA 2021-10-01.csv"
+
+  employees_contract_basics_2020:
+    name: "employees_contract_basics_2020"
+    filename: "Medewerkers MBOA 2020-10-01.csv"
+
+  employees_contract_basics_2019:
+    name: "employees_contract_basics_2019"
+    filename: "Medewerkers MBOA 2019-10-01.csv"
+
+  employees_contract_extra_fte_2023:
+    name: "employees_contract_extra_fte_2023"
+    filename: "Aanvulling FTE uit Looncomponent 2023-10-01 .csv"
+
+  employees_contract_extra_fte_2022:
+    name: "employees_contract_extra_fte_2022"
+    filename: "Aanvulling FTE uit Looncomponent 2022-10-01 .csv"
+
+  employees_contract_extra_fte_2021:
+    name: "employees_contract_extra_fte_2021"
+    filename: "Aanvulling FTE uit Looncomponent 2021-10-01 .csv"
+
+  employees_contract_extra_fte_2020:
+    name: "employees_contract_extra_fte_2020"
+    filename: "Aanvulling FTE uit Looncomponent 2020-10-01 .csv"
+
+  employees_contract_extra_fte_2019:
+    name: "employees_contract_extra_fte_2019"
+    filename: "Aanvulling FTE uit Looncomponent 2019-10-01 .csv"
+
+# TODO
+
+  employee_absences:
+    name: "employee_absences"
+    filename: "Verzuim medewerkers.csv"
+
+  students_prior_education:
+    name: "students_prior_education"
+    filename: "Vooropleiding studenten.csv"
+
+  teams_results_retention_start:
+    name: "teams_results_retention_start"
+    filename: "startersresultaat_per_jaar_per_team.csv"
+
+# TODO
+# vooropleiding prepare, meerdere rijen per deelnemer
+# bpv prepare, welke variabelen hiervan maken?
+# koppelen kostenplaats, wat is dat aggregatieniveau (Erik weet het)
+
+# job
+# mto
+# resultaat
+
+
+
