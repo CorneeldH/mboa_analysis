@@ -35,6 +35,7 @@ ingest_cohorts <- function(..., filename = NULL, path = NULL, config_key = "coho
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -101,6 +102,7 @@ ingest_teams <- function(..., filename = NULL, path = NULL, config_key = "teams"
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -143,6 +145,7 @@ ingest_enrollments_flex <- function(..., filename = NULL, path = NULL, config_ke
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -204,6 +207,7 @@ ingest_programmes_basics <- function(..., filename = NULL, path = NULL, config_k
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -244,6 +248,7 @@ ingest_enrollments_level <- function(..., filename = NULL, path = NULL, config_k
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -301,6 +306,7 @@ ingest_enrollments_basics <- function(..., filename = NULL, path = NULL, config_
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -348,6 +354,7 @@ ingest_enrollments_application <- function(..., filename = NULL, path = NULL, co
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -408,6 +415,7 @@ ingest_attendance_observations <- function(..., filename = NULL, path = NULL, co
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -431,6 +439,7 @@ ingest_enrollment_to_sk_mapping <- function(..., filename = NULL, path = NULL, c
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # add check if there is config enrollments_application
     # audit(data_clean, data_raw)
@@ -497,7 +506,7 @@ ingest_enrollment_to_sk_mapping <- function(..., filename = NULL, path = NULL, c
 #         )
 #
 #     # keep the config with the data for later use
-#     comment(data_clean) <- config_key
+#     comment(data_clean) <- config_key     save_ingested(data_clean)     save_ingested(data_clean)
 #
 #     # audit(data_clean, data_raw)
 #     return(data_clean)
@@ -543,6 +552,7 @@ ingest_group_placements <- function(..., filename = NULL, path = NULL, config_ke
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
 
     # audit(data_clean, data_raw)
@@ -592,6 +602,7 @@ ingest_reasons_for_leaving <- function(..., filename = NULL, path = NULL, config
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -655,6 +666,7 @@ ingest_employee_absences <- function(..., filename = NULL, path = NULL, config_k
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -710,6 +722,7 @@ ingest_study_advices <- function(..., filename = NULL, path = NULL, config_key =
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -761,6 +774,7 @@ ingest_programme_bc_codes <- function(..., filename = NULL, path = NULL, config_
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -814,6 +828,7 @@ ingest_students_demographics <- function(..., filename = NULL, path = NULL, conf
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -858,6 +873,7 @@ ingest_enrollments_special_needs <- function(..., filename = NULL, path = NULL, 
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -909,7 +925,7 @@ ingest_enrollments_special_needs <- function(..., filename = NULL, path = NULL, 
 #         )
 #
 #     # keep the config with the data for later use
-#     comment(data_clean) <- config_key
+#     comment(data_clean) <- config_key     save_ingested(data_clean)
 #
 #     # audit(data_clean, data_raw)
 #     return(data_clean)
@@ -958,6 +974,7 @@ ingest_bpv_registrations <- function(..., filename = NULL, path = NULL, config_k
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -1005,6 +1022,7 @@ ingest_bpv_statusses <- function(..., filename = NULL, path = NULL, config_key =
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -1056,6 +1074,7 @@ ingest_employees_contract_basics_helper <- function(config_key,..., filename = N
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -1264,6 +1283,7 @@ ingest_job_components_extra_fte_helper <- function(config_key, ..., filename = N
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -1456,6 +1476,7 @@ ingest_locations <- function(..., filename = NULL, path = NULL, config_key = "lo
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -1509,6 +1530,7 @@ ingest_exam_plans <- function(..., filename = NULL, path = NULL, config_key = "e
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -1565,6 +1587,7 @@ ingest_students_prior_education <- function(..., filename = NULL, path = NULL, c
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
@@ -1577,7 +1600,7 @@ ingest_students_prior_education <- function(..., filename = NULL, path = NULL, c
 #'
 #' @param filename Optional. A string specifying the filename to read.
 #' @param path Optional. A string specifying the path to the file.
-#' @param config_key Optional. A string specifying the configuration key (default: "team_results_retention_start").
+#' @param config_key Optional. A string specifying the configuration key (default: "teams_results_retention_start").
 #' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
 #' @param ... Additional arguments passed to load_data().
 #'
@@ -1594,7 +1617,7 @@ ingest_students_prior_education <- function(..., filename = NULL, path = NULL, c
 #' @importFrom dplyr rename rename_with
 #'
 #' @export
-ingest_team_results_retention_start <- function(..., filename = NULL, path = NULL, config_key = "team_results_retention_start", config_data_path = "data_raw_dir") {
+ingest_teams_results_retention_start <- function(..., filename = NULL, path = NULL, config_key = "teams_results_retention_start", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_raw <- load_data(config_key,
@@ -1606,14 +1629,16 @@ ingest_team_results_retention_start <- function(..., filename = NULL, path = NUL
     data_clean <- data_raw |>
         clean_names() |>
         rename_with(~ paste0("TEAM_", .)) |>
-        rename(SCHOOLJAAR_naam = TEAM_teljaar,
+        rename(SCHOOLJAAR_naam_met_streep = TEAM_teljaar,
                TEAM_naam = TEAM_team,
                TEAM_aantal_eerstejaars = TEAM_noemer_sr_1_jaars,
-               TEAM_aantal_doorstroom = TEAM_teller_sr_1_jaars
+               TEAM_aantal_doorstroom = TEAM_teller_sr_1_jaars,
+               TEAM_startersresultaat_1_jaars_omschrijving = TEAM_startersresultaat_1_jaars
         )
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
+    save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
     return(data_clean)
