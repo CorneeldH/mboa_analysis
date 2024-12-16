@@ -152,8 +152,8 @@ default:
     name: "students_prior_education"
     filename: "Vooropleiding studenten.csv"
 
-  team_results_retention_start:
-    name: "team_results_retention_start"
+  teams_results_retention_start:
+    name: "teams_results_retention_start"
     filename: "startersresultaat_per_jaar_per_team.csv"
 
 # TODO
