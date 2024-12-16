@@ -1,12 +1,13 @@
 ---
 title: "How To"
+number: false
 author: "Corneel den Hartogh"
 date: last-modified
 toc: true
 format: 
   html:
     code-link: true
-editor: visual
+editor: source
 execute:
   cache: true
   freeze: auto
@@ -125,6 +126,8 @@ programmes_exam_plan <- ingest_exam_plans() |>
 programmes_basics <- ingest_programmes_basics()
 programme_bc_codes <- ingest_programme_bc_codes()
 
+clear_script_objects()
+
 ```
 
 #### 1.2 Alles gerelateerd aan medewerkers (employees)
@@ -168,7 +171,7 @@ employees_absence_yearly <- ingest_employee_absences() |>
 
 ```{r}
 
-team_results_retention_start <- ingest_team_results_retention_start()
+teams_results_retention_start <- ingest_teams_results_retention_start()
 
 ```
 
@@ -220,8 +223,10 @@ enrollments_attendance_yearly <- attendance_observations_enriched |>
 
 ```{r}
 
-
-
+teams_results_retention_start_prepared <- teams_results_retention_start |>
+    mutate(SCHOOLJAAR_naam = str_replace(SCHOOLJAAR_naam, " - ", "/"),
+           TEAM_startersresultaat_1_jaars = parse_number(TEAM_startersresultaat_1_jaars) * 100
+           )
 
 ```
 
@@ -311,6 +316,8 @@ enrollments_combined_enriched <- enrollments_combined |>
     calculate_bpv_status_to_start() |>
     calculate_bpv_status_to_specific_dates()
 
+save_combined(enrollments_combined_enriched)
+
 ```
 
 ### 3. Aggregeren naar team
@@ -346,6 +353,7 @@ teams_enrollments <- enrollments_combined_enriched %>%
     # Deze variabele bevat enkel TRUE, de opgevuld variant zet NA op FALSE en levert daardoor wel meerdere waardes
     select(-VERBINTENIS_aanmelding_is_eerste_jaar)
         
+save_combined(teams_enrollments)
 
 ```
 
@@ -367,21 +375,19 @@ teams_employees <- employees_contract_enriched |>
         .groups = "drop"
     )
 
+save_combined(teams_employees)
+
 ```
 
 ```{r}
 
-teams_results_retention_start <- teams_results_retention_start |>
-    mutate(SCHOOLJAAR_naam = str_replace(SCHOOLJAAR_naam, " - ", "/"),
-           # TODO parse numbers
-           #EAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars * 100
-           )
+
 
 teams_combined <- teams_enrollments |>
     left_join(teams_employees,
               by = c("TEAM_kostenplaats" = "MEDEWERKER_contract_kostenplaats_code", "COHORT_naam" = "SCHOOLJAAR_naam"),
               relationship = "one-to-one") |>
-    left_join(teams_results_retention_start,
+    left_join(teams_results_retention_start_prepared,
               by = c("TEAM_naam", "COHORT_naam" = "SCHOOLJAAR_naam"),
               relationship = "one-to-one")
 
@@ -392,124 +398,65 @@ save_combined(teams_combined)
 ### 4. Analyseren
 
 ```{r}
-
 teams_correlation <- teams_combined %>%
     select(where(is.numeric)) %>%
     correlate() %>%
     rearrange() %>%
-    select(term, TEAM_startersresultaat_1_jaars, everything()) %>%
-    arrange(term != "TEAM_startersresultaat_1_jaars") %>%
-    shave()
+    mutate(term = term %>% 
+           str_remove("VERBINTENIS_") %>%
+           str_remove("TEAM_") %>%
+           str_replace_all("_", " "))
 
-teams_correlation %>% rplot()
-
-# test2 %>%
-#     select(VERBINTENIS_volgnummer, BPV_omvang, COHORT_startjaar, VERBINTENIS_aanmelding_dagen_in_proces) %>%
-#     correlate() %>%
-#     rearrange() %>%
-#     shave()
-    
-
-
-    
+names(teams_correlation) <- names(teams_correlation) %>% 
+    str_remove("VERBINTENIS_") %>%
+    str_remove("TEAM_") %>%
+    str_replace_all("_", " ")
 ```
 
 ```{r}
-teams_correlation <- teams_combined %>%
-  select(where(is.numeric)) %>%
-  correlate() %>%
-  # Focus only on TEAM_startersresultaat_1_jaars correlations
-  select(term, TEAM_startersresultaat_1_jaars) %>%
-  # Remove the self-correlation row
-  filter(term != "TEAM_startersresultaat_1_jaars") %>%
-      filter(TEAM_startersresultaat_1_jaars <= -0.2 | TEAM_startersresultaat_1_jaars >= 0.2) %>%
-  # Arrange by correlation value from highest to lowest
-  arrange(desc(TEAM_startersresultaat_1_jaars)) %>%
-    filter(term = "MEDEWERKER_verzuim_kort") %>%
-  mutate(
-    term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
-    term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
-    term = factor(term, levels = term)       # Keep the ordering
-  )
-
-
-# For plotting
-teams_correlation %>%
-  rplot() #+  # Use sort=FALSE to maintain our manual sorting
-  #coord_flip() +  # Flip coordinates to show variables on y-axis
-  #theme(axis.text.y = element_text(size = 8))  # Adjust text size if needed
-
-``
-```{r}
-
-ggplot(teams_correlation, 
-       aes(x = "Startersresultaat 1 jaar", 
-           y = term, 
-           color = TEAM_startersresultaat_1_jaars)) +
-  geom_point(size = 10) +  # Bigger dots
-  geom_text(aes(label = sprintf("%.2f", TEAM_startersresultaat_1_jaars)), 
-            hjust = -0.5, 
-            size = 3) +
-  scale_color_gradient2(
-    low = "red",
-    mid = "white",
-    high = "blue",
-    limits = c(-0.5, 0.5),
-    midpoint = 0
-  ) +
-  theme_minimal() +
+teams_correlation %>% 
+    select(term, matches("aanmelding|startersresultaat")) %>%
+    filter(str_detect(term, "aanmelding|startersresultaat")) %>%
+    rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
   theme(
-    axis.text.y = element_text(size = 8),
-    axis.title = element_blank()
+    # Rotate x-axis labels for better readability
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    # Adjust margin to prevent label cutoff
+    plot.margin = unit(c(1, 1, 4, 1), "lines")
   )
-
 ```
 
 ```{r}
-
-teams_correlation <- teams_combined %>%
-  select(where(is.numeric)) %>%
-  correlate() %>%
-  select(term, TEAM_startersresultaat_1_jaars) %>%
-  filter(term != "TEAM_startersresultaat_1_jaars") 
-
-
-teams_correlation_plot <- teams_correlation %>%
-  filter(TEAM_startersresultaat_1_jaars <= -0.2 | TEAM_startersresultaat_1_jaars >= 0.2) %>%
-  arrange(TEAM_startersresultaat_1_jaars) %>% # Changed to descending order (0.50 at top)
-  # Make term a factor with levels in the order we want
-  mutate(term = factor(term, levels = term))
-
-ggplot(teams_correlation_plot, 
-       aes(x = "Startersresultaat 1 jaar", 
-           y = term, 
-           color = TEAM_startersresultaat_1_jaars)) +
-  geom_point(size = 10) +
-  geom_text(aes(label = sprintf("%.2f", TEAM_startersresultaat_1_jaars)), 
-            hjust = -0.5, 
-            nudge_x = 0.1,    # Moved text further right
-            size = 3,
-            color = "black") +
-  scale_color_gradient2(
-    low = "#ef6c6d",     # Lighter red (Light Salmon)
-    mid = "white",
-    #high = "#87CEEB",    # Sky blue
-    high = "#78c3ff",
-    limits = c(-0.8, 0.8),
-    midpoint = 0
-  ) +
-  theme_minimal() +
+teams_correlation %>% 
+    select(term, matches("BPV|startersresultaat")) %>%
+    filter(str_detect(term, "BPV|startersresultaat")) %>%
+    rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
   theme(
-    axis.text.y = element_text(size = 8),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    legend.position = "none"  # Removed the legend
+    # Rotate x-axis labels for better readability
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    # Adjust margin to prevent label cutoff
+    plot.margin = unit(c(1, 1, 4, 1), "lines")
+  )
+```
+
+```{r}
+teams_correlation %>% 
+    select(term, contains("startersresultaat"), matches("waarneming")) %>%
+    arrange(term != `startersresultaat 1 jaars`) %>%
+    filter(str_detect(term, "waarneming|startersresultaat")) %>%
+    mutate(term = factor(term, levels = term)) %>%
+    rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
+  theme(
+    # Rotate x-axis labels for better readability
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    # Adjust margin to prevent label cutoff
+    plot.margin = unit(c(1, 1, 4, 1), "lines")
   )
 ```
 
 ```{r}
 
-teams_correlation <- teams_combined %>%
+teams_correlation_select <- teams_combined %>%
   select(where(is.numeric)) %>%
   correlate() %>%
   select(term, TEAM_startersresultaat_1_jaars) %>%
@@ -526,7 +473,7 @@ teams_correlation <- teams_combined %>%
   )
 
 
-ggplot(teams_correlation, 
+ggplot(teams_correlation_select, 
        aes(y = term)) +
   geom_segment(aes(
     x = 0,
@@ -544,9 +491,9 @@ ggplot(teams_correlation,
   size = 3,
   color = "black") +
   scale_color_gradient2(
-    low = "#FFA07A",
+    low = "indianred2",
     mid = "white",
-    high = "#87CEEB",
+    high = "skyblue1",
     limits = c(-0.5, 0.5),
     midpoint = 0
   ) +
@@ -562,7 +509,6 @@ ggplot(teams_correlation,
     ggtitle("Hoge correlatie met Startersresultaat 1 jaar")
 
 ```
-
 
 #### 2.1 HR en Onderwijs koppelen
 
