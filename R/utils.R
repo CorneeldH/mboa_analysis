@@ -233,3 +233,122 @@ save_combined <- function(data, ..., filename = NULL, path = NULL, config_data_p
             version = 3,
             ...)
 }
+
+
+#' Save Ingested Data
+#'
+#' @description
+#' Save processed data as an RDS file in a specified directory
+#'
+#' @param data A data object to save.
+#' @param filename Optional. Name of the file to save. If NULL, uses the comment attribute of data.
+#' @param path Optional. Path where to save the file.
+#' @param config_data_path Optional. Config key for the save directory. Defaults to "data_ingested_dir".
+#' @param ... Additional arguments passed to saveRDS().
+#'
+#' @returns
+#' No return value. Saves the data as an RDS file.
+#'
+#' @importFrom config get
+#'
+#' @keywords internal
+save_ingested <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_ingested_dir") {
+
+    ## Set the object name to the file name if not given
+    if (is.null(filename)) {
+        filename <- comment(data)
+    }
+
+    if (!requireNamespace("config", quietly = TRUE)) {
+        stop("The 'config' package is not available. Either define the filename directly or install the package.")
+    }
+
+    path <- config::get(config_data_path)
+
+    if (!dir.exists(path)) {
+        dir.create(path, recursive = TRUE)
+    }
+
+    file_full_path <- file.path(path, filename)
+
+    saveRDS(data,
+            paste0(file_full_path,".rds"),
+            version = 3,
+            ...)
+}
+
+save_prepared <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_prepared_dir") {
+
+    ## Set the object name to the file name if not given
+    if (is.null(filename)) {
+        filename <- comment(data)
+        #filename <- deparse(substitute(data))
+    }
+
+    if (!requireNamespace("config", quietly = TRUE)) {
+        stop("The 'config' package is not available. Either define the filename directly or install the package.")
+    }
+
+    path <- config::get(config_data_path)
+
+    if (!dir.exists(path)) {
+        dir.create(path, recursive = TRUE)
+    }
+
+    file_full_path <- file.path(path, filename)
+
+    saveRDS(data,
+            paste0(file_full_path,".rds"),
+            version = 3,
+            ...)
+
+}
+
+save_prepared_and_return <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_prepared_dir") {
+
+    save_prepared(data, ..., filename, path, config_data_path)
+
+
+    return(data)
+}
+
+save_transformed_helper <- function(data, filename = NULL, ..., path = NULL, config_data_path = "data_transformed_dir") {
+
+    ## Set the object name to the file name if not given
+    if (is.null(filename)) {
+        filename <- deparse(substitute(data))
+    }
+
+    if (!requireNamespace("config", quietly = TRUE)) {
+        stop("The 'config' package is not available. Either define the filename directly or install the package.")
+    }
+
+    path <- config::get(config_data_path)
+
+    if (!dir.exists(path)) {
+        dir.create(path, recursive = TRUE)
+    }
+
+    file_full_path <- file.path(path, filename)
+
+    saveRDS(data,
+            paste0(file_full_path,".rds"),
+            version = 3,
+            ...)
+}
+
+save_transformed <- function(data, ..., filename = NULL, add_comment = TRUE) {
+
+    if (is.null(filename)) {
+        filename <- deparse(substitute(data))
+    }
+
+    if (add_comment == TRUE) {
+        comment(data) <- paste0(comment(data),
+                                filename,
+                                collapse = ", ")
+    }
+
+    save_transformed_helper(data, filename)
+
+}
