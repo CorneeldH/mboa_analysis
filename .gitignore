@@ -51,3 +51,5 @@ rsconnect/
 
 # data files
 data_exports/*
+
+/.quarto/
