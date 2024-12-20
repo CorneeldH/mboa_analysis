@@ -574,7 +574,7 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
     }
 
     # Combine reference dates with prior education data
-    student_years_prior_education <- students_prior_education |>
+    student_years_prior_education_expanded <- students_prior_education |>
         cross_join(datums_start) |>
         filter(
             !is.na(DEELNEMER_vooropleiding_einddatum),
@@ -585,9 +585,9 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
         # Keep only the most recent end date
         ungroup()
 
-    save_transformed(student_years_prior_education)
+    save_transformed(student_years_prior_education_expanded)
 
-    return(student_years_prior_education)
+    return(student_years_prior_education_expanded)
 }
 
 
@@ -597,7 +597,7 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
 #' Processes student educational history data to extract information about prior
 #' secondary education (VO) and highest obtained degree.
 #'
-#' @param student_years_prior_education A data frame containing student educational history with columns:
+#' @param student_years_prior_education_expanded A data frame containing student educational history with columns:
 #'   \itemize{
 #'     \item DEELNEMER_ID: Student identifier
 #'     \item DEELNEMER_vooropleiding_hoogst_vo: Indicator for highest secondary education
@@ -615,9 +615,9 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
 #' @importFrom dplyr filter select group_by ungroup slice_max slice_tail full_join summarise case_when join_by
 #'
 #' @export
-transform_prior_education_vo_and_highest_degree <- function(student_years_prior_education) {
+transform_prior_education_vo_and_highest_degree <- function(student_years_prior_education_expanded) {
     # First get the records for highest VO
-    vo_records <- student_years_prior_education |>
+    vo_records <- student_years_prior_education_expanded |>
         filter(DEELNEMER_vooropleiding_hoogst_vo == 1) |>
         select(
             DEELNEMER_ID,
@@ -636,7 +636,7 @@ transform_prior_education_vo_and_highest_degree <- function(student_years_prior_
         ungroup()
 
     # Then get the records for highest gediplomeerde
-    gediplomeerde_records <- student_years_prior_education |>
+    gediplomeerde_records <- student_years_prior_education_expanded |>
         filter(DEELNEMER_vooropleiding_hoogst_gediplomeerde == 1) |>
         select(
             DEELNEMER_ID,
@@ -654,7 +654,7 @@ transform_prior_education_vo_and_highest_degree <- function(student_years_prior_
         slice_tail(n = 1) |>
         ungroup()
 
-    start_kwalificatie <- student_years_prior_education |>
+    start_kwalificatie <- student_years_prior_education_expanded |>
         group_by(DEELNEMER_ID, COHORT_naam) |>
         summarise(
             start_kwalificatie = case_when(
@@ -666,11 +666,13 @@ transform_prior_education_vo_and_highest_degree <- function(student_years_prior_
         ungroup()
 
     # Join the two datasets
-    student_years_prior_education_summarised <- start_kwalificatie |>
+    student_years_prior_education <- start_kwalificatie |>
         full_join(vo_records, by = join_by(DEELNEMER_ID, COHORT_naam)) |>
         full_join(gediplomeerde_records, by = join_by(DEELNEMER_ID, COHORT_naam))
 
-    return(student_years_prior_education_summarised)
+    save_transformed(student_years_prior_education)
+
+    return(student_years_prior_education)
 }
 
 
