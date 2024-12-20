@@ -1,0 +1,232 @@
+---
+title: "Samenvoegen"
+---
+
+```{r}
+#| include: false
+#| freeze: false
+#| cache: false
+source("utils/manage_packages.R")
+
+
+
+```
+
+Hier voegen we alle data samen in enkele bestanden.
+
+De left_join_load() zorgt ervoor dat de aanvullende data niet in het geheugen wordt bewaard, maar steeds binnen de functie wordt toegevoegd en daarna wordt vergeten. Ook zoekt deze de data standaard in de in de config aangegeven data_prepared_dir. 
+
+Door steeds het oorspronkelijke data-bestand als uitgangspunt te nemen (left-join) en de relatie (relationship) te specificeren met (..-one) verzekeren we ons ervan dat er geen rijen worden toegevoegd. 
+
+
+## Verbintenissen
+
+Hier voegen we al ingeladen en geprepareerde dat op gebied van verbintenissen samen. Zo gaan we van 19 variabelen naar 86 variabelen. 
+
+```{r}
+
+full_filename <- file.path(config::get("data_prepared_dir"), "enrollments_basics.rds")
+
+enrollments_basics <- readRDS(full_filename)
+
+enrollments_basic_joins <- enrollments_basics |>
+    left_join_load("enrollments_level",
+              by = join_by(VERBINTENIS_ID),
+              relationship = "one-to-one") |>
+    left_join_load("enrollments_flex",
+              by = join_by(VERBINTENIS_ID),
+              relationship = "one-to-one") |>
+    left_join_load("enrollments_special_needs",
+              by = join_by(VERBINTENIS_ID),
+              relationship = "one-to-one") |>
+    # TODO For now not used since data is incomplete
+    # left_join_load(enrollments_ibp,
+    #           by = join_by(VERBINTENIS_ID),
+    #           relationship = "many-to-one") |>
+    left_join_load("enrollments_application",
+              by = join_by(VERBINTENIS_ID),
+              relationship = "one-to-one") |>
+    left_join_load("enrollments_bpv",
+              by = join_by(VERBINTENIS_ID),
+              relationship = "one-to-one")
+
+save_combined(enrollments_basic_joins)
+rm(enrollments_basics)
+
+```
+
+
+```{r}
+
+enrollments_extra_id_joins <- enrollments_basic_joins |>
+    left_join_load("teams", 
+              by = join_by(TEAM_ID), 
+              relationship = "many-to-one",
+              .config_data_path = "data_ingested_dir") |>
+    left_join_load("locations",
+              by = join_by(LOCATIE_ID),
+              relationship = "many-to-one",
+              .config_data_path = "data_ingested_dir") |>
+    left_join_load("reasons_for_leaving",
+              by = join_by(REDEN_UITSCHRIJVING_ID),
+              relationship = "many-to-one",
+              .config_data_path = "data_ingested_dir") |>
+    left_join_load("programmes_basics",
+              by = join_by(OPLEIDING_ID),
+              relationship = "many-to-one",
+              .config_data_path = "data_ingested_dir") |>
+    left_join_load("programme_bc_codes", 
+              by = join_by(OPLEIDING_code),
+              relationship = "many-to-one",
+              .config_data_path = "data_ingested_dir")
+    
+save_combined(enrollments_extra_id_joins)
+rm(enrollments_basic_joins)
+
+```
+
+
+
+```{r}
+
+enrollments_combined  <- enrollments_extra_id_joins |>
+    left_join_load("programmes_exam_plan",
+              by = join_by(OPLEIDING_ID, COHORT_ID),
+              relationship = "many-to-one") |>
+    left_join_load("cohorts",
+              by = join_by(COHORT_ID),
+              relationship = "many-to-one") |>
+    left_join_load("student_years_prior_education",
+              by = join_by(DEELNEMER_ID, COHORT_naam),
+              relationship = "many-to-one") |>
+    left_join_load("student_years_demographics",
+          by = join_by(DEELNEMER_ID, COHORT_naam),
+          relationship = "many-to-one") |>
+    left_join_load("enrollment_years_attendance",
+              by = c("VERBINTENIS_ID", "COHORT_naam" = "SCHOOLJAAR_naam"),
+              relationship = "one-to-one")
+
+save_combined(enrollments_combined)
+glimpse(enrollments_combined)
+rm(enrollments_extra_id_joins)
+
+```
+
+
+```{r}
+
+full_filename <- file.path(config::get("data_prepared_dir"), "employees_contract.rds")
+
+employees_contract <- readRDS(full_filename)
+
+employees_combined <- employees_contract |>
+    left_join_load("employees_contract_extra_fte",
+              by = join_by(MEDEWERKER_ID, 
+                           MEDEWERKER_contract_kostenplaats_code, 
+                           MEDEWERKER_contract_fte_peildatum),
+              relationship = "one-to-one") |>
+    # TODO
+    add_school_year() |>
+    left_join_load("employees_absence",
+              by = join_by(MEDEWERKER_ID,
+                           SCHOOLJAAR_naam),
+              # This can many since there is no kostenplaats in the absence data
+              relationship = "many-to-one")
+
+save_combined(employees_combined)
+rm(employees_contract)
+
+```
+
+
+
+
+```{r}
+
+enrollments_combined_enriched <- enrollments_combined |>
+    calculate_exam_plan_to_start() |>
+    calculate_application_to_start() |>
+    calculate_bpv_status_to_start() |>
+    calculate_bpv_status_to_specific_dates()
+
+save_combined(enrollments_combined_enriched)
+
+```
+
+
+```{r}
+
+teams_enrollments <- enrollments_combined_enriched %>%
+    filter(month(VERBINTENIS_begindatum) == 8,
+           VERBINTENIS_intensiteit == "Voltijd",
+           COHORT_startjaar >= 2019,
+           COHORT_startjaar <= 2023) %>%
+    mutate(
+        VERBINTENIS_is_passend_onderwijs_gevuld = if_else(is.na(VERBINTENIS_passend_onderwijs_kenmerk), 
+                                                           FALSE, 
+                                                           TRUE),
+        # Als een boolean niet TRUE is, dan is deze FALSE
+        across(contains("_is_"), ~if_else(is.na(.), FALSE, .), .names = "{.col}_opgevuld")
+    ) %>%
+    group_by(TEAM_naam, TEAM_kostenplaats, TEAM_naam_afk, TEAM_school, TEAM_school_afk, COHORT_naam, COHORT_startjaar) %>%
+    summarise(
+        TEAM_studenten_aantal = n(),
+        across(contains("dagen"), ~mean(., na.rm = TRUE)),
+        #across(contains("_opgevuld"), ~mean(., na.rm = TRUE)),
+        across(contains("waarneming"), ~mean(., na.rm = TRUE)),
+        across(contains("_is_"), ~mean(., na.rm = TRUE)),
+        BPV_omvang = mean(BPV_omvang, na.rm = TRUE),
+        #VERBINTENIS_aanmelding_dagen_in_proces = mean(VERBINTENIS_aanmelding_dagen_in_proces, na.rm = TRUE),
+        #VERBINTENIS_is_flex_gevuld = sum(VERBINTENIS_is_flex, na.rm = TRUE),
+        #VERBINTENIS_aanmelding_begin_dagen_tot_start = mean(VERBINTENIS_aanmelding_begin_dagen_tot_start, na.rm = TRUE),  
+        .groups = "drop"
+    ) |>
+    # Deze variabele bevat enkel TRUE, de opgevuld variant zet NA op FALSE en levert daardoor wel meerdere waardes
+    select(-VERBINTENIS_aanmelding_is_eerste_jaar)
+        
+save_combined(teams_enrollments)
+
+```
+
+
+```{r}
+
+teams_employees <- employees_combined |>
+    mutate(
+        # TODO moet eerder bij aanmaken verzuim en samenvoegen contracten
+        across(contains("verzuim"), ~if_else(is.na(.), 0, .)),
+        MEDEWERKER_contract_fte_totaal = MEDEWERKER_contract_fte + MEDEWERKER_contract_fte_aanpassing
+    ) |>
+    filter(MEDEWERKER_contract_kostenplaats_code %in% teams_enrollments$TEAM_kostenplaats) |>
+    group_by(MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam) |>
+    summarise(
+        MEDEWERKER_contract_fte = sum(MEDEWERKER_contract_fte, na.rm = TRUE),
+        MEDEWERKER_contract_fte_aanpassing = sum(MEDEWERKER_contract_fte_aanpassing, na.rm = TRUE),
+        MEDEWERKER_contract_fte_totaal = sum(MEDEWERKER_contract_fte_totaal, na.rm = TRUE),
+        across(contains("verzuim"), ~mean(., na.rm = TRUE)),
+        .groups = "drop"
+    )
+
+save_combined(teams_employees)
+
+```
+
+
+```{r}
+
+teams_results_full_filename <- file.path(config::get("data_prepared_dir"), "teams_results_retention_start.rds")
+
+teams_results_retention_start <- readRDS(teams_results_full_filename)
+
+teams_combined <- teams_enrollments |>
+    left_join(teams_employees,
+              by = c("TEAM_kostenplaats" = "MEDEWERKER_contract_kostenplaats_code", "COHORT_naam" = "SCHOOLJAAR_naam"),
+              relationship = "one-to-one") |>
+    left_join(teams_results_retention_start,
+              by = c("TEAM_naam", "COHORT_naam" = "SCHOOLJAAR_naam"),
+              relationship = "one-to-one")
+
+save_combined(teams_combined)
+
+```
+
