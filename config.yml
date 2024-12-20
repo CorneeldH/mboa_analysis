@@ -8,7 +8,7 @@ default:
   data_raw_dir: "data/exports"
   data_ingested_dir: "data/ingested"
   data_prepared_dir: "data/prepared"
-  data_transformed_dir: "data/transformed"
+  #data_transformed_dir: "data/transformed"
   data_combined_dir: "data/combined"
   first_year: 2019
   last_year: 2023
