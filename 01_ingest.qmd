@@ -7,10 +7,8 @@ editor: source
 #| freeze: false
 #| cache: false
 source("utils/manage_packages.R")
-load_all()
 
 ```
-
 
 # Inladen en voorbereiden
 
@@ -80,7 +78,6 @@ programme_bc_codes <- ingest_programme_bc_codes()
 We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met aanpassingen. Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar wekelijkse verzuimpercentages en één tabel per schooljaar.
 
 ```{r}
-#| freeze: true
 
 employees_contract <- bind_rows(
     ingest_employees_contract_basics_2023(),
@@ -88,7 +85,8 @@ employees_contract <- bind_rows(
     ingest_employees_contract_basics_2021(),
     ingest_employees_contract_basics_2020(),
     ingest_employees_contract_basics_2019()
-)
+) |> 
+    save_prepared(filename = "employees_contract")
 
 employees_contract_extra_fte <- bind_rows(
     ingest_job_components_extra_fte_2023(),
@@ -100,7 +98,7 @@ employees_contract_extra_fte <- bind_rows(
     summarise_components_to_employees()
 
 # Within map to keep the transformations separate by years, this makes it less memory intensive
-employees_absence_yearly <- ingest_employee_absences() |>
+employees_absence <- ingest_employee_absences() |>
     # TODO
     distinct() |>
     convert_absence_types() |>
@@ -111,7 +109,8 @@ employees_absence_yearly <- ingest_employee_absences() |>
     #map(summarise_employee_absence_to_weeks) |>
     #map(pivot_weeks_to_years) |>
     # TODO
-    map_dfr(bind_rows)
+    map_dfr(bind_rows) |>
+    save_prepared(filename = "employees_absence")
 
 ```
 
@@ -140,9 +139,12 @@ attendance_observations_enriched <- attendance_observations |>
                 by = join_by(SK_GroepInschrijving == SK_groep_inschrijving),
                relationship = "many-to-one")
 
-enrollments_attendance_yearly <- attendance_observations_enriched |>
+rm(attendance_observations)
+
+enrollment_years_attendance <- attendance_observations_enriched |>
     summarise_observations_to_yearly_attendance()
 
+# suppressWarnings(clear_script_objects())
 
 ```
 
@@ -154,6 +156,6 @@ teams_results_retention_start <- ingest_teams_results_retention_start() |>
     format_school_year_name() |>
     parse_result_pct()
 
+test 
 
 ```
-
