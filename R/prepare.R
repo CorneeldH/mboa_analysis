@@ -428,6 +428,27 @@ calculate_bpv_status_to_start <- function(data) {
 
 }
 
+#' Calculate BPV Status Against Specific Dates
+#'
+#' @description
+#' Calculate whether BPV (professional practice) statuses were achieved before key dates
+#'
+#' @param data A data frame containing BPV status dates and cohort information.
+#'   Must include columns COHORT_startjaar, BPV_status_definitief_datum, and
+#'   BPV_status_volledig_datum.
+#'
+#' @returns
+#' A data frame with additional columns:
+#'   \itemize{
+#'     \item datum_definitief: October 1st of start year
+#'     \item BPV_is_definitief_voor_1_okt: Logical indicating if definitive status was before Oct 1
+#'     \item datum_volledig: January 1st of year after start
+#'     \item BPV_is_volledig_voor_1_jan: Logical indicating if complete status was before Jan 1
+#'   }
+#'
+#' @importFrom dplyr mutate
+#'
+#' @export
 calculate_bpv_status_to_specific_dates <- function(data) {
 
     data_prepared <- data |>
@@ -444,3 +465,4 @@ calculate_bpv_status_to_specific_dates <- function(data) {
     return(data_prepared)
 
 }
+
