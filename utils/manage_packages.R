@@ -38,6 +38,7 @@ packages_cran <- c(
     "quarto",
 
 
+    "ggplot2" ,       # Create plots
     "LaF",            # Read data files without encoding (like ASCII)
     "dataReporter",   # Create a data audit report
     "rlang",          # Enable complex operations
@@ -112,6 +113,8 @@ suppressMessages(purrr::walk(packages, ~library(.x,
                                                 character.only = TRUE,
                                                 warn.conflicts = warn_conflicts)))
 
+# Load all functions from this package
+load_all()
 
 ## +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## WRITE-AND-CLEAR ####
