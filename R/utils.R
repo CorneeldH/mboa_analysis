@@ -312,7 +312,7 @@ save_prepared_and_return <- function(data, ..., filename = NULL, path = NULL, co
     return(data)
 }
 
-save_transformed_helper <- function(data, filename = NULL, ..., path = NULL, config_data_path = "data_transformed_dir") {
+save_transformed_helper <- function(data, filename = NULL, ..., path = NULL, config_data_path = "data_prepared_dir") {
 
     ## Set the object name to the file name if not given
     if (is.null(filename)) {
@@ -352,3 +352,38 @@ save_transformed <- function(data, ..., filename = NULL, add_comment = TRUE) {
     save_transformed_helper(data, filename)
 
 }
+
+left_join_load <- function(data_main, data_to_join_name, ..., .path = NULL, .config_data_path = "data_prepared_dir") {
+
+    if (is.null(data_main)) {
+        stop("The main data object is NULL")
+    }
+
+    if (is.null(.path)) {
+
+        if (!requireNamespace("config", quietly = TRUE)) {
+            stop("The 'config' package is not available. Either define the filename directly or install the package.")
+        }
+
+        path <- config::get(.config_data_path)
+
+    } else {
+        path <- .path
+    }
+
+    filename <- paste0(data_to_join_name, ".rds")
+    file_full_path <- file.path(path, filename)
+
+    if (!file.exists(file_full_path)) {
+        stop(sprintf("File not found: %s", file_full_path))
+    }
+
+    # Load the data from the prepared folder
+    data_to_join <- readRDS(file_full_path)
+
+    # Perform the left join
+    data_main_joined <- left_join(data_main, data_to_join, ...)
+
+    return(data_main_joined)
+}
+
