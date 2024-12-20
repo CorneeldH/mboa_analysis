@@ -10,6 +10,8 @@ book:
     - index.qmd
     - 00_project_setup.qmd
     - 01_ingest.qmd
+    - 02_combine.qmd
+    - 03_analyse.qmd
 
 # Custom chapter numbering
 number-sections: true
