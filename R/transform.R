@@ -256,22 +256,14 @@ summarise_observations_to_weekly_attendance <- function(attendance_observations)
             # Binary indicators for Te laat and Uitgestuurd
             VERBINTENIS_waarneming_is_laat = as.integer(any(Presentietekst == "Te laat")),
             VERBINTENIS_waarneming_is_uitgestuurd = as.integer(any(Presentietekst == "Uitgestuurd")),
-            # Calculate total duration excluding Te laat, Kort verzuim, and Uitgestuurd
-            VERBINTENIS_waarneming_totale_duur = sum(Waarnemingsduur[!Presentietekst %in%
-                                                                         c("Te laat", "Kort verzuim", "Uitgestuurd")]),
-            # TODO: "Te laat", "Kort verzuim", "Uitgestuurd" are enclosed in total sum, but
-            # maybe they shouldn't be? It was around 0.7 %
-            # Calculate total duration excluding Te laat, Kort verzuim, and Uitgestuurd
+            # Calculate attendance %
+            VERBINTENIS_waarneming_totale_duur = sum(Waarnemingsduur),
             VERBINTENIS_waarneming_pct_aanwezig = sum(Waarnemingsduur[Presentietekst == "Aanwezig"]) / VERBINTENIS_waarneming_totale_duur,
-            # Calculate weighted percentage "Ziek/Geoorloofd verzuim"
             VERBINTENIS_waarneming_pct_geoorloofd = sum(Waarnemingsduur[Presentietekst %in% c("Ziek", "Geoorloofd verzuim")]) /
                 VERBINTENIS_waarneming_totale_duur,
-            # Calculate weighted percentage "Ongeoorloofd verzuim"
             VERBINTENIS_waarneming_pct_ongeoorloofd = sum(Waarnemingsduur[Presentietekst == "Ongeoorloofd verzuim"]) /
                 VERBINTENIS_waarneming_totale_duur,
-            # # basics grouped
-            # begin_datum = min(Datum),
-            # eind_datum = max(Datum),
+            # Add other variables
             VERBINTENIS_groep_code = paste0(unique(GROEP_groepcode), collapse = ","),
             VERBINTENIS_groep_organisatie_eenheid = paste0(unique(GROEP_organisatie_eenheid), collapse = ","),
             VERBINTENIS_groep_naam = paste0(unique(GROEP_groepnaam), collapse = ","),
@@ -1010,4 +1002,44 @@ transform_bpv_statusses_to_enrollments <- function(bpv_statusses) {
     return(enrollments_bpv)
 }
 
+pivot_answers_to_employees <- function(employee_answers_satisfaction) {
 
+    employee_answers_satisfaction_with_helpers <- employee_answers_satisfaction |>
+        add_helper_variables()
+
+     employees_satisfaction <- employee_answers_satisfaction_with_helpers |>
+        pivot_wider(
+            id_cols = c(        SCHOOLJAAR_numeriek,
+                                Organisatie,
+                                `Characteristic 1`,
+                                `Characteristic 2`, appearance_number),
+            names_from = `Question Text`,
+            values_from = c(Score) # TODO Answer text out for now, `Answer Text`)
+    ) |>
+            clean_names()
+
+     return(employees_satisfaction)
+
+     save_transformed(employees_satisfaction)
+
+ }
+
+
+
+summarise_satisfaction_to_groups <- function(employee_answers_satisfaction) {
+
+
+
+
+    employee_satisfaction_group <- employee_answers_satisfaction |>
+    count(
+        SCHOOLJAAR_numeriek,
+        Organisatie,
+        `Characteristic 1`,
+        `Characteristic 2`,
+        group_number
+    ) %>%
+        select(-n)
+
+    return(employee_satisfaction_group)
+}

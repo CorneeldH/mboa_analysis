@@ -27,7 +27,7 @@ ingest_enrollments_flex(
 A tibble containing processed flex status data with columns:
 \itemize{
 \item VERBINTENIS_ID: Unique connection identifier
-\item VERBINTENIS_is_flex_omschrijving: Text description of flex status
+\item VERBINTENIS_flex_omschrijving: Text description of flex status
 }
 }
 \description{

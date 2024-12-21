@@ -1439,6 +1439,110 @@ ingest_job_components_extra_fte_2019 <- function(..., filename = NULL, path = NU
     return(data_clean)
 }
 
+ingest_employees_job_type_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        select(MEDEWERKER_ID = `ID Medewerker`,
+               MEDEWERKER_kostenplaats_code = `Kostenplaats Afdeling`,
+               MEDEWERKER_functie = Functie) |>
+        mutate(
+            MEDEWERKER_functie_peildatum = ymd(get_filename_from_config(config_key))
+        )
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    # audit(data_clean, data_raw)
+    return(data_clean)
+
+}
+
+ingest_employees_job_type_2019 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2019", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employees_job_type_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employees_job_type_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2020", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employees_job_type_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employees_job_type_2021 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2021", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employees_job_type_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employees_job_type_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2022", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employees_job_type_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employees_job_type_2023 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2023", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employees_job_type_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employees_job_type_2024 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2024", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employees_job_type_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
 
 #' Ingest Location Data
 #'
@@ -1641,5 +1745,213 @@ ingest_teams_results_retention_start <- function(..., filename = NULL, path = NU
     save_ingested(data_clean)
 
     # audit(data_clean, data_raw)
+    return(data_clean)
+}
+
+ingest_students_satisfaction_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          col_types = cols(
+                              CREBO = col_integer(),
+                              .default = col_guess()
+                          ),
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        mutate(
+            SCHOOLJAAR_numeriek = parse_number(config_key)
+        ) |>
+        select(
+            SCHOOLJAAR_numeriek,
+            everything()
+        )
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+    #
+    # audit(data_clean, data_raw)
+    return(data_clean)
+
+}
+
+ingest_students_satisfaction_2019 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_2019", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_students_satisfaction_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_students_satisfaction_2021 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_2021", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_students_satisfaction_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_students_satisfaction_2023 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_2023", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_students_satisfaction_helper(
+        config_key,
+        col_types = cols(
+            CREBO = col_integer(),
+            studentenhuisvesting_05 = col_integer(),
+            .default = col_guess()
+        ),
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employee_answers_satisfaction_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          col_types = cols(
+                              QuestionId = col_character(),
+                              .default = col_guess()
+                          ),
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        mutate(
+            SCHOOLJAAR_numeriek = parse_number(config_key)
+        ) |>
+        select(
+            SCHOOLJAAR_numeriek,
+            everything()
+        )
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    # audit(data_clean, data_raw)
+    return(data_clean)
+
+}
+
+ingest_employee_answers_satisfaction_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_2020", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employee_answers_satisfaction_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employee_answers_satisfaction_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_2022", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employee_answers_satisfaction_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employee_answers_satisfaction_2024 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_2024", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employee_answers_satisfaction_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employee_answers_satisfaction_codebook_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          col_types = cols(
+                              QuestionId = col_character(),
+                              .default = col_guess()
+                          ),
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    # audit(data_clean, data_raw)
+    return(data_clean)
+
+}
+
+ingest_employee_answers_satisfaction_codebook_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2020", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employee_answers_satisfaction_codebook_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employee_answers_satisfaction_codebook_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2022", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employee_answers_satisfaction_codebook_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
+    return(data_clean)
+}
+
+ingest_employee_answers_satisfaction_codebook_2024 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2024", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_clean <- ingest_employee_answers_satisfaction_codebook_helper(
+        config_key,
+        ...,
+        filename = filename,
+        path = path,
+        config_data_path = config_data_path)
+
     return(data_clean)
 }

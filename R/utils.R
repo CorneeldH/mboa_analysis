@@ -306,8 +306,7 @@ save_prepared <- function(data, ..., filename = NULL, path = NULL, config_data_p
 
 save_prepared_and_return <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_prepared_dir") {
 
-    save_prepared(data, ..., filename, path, config_data_path)
-
+    save_prepared(data, ..., filename = filename, path = path, config_data_path = config_data_path)
 
     return(data)
 }

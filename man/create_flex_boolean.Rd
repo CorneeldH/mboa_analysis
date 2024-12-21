@@ -16,5 +16,5 @@ A tibble with additional VERBINTENIS_is_flex column:
 }
 }
 \description{
-Converts flex status from text ("ja") to boolean (TRUE/FALSE).
+Converts flex status from text ("Ja") to boolean (TRUE/FALSE).
 }
