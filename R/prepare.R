@@ -99,57 +99,36 @@ create_flex_boolean <- function(data) {
 
 
 
-#' Filter Cohorts by Year Range
+
+#' Add Cohort Start Year
 #'
 #' @description
-#' Filters cohort data based on a year range, either provided directly or
-#' retrieved from configuration.
+#' Extract and add the start year from cohort names
 #'
-#' @param data A tibble containing cohort data with column:
-#'   \itemize{
-#'     \item COHORT_naam: Cohort name in format "YYYY/YYYY+1"
-#'   }
-#' @param first_year Character or numeric specifying start year. If NULL, retrieved from config
-#' @param last_year Character or numeric specifying end year. If NULL, defaults to current year
+#' @param data A data frame containing a COHORT_naam column
 #'
-#' @return A filtered tibble containing only cohorts within the specified year range
+#' @returns
+#' The input data frame with an additional COHORT_startjaar column containing
+#' numeric start years
 #'
-#' @details
-#' The function extracts the start year from COHORT_naam and filters based on the
-#' specified range. If years aren't provided, attempts to read from config.
-#' If last_year isn't found in config, uses current year.
-#'
-#' @importFrom dplyr mutate filter
+#' @importFrom dplyr mutate
 #'
 #' @export
-filter_cohorts <- function(data, first_year = NULL, last_year = NULL) {
-
-    ## TODO Avoid dry
-    if (is.null(first_year)) {
-
-        requireNamespace("config", quietly = TRUE)
-        first_year <- try(config::get("first_year"), silent = TRUE)
-
-        if (inherits(first_year, "try-error")) {
-            stop("No first year found in argument or config")
-        }
-    }
-
-    if (is.null(last_year)) {
-
-        requireNamespace("config", quietly = TRUE)
-        last_year <- try(config::get("last_year"), silent = TRUE)
-
-        if (inherits(last_year, "try-error")) {
-            last_year <- format(Sys.Date(), "%Y")
-            message("No last year found in config, using current year")
-        }
-    }
+add_cohort_start_year <- function(data) {
 
     data_prepared <- data |>
-        mutate(COHORT_startjaar = as.numeric(substr(COHORT_naam, 1, 4))) |>
-        filter(COHORT_startjaar >= first_year,
-               COHORT_startjaar <= last_year)
+        mutate(COHORT_startjaar = as.numeric(substr(COHORT_naam, 1, 4)))
+
+    save_prepared(data_prepared)
+
+    return(data_prepared)
+}
+
+add_cohort_start_date <- function(data) {
+    data_prepared <- data |>
+        mutate(
+            COHORT_start_datum = as.Date(paste0(COHORT_startjaar, "-08-01"))
+        )
 
     save_prepared(data_prepared)
 
@@ -367,102 +346,18 @@ format_school_year_name <- function(teams_results) {
 
 }
 
-add_cohort_start_date <- function(data) {
-    data_prepared <- data |>
-        mutate(
-            COHORT_start_datum = as.Date(paste0(COHORT_startjaar, "-08-01"))
-        )
+add_helper_variables <- function(employee_answers_satisfaction) {
 
-    save_prepared(data_prepared)
+    employee_answers_satisfaction_with_helper_vars <- employee_answers_satisfaction |>
+    filter(!str_detect(QuestionId, "_")) |>
+        group_by(SCHOOLJAAR_numeriek, Organisatie, `Characteristic 1`, `Characteristic 2`) |>
+        mutate(group_number = cur_group_id()) |>
+        ungroup() |>
+        group_by(QuestionId, group_number) |>
+        mutate(appearance_number = row_number()) |>
+        ungroup()
 
-    return(data_prepared)
+    return(employee_answers_satisfaction_with_helper_vars)
 }
 
-calculate_exam_plan_to_start <- function(data) {
-    data_prepared <- data |>
-        mutate(
-            OPLEIDING_examen_plan_verplicht_begin_dagen_tot_start = as.numeric(COHORT_start_datum - OPLEIDING_examen_plan_verplicht_begindatum),
-            OPLEIDING_examen_plan_keuze_begin_dagen_tot_start = as.numeric(COHORT_start_datum - OPLEIDING_examen_plan_keuze_begindatum),
-            OPLEIDING_examen_plan_verplicht_eind_dagen_tot_start = as.numeric(COHORT_start_datum - OPLEIDING_examen_plan_verplicht_einddatum),
-            OPLEIDING_examen_plan_keuze_eind_dagen_tot_start = as.numeric(COHORT_start_datum - OPLEIDING_examen_plan_keuze_einddatum),
-
-            across(matches(".*examen_plan.*dagen_tot_start"),
-                   ~if_else(. == Inf, NA_integer_, .))
-        )
-
-    save_prepared(data_prepared)
-
-    return(data_prepared)
-
-}
-
-calculate_application_to_start <- function(data) {
-
-    data_prepared <- data |>
-        mutate(
-            VERBINTENIS_aanmelding_begin_datum = as.Date(VERBINTENIS_aanmelding_begin_datum, format = "%Y-%m-%d"),
-            VERBINTENIS_aanmelding_laatst_gewijzigd_datum = as.Date(VERBINTENIS_aanmelding_laatst_gewijzigd_datum, format = "%Y-%m-%d"),
-            VERBINTENIS_begindatum = as.Date(VERBINTENIS_begindatum, format = "%Y-%m-%d"),
-            VERBINTENIS_aanmelding_begin_dagen_tot_start = as.numeric(VERBINTENIS_begindatum - VERBINTENIS_aanmelding_begin_datum),
-            VERBINTENIS_aanmelding_afgerond_dagen_tot_start = as.numeric(VERBINTENIS_begindatum - VERBINTENIS_aanmelding_laatst_gewijzigd_datum)
-        )
-
-    save_prepared(data_prepared)
-
-    return(data_prepared)
-
-}
-
-calculate_bpv_status_to_start <- function(data) {
-
-    data_prepared <- data |>
-        mutate(
-            BPV_definitief_dagen_tot_start = as.numeric(BPV_status_definitief_datum - VERBINTENIS_begindatum),
-            BPV_volledig_dagen_tot_start = as.numeric(BPV_status_volledig_datum - VERBINTENIS_begindatum),
-            BPV_begin_dagen_tot_start = as.numeric(BPV_status_begin_datum - VERBINTENIS_begindatum)
-        )
-
-    save_prepared(data_prepared)
-
-    return(data_prepared)
-
-}
-
-#' Calculate BPV Status Against Specific Dates
-#'
-#' @description
-#' Calculate whether BPV (professional practice) statuses were achieved before key dates
-#'
-#' @param data A data frame containing BPV status dates and cohort information.
-#'   Must include columns COHORT_startjaar, BPV_status_definitief_datum, and
-#'   BPV_status_volledig_datum.
-#'
-#' @returns
-#' A data frame with additional columns:
-#'   \itemize{
-#'     \item datum_definitief: October 1st of start year
-#'     \item BPV_is_definitief_voor_1_okt: Logical indicating if definitive status was before Oct 1
-#'     \item datum_volledig: January 1st of year after start
-#'     \item BPV_is_volledig_voor_1_jan: Logical indicating if complete status was before Jan 1
-#'   }
-#'
-#' @importFrom dplyr mutate
-#'
-#' @export
-calculate_bpv_status_to_specific_dates <- function(data) {
-
-    data_prepared <- data |>
-        mutate(
-            datum_definitief = as.Date(paste0(COHORT_startjaar, "-10-01")),
-            BPV_is_definitief_voor_1_okt = BPV_status_definitief_datum < datum_definitief,
-            datum_volledig = as.Date(paste0(COHORT_startjaar + 1, "-01-01")),
-            BPV_is_volledig_voor_1_jan = BPV_status_volledig_datum < datum_volledig
-
-        )
-
-    save_prepared(data_prepared)
-
-    return(data_prepared)
-
-}
 
