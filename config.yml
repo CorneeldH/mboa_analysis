@@ -18,7 +18,7 @@ default:
   # Data grelated to enrollments (verbintenis / inschrijving)
   enrollments_basics:
     name: "enrollments_basics"
-    filename: "Verbintenis zonder AVG.csv"
+    filename: "Verbintenis zonder AVG vanaf 2018.csv"
 
   enrollments_level:
     name: "enrollments_level"
@@ -155,6 +155,67 @@ default:
   teams_results_retention_start:
     name: "teams_results_retention_start"
     filename: "startersresultaat_per_jaar_per_team.csv"
+
+  employees_job_type_2024:
+    name: "employees_job_type"
+    filename: "Medewerker en Functie 2024-10-01.csv"
+
+  employees_job_type_2023:
+    name: "employees_job_type"
+    filename: "Medewerker en Functie 2023-10-01.csv"
+
+  employees_job_type_2022:
+    name: "employees_job_type"
+    filename: "Medewerker en Functie 2022-10-01.csv"
+
+  employees_job_type_2021:
+    name: "employees_job_type"
+    filename: "Medewerker en Functie 2021-10-01.csv"
+
+  employees_job_type_2020:
+    name: "employees_job_type"
+    filename: "Medewerker en Functie 2020-10-01.csv"
+
+  employees_job_type_2019:
+    name: "employees_job_type"
+    filename: "Medewerker en Functie 2019-10-01.csv"
+
+  students_satisfaction_2019:
+    name: "students_satisfaction_2019"
+    filename: "JOB 2020.csv"
+
+  students_satisfaction_2021:
+    name: "students_satisfaction_2021"
+    filename: "JOB 2022.csv"
+
+  students_satisfaction_2023:
+    name: "students_satisfaction_2023"
+    filename: "JOB 2024.csv"
+
+  employees_satisfaction_2020:
+    name: "employees_satisfaction_2020"
+    filename: "MTO 2020 zonder diensten.csv"
+
+  employees_satisfaction_2022:
+    name: "employees_satisfaction_2022"
+    filename: "MTO 2022 zonder diensten.csv"
+
+  employees_satisfaction_2024:
+    name: "employees_satisfaction_2024"
+    filename: "MTO 2024 zonder diensten.csv"
+
+  employees_satisfaction_codebook_2020:
+    name: "employees_satisfaction_2020_codebook"
+    filename: "MTO 2020 Codeboek.csv"
+
+  employees_satisfaction_codebook_2022:
+    name: "employees_satisfaction_2022_codebook"
+    filename: "MTO 2022 Codeboek.csv"
+
+  employees_satisfaction_codebook_2024:
+    name: "employees_satisfaction_2024_codebook"
+    filename: "MTO 2024 Codeboek.csv"
+
 
 # TODO
 # vooropleiding prepare, meerdere rijen per deelnemer
