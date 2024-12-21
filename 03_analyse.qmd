@@ -43,8 +43,8 @@ names(teams_correlation) <- names(teams_correlation) %>%
 ```{r}
 
 teams_correlation %>% 
-    select(term, matches("aanmelding|startersresultaat")) %>%
-    filter(str_detect(term, "aanmelding|startersresultaat")) %>%
+    select(term, matches("BPV|startersresultaat")) %>%
+    filter(str_detect(term, "BPV|startersresultaat")) %>%
     rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
   theme(
     # Rotate x-axis labels for better readability
@@ -76,6 +76,122 @@ teams_correlation_select <- teams_combined %>%
 
 
 ggplot(teams_correlation_select, 
+       aes(y = term)) +
+  geom_segment(aes(
+    x = 0,
+    xend = TEAM_startersresultaat_1_jaars,
+    yend = term,
+    color = TEAM_startersresultaat_1_jaars
+  ), 
+  linewidth = 2) +
+  # Fixed position for numbers on the right
+  geom_text(aes(
+    x = 0.5,  # Fixed x position for all numbers
+    label = sprintf("%.2f", TEAM_startersresultaat_1_jaars)
+  ), 
+  hjust = 0,  # Align text to the left at the fixed position
+  size = 3,
+  color = "black") +
+  scale_color_gradient2(
+    low = "indianred2",
+    mid = "white",
+    high = "skyblue1",
+    limits = c(-0.5, 0.5),
+    midpoint = 0
+  ) +
+  scale_x_continuous(limits = c(-0.6, 0.6)) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "none"
+  ) +
+    ggtitle("Hoge correlatie met Startersresultaat 1 jaar")
+
+```
+
+
+
+```{r}
+
+
+teams_correlation_all <- teams_combined %>%
+  select(where(is.numeric)) %>%
+  correlate() %>%
+  select(term, TEAM_startersresultaat_1_jaars) %>%
+  filter(term != "TEAM_startersresultaat_1_jaars") %>%
+  filter(TEAM_startersresultaat_1_jaars <= -0.1 | TEAM_startersresultaat_1_jaars >= 0.1) %>%
+  # Arrange by correlation value from highest to lowest
+  arrange(TEAM_startersresultaat_1_jaars) %>%
+    filter(term != "MEDEWERKER_verzuim_kort", 
+           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") %>%
+  mutate(
+    term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
+    #term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
+    term = factor(term, levels = term)       # Keep the ordering
+  )
+
+
+ggplot(teams_correlation_all, 
+       aes(y = term)) +
+  geom_segment(aes(
+    x = 0,
+    xend = TEAM_startersresultaat_1_jaars,
+    yend = term,
+    color = TEAM_startersresultaat_1_jaars
+  ), 
+  linewidth = 2) +
+  # Fixed position for numbers on the right
+  geom_text(aes(
+    x = 0.5,  # Fixed x position for all numbers
+    label = sprintf("%.2f", TEAM_startersresultaat_1_jaars)
+  ), 
+  hjust = 0,  # Align text to the left at the fixed position
+  size = 3,
+  color = "black") +
+  scale_color_gradient2(
+    low = "indianred2",
+    mid = "white",
+    high = "skyblue1",
+    limits = c(-0.5, 0.5),
+    midpoint = 0
+  ) +
+  scale_x_continuous(limits = c(-0.6, 0.6)) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "none"
+  ) +
+    ggtitle("Hoge correlatie met Startersresultaat 1 jaar")
+
+```
+
+
+```{r}
+
+teams_correlation_all <- teams_combined %>%
+  select(where(is.numeric)) %>%
+  correlate() %>%
+  select(term, TEAM_startersresultaat_1_jaars) %>%
+  filter(term != "TEAM_startersresultaat_1_jaars") %>%
+  filter(TEAM_startersresultaat_1_jaars > -0.1 & TEAM_startersresultaat_1_jaars < 0.1) %>%
+  # Arrange by correlation value from highest to lowest
+  arrange(TEAM_startersresultaat_1_jaars) %>%
+    filter(term != "MEDEWERKER_verzuim_kort", 
+           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") %>%
+  mutate(
+    term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
+    #term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
+    term = factor(term, levels = term)       # Keep the ordering
+  )
+
+
+ggplot(teams_correlation_all, 
        aes(y = term)) +
   geom_segment(aes(
     x = 0,

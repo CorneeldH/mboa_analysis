@@ -16,9 +16,11 @@ Voordat we met de analyse beginnen, lade we eerst de data in. De functies hiervo
 
 Naast het inladen van de data, wordt ook data geprepareerd. Soms is dit een afgeleide variabele maken, maar het kan ook zijn dat de data wordt omgezet naar een ander detailniveau (bijvoorbeeld van een tabel met per regel een status, naar een tabel met per regel een verbintenis en kolommen met info per status). Deze functies zijn de vinden in R/prepare.R.
 
-## Alles gerelateerd aan verbintenissen (enrollments) inladen en voorbereiden.
+## Verbintenissen (enrollments)
 
-We laden eerst alle data in die al op verbintenis-niveau is. Een aantal tabellen zijn niet op verbintenis-niveau en bevatten ook geen verbintenis ID. Deze tabellen transformeren we naar student-jaar om het zo te kunnen koppelen aan verbintenis. Tenslotte zijn er nog een aantal mapping tables met extra informatie over een specifieke aspecten van een verbintenis.
+We laden eerst alle data in die al op verbintenis-niveau is. Een aantal tabellen zijn niet op verbintenis-niveau en bevatten ook geen verbintenis ID. Denk hierbij aan BPV statussen en vooropleiding kenmerken van studenten.
+
+Deze tabellen transformeren we naar student-jaar om het zo te kunnen koppelen aan verbintenis. Tenslotte zijn er nog een aantal mapping tables met extra informatie over een specifieke aspecten van een verbintenis.
 
 ```{r}
 
@@ -36,6 +38,8 @@ enrollments_study_advices <- ingest_study_advices() |>
 enrollments_application <- ingest_enrollments_application() |>
     calculate_application_duration()
 
+print("Succesvol ingeladen en geprepareerdenrollment data")
+
 # BPV statusses transformed
 bpv_registrations <- ingest_bpv_registrations()
 bpv_statusses <- ingest_bpv_statusses()
@@ -47,23 +51,28 @@ enrollments_bpv <- bpv_statusses |>
     convert_bpv_status_types() |>
     transform_bpv_statusses_to_enrollments() 
 
+print("Succesvol ingeladen en geprepareerdBPV data")
+
 #' *INFO* An enrollment can be longer or shorter than one year
-# TODO Make extra calculations regarding demographics
 student_years_demographics <- ingest_students_demographics() |>
     transform_students_to_student_year()
 student_years_prior_education <- ingest_students_prior_education() |>
     transform_prior_education_to_student_year() |>
     transform_prior_education_vo_and_highest_degree()
 
+print("Succesvol ingeladen en geprepareerdbackground characteristics data")
+
 # Additional mapping tables
 reasons_for_leaving <- ingest_reasons_for_leaving() 
 cohorts <- ingest_cohorts() |>
-    filter_cohorts() |>
+    add_cohort_start_year() |>
     add_cohort_start_date()
 
 # The following data is also linked to enrollments foremost, not programmes
 teams <- ingest_teams()
 locations <- ingest_locations()
+
+print("Succesvol ingeladen en geprepareerdmapping tables (dimensions)")
 
 # Programmes
 programmes_exam_plan <- ingest_exam_plans() |> 
@@ -71,9 +80,11 @@ programmes_exam_plan <- ingest_exam_plans() |>
 programmes_basics <- ingest_programmes_basics()
 programme_bc_codes <- ingest_programme_bc_codes()
 
+print("Succesvol ingeladen en geprepareerdprogramme data")
+
 ```
 
-## Alles gerelateerd aan medewerkers (employees)
+## Medewerkers (employees)
 
 We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met aanpassingen. Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar wekelijkse verzuimpercentages en één tabel per schooljaar.
 
@@ -86,7 +97,9 @@ employees_contract <- bind_rows(
     ingest_employees_contract_basics_2020(),
     ingest_employees_contract_basics_2019()
 ) |> 
-    save_prepared(filename = "employees_contract")
+    save_prepared_and_return(filename = "employees_contract")
+
+print("Succesvol ingeladen en geprepareerdemployees contract data")
 
 employees_contract_extra_fte <- bind_rows(
     ingest_job_components_extra_fte_2023(),
@@ -96,6 +109,8 @@ employees_contract_extra_fte <- bind_rows(
     ingest_job_components_extra_fte_2019()
 ) |>
     summarise_components_to_employees()
+
+print("Succesvol ingeladen en geprepareerdemployees contract extra fte data")
 
 # Within map to keep the transformations separate by years, this makes it less memory intensive
 employees_absence <- ingest_employee_absences() |>
@@ -110,11 +125,33 @@ employees_absence <- ingest_employee_absences() |>
     #map(pivot_weeks_to_years) |>
     # TODO
     map_dfr(bind_rows) |>
-    save_prepared(filename = "employees_absence")
+    save_prepared_and_return(filename = "employees_absence")
+
+print("Succesvol ingeladen en geprepareerdemployees absence data")
+
+employees_job_type <-  bind_rows(
+    ingest_employees_job_type_2023(),
+    ingest_employees_job_type_2022(),
+    ingest_employees_job_type_2021(),
+    ingest_employees_job_type_2020(),
+    ingest_employees_job_type_2019()
+) |>
+    # TODO this removes a few teachers who have double contracts
+    distinct(
+        MEDEWERKER_ID, 
+        MEDEWERKER_kostenplaats_code, 
+        MEDEWERKER_functie_peildatum, 
+        .keep_all = TRUE
+  ) |>
+    save_prepared_and_return(filename = "employees_job_type")
+
+print("Succesvol ingeladen en geprepareerdemployees job type data")
 
 ```
 
-## Alles gerelateerd aan groepen en absenties
+## Waarnemingen / verzuim (attendance)
+
+M.b.t. aanwezigheid zijn er waarnemingen. Deze worden gekoppeld aan groepsinschrijvingen van studenten. De waarnemeningen data is de grootste dataset dus dit inladen duurt even.
 
 ```{r}
 #| freeze: true
@@ -144,11 +181,77 @@ rm(attendance_observations)
 enrollment_years_attendance <- attendance_observations_enriched |>
     summarise_observations_to_yearly_attendance()
 
-# suppressWarnings(clear_script_objects())
+```
+
+## Student tevredenheid (satisfaction)
+
+We laden hier de JOB monitor in. In 2019 en 2021 waren er bijna dezelfde vragen, in 2023 waren er veel meer vragen (138 tov 85 en 78). Voor het correlatie-onderzoek kunnen we deze allemaal gebruiken, omdat missende waardes geen probleem zijn. 
+
+De Job light heeft ook andere vragen en deze zijn ook anders geformateerd. Voor nu is ervoor gekozen dit niet in te laden.
+
+```{r}
+
+students_satisfaction <- bind_rows(
+    ingest_students_satisfaction_2019(),
+    ingest_students_satisfaction_2021(),
+    ingest_students_satisfaction_2023()
+) |>
+    save_prepared_and_return(filename = "students_satisfaction")
 
 ```
 
-## Alles gerelateerd aan officiële rendementen
+
+## Medewerker tevredenheid (satisfaction)
+
+Laad de medewerker tevredenheid data in. Deze data is per jaar aangeleverd met één antwoord per rij. Laad eerste de codeboeken in en koppel deze aan de antwoorden. Vervolgens worden de antwoorden omgezet naar een tabel met per medewerker één rij en alle gegeven antwoorden in de kolommen.
+
+```{r}
+
+employees_satisfaction_codebook_2020 <- ingest_employee_answers_satisfaction_codebook_2020()
+employees_satisfaction_codebook_2022 <- ingest_employee_answers_satisfaction_codebook_2022()
+employees_satisfaction_codebook_2024 <- ingest_employee_answers_satisfaction_codebook_2024()
+
+employees_satisfaction_2020 <- ingest_employee_answers_satisfaction_2020() |>
+    left_join(
+        employees_satisfaction_codebook_2020,
+        by = c("QuestionId" = "QuestionId", "Score" = "AnswerCode"),
+        relationship = "many-to-one"
+  ) |>
+    pivot_answers_to_employees()
+
+employees_satisfaction_2022 <- ingest_employee_answers_satisfaction_2022() |>
+    left_join(
+        employees_satisfaction_codebook_2022,
+        by = c("QuestionId" = "QuestionId", "Score" = "AnswerCode"),
+        relationship = "many-to-one"
+    ) |> 
+    pivot_answers_to_employees()
+
+employees_satisfaction_2024 <- ingest_employee_answers_satisfaction_2024() |>
+    left_join(
+        employees_satisfaction_codebook_2024,
+        by = c("QuestionId" = "QuestionId", "Score" = "AnswerCode"),
+        relationship = "many-to-one"
+    ) |> 
+    pivot_answers_to_employees()
+
+employees_satisfaction <- bind_rows(
+    employees_satisfaction_2020, 
+    employees_satisfaction_2022, 
+    employees_satisfaction_2024
+) |> 
+    save_prepared_and_return(filename = "employees_satisfaction")
+
+print("Succesvol ingeladen en geprepareerd medewerker tevredenheid data")
+
+```
+
+
+
+
+## Startersresultaat (retention)
+
+Voor nu is het startersresultaat. Dit zijn studenten die 1 jaar in de opleiding zitten. Zo kunnen we variabelen die pear jaar verschillen zoals medewerkerstevredenheid en studenttevredenheid hieraan koppelen.
 
 ```{r}
 
@@ -156,6 +259,6 @@ teams_results_retention_start <- ingest_teams_results_retention_start() |>
     format_school_year_name() |>
     parse_result_pct()
 
-test 
+print("Succesvol ingeladen en geprepareerdretention start data")
 
 ```
