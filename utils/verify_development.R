@@ -27,6 +27,7 @@ Sys.setenv(R_CONFIG_ACTIVE = "default")
 
 devtools::document()
 source("utils/function_checker.R")
+# TODO meerdere qmds opgeven
 check_exported_function_usage("how_to.qmd")
 
 #quarto_render("how_to.qmd")
