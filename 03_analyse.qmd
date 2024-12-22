@@ -24,27 +24,27 @@ teams_combined <- readRDS(teams_combined_full_filename)
 
 ```{r}
 
-teams_correlation <- teams_combined %>%
-    select(where(is.numeric)) %>%
-    correlate() %>%
-    rearrange() %>%
-    mutate(term = term %>% 
-           str_remove("VERBINTENIS_") %>%
-           str_remove("TEAM_") %>%
+teams_correlation <- teams_combined |>
+    select(where(is.numeric)) |>
+    correlate() |>
+    rearrange() |>
+    mutate(term = term |> 
+           str_remove("VERBINTENIS_") |>
+           str_remove("TEAM_") |>
            str_replace_all("_", " "))
 
-names(teams_correlation) <- names(teams_correlation) %>% 
-    str_remove("VERBINTENIS_") %>%
-    str_remove("TEAM_") %>%
+names(teams_correlation) <- names(teams_correlation) |> 
+    str_remove("VERBINTENIS_") |>
+    str_remove("TEAM_") |>
     str_replace_all("_", " ")
 
 ```
 
 ```{r}
 
-teams_correlation %>% 
-    select(term, matches("BPV|startersresultaat")) %>%
-    filter(str_detect(term, "BPV|startersresultaat")) %>%
+teams_correlation |> 
+    select(term, matches("BPV|startersresultaat")) |>
+    filter(str_detect(term, "BPV|startersresultaat")) |>
     rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
   theme(
     # Rotate x-axis labels for better readability
@@ -58,16 +58,16 @@ teams_correlation %>%
 
 ```{r}
 
-teams_correlation_select <- teams_combined %>%
-  select(where(is.numeric)) %>%
-  correlate() %>%
-  select(term, TEAM_startersresultaat_1_jaars) %>%
-  filter(term != "TEAM_startersresultaat_1_jaars") %>%
-  filter(TEAM_startersresultaat_1_jaars <= -0.2 | TEAM_startersresultaat_1_jaars >= 0.2) %>%
+teams_correlation_select <- teams_combined |>
+  select(where(is.numeric)) |>
+  correlate() |>
+  select(term, TEAM_startersresultaat_1_jaars) |>
+  filter(term != "TEAM_startersresultaat_1_jaars") |>
+  filter(TEAM_startersresultaat_1_jaars <= -0.2 | TEAM_startersresultaat_1_jaars >= 0.2) |>
   # Arrange by correlation value from highest to lowest
-  arrange(TEAM_startersresultaat_1_jaars) %>%
+  arrange(TEAM_startersresultaat_1_jaars) |>
     filter(term != "MEDEWERKER_verzuim_kort", 
-           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") %>%
+           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
   mutate(
     term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
     term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
@@ -117,16 +117,16 @@ ggplot(teams_correlation_select,
 ```{r}
 
 
-teams_correlation_all <- teams_combined %>%
-  select(where(is.numeric)) %>%
-  correlate() %>%
-  select(term, TEAM_startersresultaat_1_jaars) %>%
-  filter(term != "TEAM_startersresultaat_1_jaars") %>%
-  filter(TEAM_startersresultaat_1_jaars <= -0.1 | TEAM_startersresultaat_1_jaars >= 0.1) %>%
+teams_correlation_all <- teams_combined |>
+  select(where(is.numeric)) |>
+  correlate() |>
+  select(term, TEAM_startersresultaat_1_jaars) |>
+  filter(term != "TEAM_startersresultaat_1_jaars") |>
+  filter(TEAM_startersresultaat_1_jaars <= -0.1 | TEAM_startersresultaat_1_jaars >= 0.1) |>
   # Arrange by correlation value from highest to lowest
-  arrange(TEAM_startersresultaat_1_jaars) %>%
+  arrange(TEAM_startersresultaat_1_jaars) |>
     filter(term != "MEDEWERKER_verzuim_kort", 
-           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") %>%
+           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
   mutate(
     term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
     #term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
@@ -174,16 +174,16 @@ ggplot(teams_correlation_all,
 
 ```{r}
 
-teams_correlation_all <- teams_combined %>%
-  select(where(is.numeric)) %>%
-  correlate() %>%
-  select(term, TEAM_startersresultaat_1_jaars) %>%
-  filter(term != "TEAM_startersresultaat_1_jaars") %>%
-  filter(TEAM_startersresultaat_1_jaars > -0.1 & TEAM_startersresultaat_1_jaars < 0.1) %>%
+teams_correlation_all <- teams_combined |>
+  select(where(is.numeric)) |>
+  correlate() |>
+  select(term, TEAM_startersresultaat_1_jaars) |>
+  filter(term != "TEAM_startersresultaat_1_jaars") |>
+  filter(TEAM_startersresultaat_1_jaars > -0.1 & TEAM_startersresultaat_1_jaars < 0.1) |>
   # Arrange by correlation value from highest to lowest
-  arrange(TEAM_startersresultaat_1_jaars) %>%
+  arrange(TEAM_startersresultaat_1_jaars) |>
     filter(term != "MEDEWERKER_verzuim_kort", 
-           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") %>%
+           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
   mutate(
     term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
     #term = str_remove(term, " opgevuld"),    # Remove "opgevuld"

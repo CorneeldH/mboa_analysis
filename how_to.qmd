@@ -184,7 +184,7 @@ teams_results_retention_start <- ingest_teams_results_retention_start()
 attendance_observations <- ingest_attendance_observations() #|>
     #transform_observations_to_enrollments()
 
-# attendance_observations %>% mutate(jaar = get_school_year(Datum)) %>% tabyl(jaar)
+# attendance_observations |> mutate(jaar = get_school_year(Datum)) |> tabyl(jaar)
 #      jaar       n    percent
 # 2021/2022 6146808 0.32698424
 # 2022/2023 5592001 0.29747085
@@ -325,19 +325,19 @@ save_combined(enrollments_combined_enriched)
 ```{r}
 
 # glimpse(enrollments_combined_enriched)
-teams_enrollments <- enrollments_combined_enriched %>%
+teams_enrollments <- enrollments_combined_enriched |>
     filter(month(VERBINTENIS_begindatum) == 8,
            VERBINTENIS_intensiteit == "Voltijd",
            COHORT_startjaar >= 2019,
-           COHORT_startjaar <= 2023) %>%
+           COHORT_startjaar <= 2023) |>
     mutate(
         VERBINTENIS_is_passend_onderwijs_gevuld = if_else(is.na(VERBINTENIS_passend_onderwijs_kenmerk), 
                                                            FALSE, 
                                                            TRUE),
         # Als een boolean niet TRUE is, dan is deze FALSE
         across(contains("_is_"), ~if_else(is.na(.), FALSE, .), .names = "{.col}_opgevuld")
-    ) %>%
-    group_by(TEAM_naam, TEAM_kostenplaats, TEAM_naam_afk, TEAM_school, TEAM_school_afk, COHORT_naam, COHORT_startjaar) %>%
+    ) |>
+    group_by(TEAM_naam, TEAM_kostenplaats, TEAM_naam_afk, TEAM_school, TEAM_school_afk, COHORT_naam, COHORT_startjaar) |>
     summarise(
         TEAM_studenten_aantal = n(),
         across(contains("dagen"), ~mean(., na.rm = TRUE)),
@@ -398,25 +398,25 @@ save_combined(teams_combined)
 ### 4. Analyseren
 
 ```{r}
-teams_correlation <- teams_combined %>%
-    select(where(is.numeric)) %>%
-    correlate() %>%
-    rearrange() %>%
-    mutate(term = term %>% 
-           str_remove("VERBINTENIS_") %>%
-           str_remove("TEAM_") %>%
+teams_correlation <- teams_combined |>
+    select(where(is.numeric)) |>
+    correlate() |>
+    rearrange() |>
+    mutate(term = term |> 
+           str_remove("VERBINTENIS_") |>
+           str_remove("TEAM_") |>
            str_replace_all("_", " "))
 
-names(teams_correlation) <- names(teams_correlation) %>% 
-    str_remove("VERBINTENIS_") %>%
-    str_remove("TEAM_") %>%
+names(teams_correlation) <- names(teams_correlation) |> 
+    str_remove("VERBINTENIS_") |>
+    str_remove("TEAM_") |>
     str_replace_all("_", " ")
 ```
 
 ```{r}
-teams_correlation %>% 
-    select(term, matches("aanmelding|startersresultaat")) %>%
-    filter(str_detect(term, "aanmelding|startersresultaat")) %>%
+teams_correlation |> 
+    select(term, matches("aanmelding|startersresultaat")) |>
+    filter(str_detect(term, "aanmelding|startersresultaat")) |>
     rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
   theme(
     # Rotate x-axis labels for better readability
@@ -427,9 +427,9 @@ teams_correlation %>%
 ```
 
 ```{r}
-teams_correlation %>% 
-    select(term, matches("BPV|startersresultaat")) %>%
-    filter(str_detect(term, "BPV|startersresultaat")) %>%
+teams_correlation |> 
+    select(term, matches("BPV|startersresultaat")) |>
+    filter(str_detect(term, "BPV|startersresultaat")) |>
     rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
   theme(
     # Rotate x-axis labels for better readability
@@ -440,11 +440,11 @@ teams_correlation %>%
 ```
 
 ```{r}
-teams_correlation %>% 
-    select(term, contains("startersresultaat"), matches("waarneming")) %>%
-    arrange(term != `startersresultaat 1 jaars`) %>%
-    filter(str_detect(term, "waarneming|startersresultaat")) %>%
-    mutate(term = factor(term, levels = term)) %>%
+teams_correlation |> 
+    select(term, contains("startersresultaat"), matches("waarneming")) |>
+    arrange(term != `startersresultaat 1 jaars`) |>
+    filter(str_detect(term, "waarneming|startersresultaat")) |>
+    mutate(term = factor(term, levels = term)) |>
     rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
   theme(
     # Rotate x-axis labels for better readability
@@ -456,16 +456,16 @@ teams_correlation %>%
 
 ```{r}
 
-teams_correlation_select <- teams_combined %>%
-  select(where(is.numeric)) %>%
-  correlate() %>%
-  select(term, TEAM_startersresultaat_1_jaars) %>%
-  filter(term != "TEAM_startersresultaat_1_jaars") %>%
-  filter(TEAM_startersresultaat_1_jaars <= -0.2 | TEAM_startersresultaat_1_jaars >= 0.2) %>%
+teams_correlation_select <- teams_combined |>
+  select(where(is.numeric)) |>
+  correlate() |>
+  select(term, TEAM_startersresultaat_1_jaars) |>
+  filter(term != "TEAM_startersresultaat_1_jaars") |>
+  filter(TEAM_startersresultaat_1_jaars <= -0.2 | TEAM_startersresultaat_1_jaars >= 0.2) |>
   # Arrange by correlation value from highest to lowest
-  arrange(TEAM_startersresultaat_1_jaars) %>%
+  arrange(TEAM_startersresultaat_1_jaars) |>
     filter(term != "MEDEWERKER_verzuim_kort", 
-           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") %>%
+           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
   mutate(
     term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
     term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
@@ -514,22 +514,22 @@ ggplot(teams_correlation_select,
 
 ```{r}
 
-test_enrollments_teams <- enrollments_combined %>%
+test_enrollments_teams <- enrollments_combined |>
     group_by(TEAM_kostenplaats,
              TEAM_naam,
            TEAM_sk_kostenplaats_hr2day,
-           TEAM_sk_kostenplaats) %>%
+           TEAM_sk_kostenplaats) |>
     count()
 
-test_employees_contract_enriched <- employees_contract_enriched %>%
-    group_by(MEDEWERKER_contract_kostenplaats_code) %>%
+test_employees_contract_enriched <- employees_contract_enriched |>
+    group_by(MEDEWERKER_contract_kostenplaats_code) |>
     count()
 
 test_overig <- anti_join(test_employees_contract_enriched, test_enrollments_teams, by = c("MEDEWERKER_contract_kostenplaats_code" = "TEAM_kostenplaats"))
 
 test_overig_omgekeerd <- anti_join(test_enrollments_teams, test_employees_contract_enriched, by = c("TEAM_kostenplaats" = "MEDEWERKER_contract_kostenplaats_code"))
 
-test_enrollments <- enrollments_combined %>%
+test_enrollments <- enrollments_combined |>
     filter(is.na(TEAM_kostenplaats))
 
 
@@ -566,7 +566,7 @@ test_enrollments <- enrollments_combined %>%
 
 # als we het per jaar doen, dan is medewerker-jaar-kostenplaats misschien genoeg? of hebben medewerkers meerdere functies?
 # medewerkers ftes
-# employees_contract |> tabyl(CONTRACT_afwijking_kostenplaats) %>% arrange(desc(n))
+# employees_contract |> tabyl(CONTRACT_afwijking_kostenplaats) |> arrange(desc(n))
 
 
 # test <- enrollments_combined |>

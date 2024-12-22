@@ -28,9 +28,9 @@ Eerst voegen we alle aanvullende data toe die al op verbintenis niveau is.
 
 ```{r}
 
-full_filename <- file.path(config::get("data_prepared_dir"), "enrollments_basics.rds")
+enrollments_basics_full_filename <- file.path(config::get("data_prepared_dir"), "enrollments_basics.rds")
 
-enrollments_basics <- readRDS(full_filename)
+enrollments_basics <- readRDS(enrollments_basics_full_filename)
 
 enrollments_basic_joins <- enrollments_basics |>
     left_join_load("enrollments_level",
@@ -120,14 +120,15 @@ enrollments_combined  <- enrollments_extra_id_joins |>
               relationship = "one-to-one")
 
 save_combined(enrollments_combined)
-glimpse(enrollments_combined)
 rm(enrollments_extra_id_joins)
+
+print("Succesvol aanvullende data toegevoegd")
 
 ```
 
 ### Verrijken
 
-Nu alles is gekoppeld kunnen we data verrijken met afgeleide variabelen.
+Nu alles is gekoppeld kunnen we data verrijken met afgeleide variabelen. Voor examenplannen, aanmeldingen en BPV status bereken we het aantal dagen tot begin van de verbintenis en specifieke peildatums
 
 ```{r}
 
@@ -140,6 +141,8 @@ enrollments_combined_enriched <- enrollments_combined |>
 
 save_combined(enrollments_combined_enriched)
 
+print("Succesvol verrijkt")
+
 ```
 
 ## Medewerkers
@@ -148,9 +151,9 @@ Naast de studenten en verbintenissen, kijken we ook naar medewerkers. Hier voege
 
 ```{r}
 
-full_filename <- file.path(config::get("data_prepared_dir"), "employees_contract.rds")
+employees_contract_full_filename <- file.path(config::get("data_prepared_dir"), "employees_contract.rds")
 
-employees_contract <- readRDS(full_filename)
+employees_contract <- readRDS(employees_contract_full_filename)
 
 employees_combined <- employees_contract |>
     left_join_load("employees_contract_extra_fte",
@@ -175,6 +178,7 @@ save_combined(employees_combined)
 rm(employees_contract)
 
 ```
+
 ## Studenttevredenheid
 
 
@@ -190,30 +194,6 @@ students_satisfaction <- readRDS(students_satisfaction_full_filename)
 
 ```
 
-### Controle studenttevredenheid
-
-```{r}
-
-test_welzijn <- students_satisfaction |>
-    filter(CREBO == 23065) |>
-    count(label02, label01)
-
-test <- unique(students_satisfaction$label02)
-test2 <- unique(teams_enrollments$TEAM_naam)
-
-intersect(test, test2)
-
-test_opleiding_mapping_team <- enrollments_combined_enriched %>% count(OPLEIDING_code, OPLEIDING_naam, TEAM_naam, TEAM_kostenplaats) %>% mutate(
-    OPLEIDING_code_numeriek = parse_number(OPLEIDING_code)
-) %>%
-    group_by(OPLEIDING_code_numeriek, TEAM_naam, TEAM_kostenplaats) %>% 
-    summarise(n = sum(n)) %>%
-    ungroup()
-
-test_opleiding_mapping_team_duplicated <- test_opleiding_mapping_team %>% 
-    get_dupes(OPLEIDING_code_numeriek)
-
-```
 
 ## Medewerkertevredenheid 
 
@@ -225,7 +205,7 @@ employees_satisfaction_full_filename <- file.path(
 employees_satisfaction <- readRDS(employees_satisfaction_full_filename)
 
 teams_employee_satisfaction <- employees_satisfaction |>
-    group_by(characteristic_2, schooljaar_numeriek) |>
+    group_by(characteristic_2, schooljaar_startjaar) |>
     summarise(across(contains("score"), ~mean(., na.rm = TRUE)), .groups = "drop")
         
 
@@ -266,40 +246,46 @@ enrollments_combined_enriched_filtered <- enrollments_combined_enriched |>
 
 ### Verbintenis aggregeren
 
+```{r}
+
+teams_enrollments_cat_vars <- enrollments_combined_enriched_filtered |>
+    transform_to_cat_val_pct_columns()
+
+```
 
 
 ```{r}
 
-teams_enrollments <- enrollments_combined_enriched_filtered |>
+teams_enrollments_num_vars <- enrollments_combined_enriched_filtered |>
     mutate(
         VERBINTENIS_is_passend_onderwijs_gevuld = if_else(
-            is.na(VERBINTENIS_passend_onderwijs_kenmerk), FALSE, TRUE), 
-        # Als een boolean niet TRUE is, dan is deze FALSE
+            is.na(VERBINTENIS_passend_onderwijs_kenmerk), FALSE, TRUE),
+        # If boolean is NA, set to FALSE and create new var
         across(contains("_is_"), ~if_else(is.na(.), FALSE, .), .names = "{.col}_opgevuld")
-    ) %>%
-    group_by(TEAM_naam, TEAM_kostenplaats, TEAM_naam_afk, TEAM_school, TEAM_school_afk, COHORT_naam, COHORT_startjaar) %>%
+    ) |>
+    group_by(TEAM_naam, TEAM_kostenplaats, TEAM_naam_afk, TEAM_school, TEAM_school_afk, COHORT_naam, COHORT_startjaar) |>
     summarise(
         TEAM_studenten_aantal = n(),
         across(contains("dagen"), ~mean(., na.rm = TRUE)),
-        #across(contains("_opgevuld"), ~mean(., na.rm = TRUE)),
         across(contains("waarneming"), ~mean(., na.rm = TRUE)),
         across(contains("_is_"), ~mean(., na.rm = TRUE)),
-        BPV_omvang = mean(BPV_omvang, na.rm = TRUE),
-        #VERBINTENIS_aanmelding_dagen_in_proces = mean(VERBINTENIS_aanmelding_dagen_in_proces, na.rm = TRUE),
-        #VERBINTENIS_is_flex_gevuld = sum(VERBINTENIS_is_flex, na.rm = TRUE),
-        #VERBINTENIS_aanmelding_begin_dagen_tot_start = mean(VERBINTENIS_aanmelding_begin_dagen_tot_start, na.rm = TRUE),  
+        BPV_omvang = mean(BPV_omvang, na.rm = TRUE), 
         .groups = "drop"
     ) |>
     # Deze variabele bevat enkel TRUE, de opgevuld variant zet NA op FALSE en levert daardoor wel meerdere waardes
     select(-VERBINTENIS_aanmelding_is_eerste_jaar)
         
+
+teams_enrollments <- teams_enrollments_cat_vars |>
+    left_join(teams_enrollments_num_vars, by = c("TEAM_naam", "COHORT_naam"))
+
 save_combined(teams_enrollments)
 
 ```
 
 ### Medewerkers aggregeren
 
-Vervolgen
+
 
 ```{r}
 
@@ -368,5 +354,30 @@ teams_combined_enriched <- teams_combined |>
     filter(COHORT_startjaar >= config::get("first_year"))
 
     
+
+```
+
+## Controle studenttevredenheid
+
+```{r}
+
+test_welzijn <- students_satisfaction |>
+    filter(CREBO == 23065) |>
+    count(label02, label01)
+
+test <- unique(students_satisfaction$label02)
+test2 <- unique(teams_enrollments$TEAM_naam)
+
+intersect(test, test2)
+
+test_opleiding_mapping_team <- enrollments_combined_enriched |> count(OPLEIDING_code, OPLEIDING_naam, TEAM_naam, TEAM_kostenplaats) |> mutate(
+    OPLEIDING_code_numeriek = parse_number(OPLEIDING_code)
+) |>
+    group_by(OPLEIDING_code_numeriek, TEAM_naam, TEAM_kostenplaats) |> 
+    summarise(n = sum(n)) |>
+    ungroup()
+
+test_opleiding_mapping_team_duplicated <- test_opleiding_mapping_team |> 
+    get_dupes(OPLEIDING_code_numeriek)
 
 ```
