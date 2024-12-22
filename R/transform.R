@@ -292,6 +292,29 @@ summarise_observations_to_weekly_attendance <- function(attendance_observations)
 
 }
 
+#' Summarize Attendance Records by Enrollment
+#'
+#' @description
+#' Aggregates student attendance observations to create enrollment-level summaries
+#' by school year
+#'
+#' @param attendance_observations A data frame containing attendance records with columns:
+#'   - VERBINTENIS_ID: Enrollment ID
+#'   - Datum: Date of attendance
+#'   - Presentietekst: Attendance status
+#'   - Waarnemingsduur: Duration of observation
+#'   - GROEP_* columns: Group-related information
+#'
+#' @returns
+#' A data frame with summarized attendance metrics per enrollment and school year:
+#'   - Binary indicators for late arrival and removal from class
+#'   - Total duration of attendance
+#'   - Percentage of present, authorized, and unauthorized absences
+#'   - Group information including codes, names, and dates
+#'
+#' @importFrom dplyr mutate group_by summarise across arrange
+#'
+#' @export
 summarise_attendance_to_enrollment <- function(attendance_observations) {
     enrollment_years_attendance <- attendance_observations |>
         mutate(
@@ -347,6 +370,22 @@ summarise_attendance_to_enrollment <- function(attendance_observations) {
 
 }
 
+#' Summarize Attendance Observations to Yearly Statistics
+#'
+#' @description
+#' Transform daily attendance observations into yearly summaries per enrollment
+#'
+#' @param attendance_observations A data frame containing attendance observations with
+#' at least a 'Datum' (date) column
+#'
+#' @returns
+#' A data frame of yearly attendance statistics per enrollment. The data is also
+#' saved to disk using `save_transformed()`.
+#'
+#' @importFrom dplyr mutate group_by group_split bind_rows
+#' @importFrom purrr map map_dfr
+#'
+#' @export
 summarise_observations_to_yearly_attendance <- function(attendance_observations) {
 
     attendance_observations_prepared <- attendance_observations |>
@@ -707,7 +746,7 @@ summarise_components_to_employees <- function(fte_components) {
 #' Transform employee absence records into daily observations, calculating absence
 #' percentages and duration categories for each workday.
 #'
-#' @param data A data frame containing employee absence records with columns:
+#' @param employee_absences A data frame containing employee absence records with columns:
 #'   MEDEWERKER_ID, MEDEWERKER_eerste_verzuimdag, MEDEWERKER_laatste_verzuimdag,
 #'   MEDEWERKER_percentage_verzuim, MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam
 #'
@@ -1002,6 +1041,22 @@ transform_bpv_statusses_to_enrollments <- function(bpv_statusses) {
     return(enrollments_bpv)
 }
 
+#' Convert Answer Data to Employee-Level Format
+#'
+#' @description
+#' Restructures employee satisfaction survey data from long to wide format
+#'
+#' @param employee_answers_satisfaction A dataframe containing employee satisfaction survey responses
+#' in long format.
+#'
+#' @returns
+#' A dataframe in wide format where each row represents an employee's responses,
+#' with questions as columns and scores as values.
+#'
+#' @importFrom tidyr pivot_wider
+#' @importFrom janitor clean_names
+#'
+#' @export
 pivot_answers_to_employees <- function(employee_answers_satisfaction) {
 
     employee_answers_satisfaction_with_helpers <- employee_answers_satisfaction |>
@@ -1009,7 +1064,7 @@ pivot_answers_to_employees <- function(employee_answers_satisfaction) {
 
      employees_satisfaction <- employee_answers_satisfaction_with_helpers |>
         pivot_wider(
-            id_cols = c(        SCHOOLJAAR_numeriek,
+            id_cols = c(        SCHOOLJAAR_startjaar,
                                 Organisatie,
                                 `Characteristic 1`,
                                 `Characteristic 2`, appearance_number),
@@ -1026,20 +1081,114 @@ pivot_answers_to_employees <- function(employee_answers_satisfaction) {
 
 
 
+#' Summarize Employee Satisfaction by Groups
+#'
+#' @description
+#' Groups employee satisfaction data by school year, organization, and characteristics
+#'
+#' @param employee_answers_satisfaction A data frame containing employee satisfaction data
+#'
+#' @returns
+#' A data frame grouped by SCHOOLJAAR_startjaar, Organisatie, Characteristic 1,
+#' Characteristic 2, and group_number, with count information removed.
+#'
+#' @importFrom dplyr count select
+#'
+#' @export
 summarise_satisfaction_to_groups <- function(employee_answers_satisfaction) {
-
-
-
 
     employee_satisfaction_group <- employee_answers_satisfaction |>
     count(
-        SCHOOLJAAR_numeriek,
+        SCHOOLJAAR_startjaar,
         Organisatie,
         `Characteristic 1`,
         `Characteristic 2`,
         group_number
-    ) %>%
+    ) |>
         select(-n)
 
     return(employee_satisfaction_group)
+}
+
+
+
+#' Pivot Categorical Values to Percentages
+#'
+#' @description
+#' Transform categorical values into columns with percentages
+#'
+#' @param data A data frame containing the categorical column to pivot
+#' @param col_name A string specifying the column name to pivot
+#'
+#' @returns
+#' A data frame with the categorical values pivoted to percentage columns.
+#' Each unique value in `col_name` becomes a new column with the percentage
+#' of occurrences within each group.
+#'
+#' @importFrom dplyr select group_by summarise mutate ungroup across all_of
+#' @importFrom tidyr pivot_wider
+#'
+#' @export
+pivot_cat_values_to_pct <- function(data, col_name) {
+
+    data_pivoted <- data |>
+        select(all_of(c(grouping_vars, col_name))) |>
+        # Count number of appearances per value for eacht of the combination of grouping vars
+        group_by(across(all_of(c(grouping_vars, col_name)))) |>
+        summarise(n = n(), .groups = "drop") |>
+        # Get percentages
+        group_by(across(all_of(grouping_vars))) |>
+        mutate(prop = n / sum(n)) |>
+        ungroup() |>
+        select(!n) |>
+        pivot_wider(
+            id_cols = !!grouping_vars,
+            names_from = all_of(col_name),
+            values_from = prop,
+            names_prefix = paste0(col_name, "_"),
+            values_fill = 0
+        )
+
+    return(data_pivoted)
+}
+
+
+#' Transform Categorical Variables into Value-Percentage Columns
+#'
+#' @description
+#' Convert categorical variables into columns showing value counts and percentages
+#'
+#' @param data A data frame containing categorical variables.
+#' @param grouping_vars Optional. A character vector of column names to group by. Defaults to `c("TEAM_naam", "COHORT_naam")`.
+#' @param max_n_values Optional. Maximum number of distinct values to consider for processing. Defaults to 6.
+#'
+#' @returns
+#' A data frame with categorical variables transformed into value count and percentage columns,
+#' grouped by the specified variables.
+#'
+#' @importFrom dplyr select where n_distinct left_join
+#' @importFrom purrr map reduce
+#'
+#' @export
+transform_to_cat_val_pct_columns <- function(data,
+                                         grouping_vars = c("TEAM_naam", "COHORT_naam"),
+                                         max_n_values = 6) {
+
+
+    # First get your base data with the right columns
+    data_selected <- data |>
+        select(all_of(grouping_vars),
+               where(is.character) & where(~n_distinct(.) <= max_values)
+        )
+
+    # Get the columns we need to process
+    cols_to_process <- data_selected |>
+        select(!c(TEAM_naam, COHORT_naam)) |>
+        names()
+
+    # Process all columns and join results
+    teams_enrollments_fix <- cols_to_process |>
+        map(~pivot_cat_values_to_pct(data_selected, .)) |>
+        reduce(left_join, by = grouping_vars)
+
 }

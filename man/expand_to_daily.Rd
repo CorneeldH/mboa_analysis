@@ -7,7 +7,7 @@
 expand_to_daily(employee_absences)
 }
 \arguments{
-\item{data}{A data frame containing employee absence records with columns:
+\item{employee_absences}{A data frame containing employee absence records with columns:
 MEDEWERKER_ID, MEDEWERKER_eerste_verzuimdag, MEDEWERKER_laatste_verzuimdag,
 MEDEWERKER_percentage_verzuim, MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam}
 }

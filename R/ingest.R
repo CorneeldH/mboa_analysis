@@ -1748,6 +1748,25 @@ ingest_teams_results_retention_start <- function(..., filename = NULL, path = NU
     return(data_clean)
 }
 
+#' Helper Function to Ingest Student Satisfaction Data
+#'
+#' @description
+#' Processes and cleans student satisfaction survey data from raw files
+#'
+#' @param config_key A string representing the school year (e.g., "2021")
+#' @param ... Additional arguments passed to load_data
+#' @param filename Optional. A string specifying the input file name
+#' @param path Optional. A string specifying the path to the input file
+#' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir")
+#'
+#' @returns
+#' A cleaned tibble containing student satisfaction data with added school year information.
+#' The original config key is stored as a comment attribute.
+#'
+#' @importFrom readr cols col_integer col_guess parse_number
+#' @importFrom dplyr mutate select everything
+#'
+#' @export
 ingest_students_satisfaction_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1763,22 +1782,36 @@ ingest_students_satisfaction_helper <- function(config_key, ..., filename = NULL
 
     data_clean <- data_raw |>
         mutate(
-            SCHOOLJAAR_numeriek = parse_number(config_key)
+            SCHOOLJAAR_startjaar = parse_number(config_key)
         ) |>
         select(
-            SCHOOLJAAR_numeriek,
+            SCHOOLJAAR_startjaar,
             everything()
         )
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
     save_ingested(data_clean)
-    #
     # audit(data_clean, data_raw)
     return(data_clean)
 
 }
 
+#' Ingest Student Satisfaction Data for 2019
+#'
+#' @description
+#' Load and process student satisfaction survey data from 2019
+#'
+#' @param ... Additional arguments passed to the underlying data loading function
+#' @param filename Optional. A string specifying the input file name
+#' @param path Optional. A string specifying the path to the input file
+#' @param config_key Optional. A string specifying the configuration key (default: "students_satisfaction_2019")
+#' @param config_data_path Optional. A string specifying the configuration path for raw data (default: "data_raw_dir")
+#'
+#' @returns
+#' A cleaned dataset containing student satisfaction responses from 2019
+#'
+#' @export
 ingest_students_satisfaction_2019 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_2019", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1792,6 +1825,21 @@ ingest_students_satisfaction_2019 <- function(..., filename = NULL, path = NULL,
     return(data_clean)
 }
 
+#' Ingest Student Satisfaction Data for 2021
+#'
+#' @description
+#' Read and process student satisfaction survey data from 2021
+#'
+#' @param ... Additional arguments passed to the underlying data reading function
+#' @param filename Optional. A string specifying the input file name
+#' @param path Optional. A string specifying the file path
+#' @param config_key Optional. A string specifying the configuration key (defaults to "students_satisfaction_2021")
+#' @param config_data_path Optional. A string specifying the configuration data path (defaults to "data_raw_dir")
+#'
+#' @returns
+#' A cleaned data frame containing student satisfaction data
+#'
+#' @export
 ingest_students_satisfaction_2021 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_2021", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1805,6 +1853,24 @@ ingest_students_satisfaction_2021 <- function(..., filename = NULL, path = NULL,
     return(data_clean)
 }
 
+#' Ingest Student Satisfaction Data for 2023
+#'
+#' @description
+#' Read and process student satisfaction survey data for the year 2023
+#'
+#' @param ... Additional arguments passed to readr::read_delim
+#' @param filename Optional. A string specifying the input file name.
+#' @param path Optional. A string specifying the path to the input file.
+#' @param config_key Optional. A string specifying the configuration key (defaults to "students_satisfaction_2023").
+#' @param config_data_path Optional. A string specifying the config path for raw data (defaults to "data_raw_dir").
+#'
+#' @returns
+#' A tibble containing processed student satisfaction data, with CREBO as integer
+#' and studentenhuisvesting_05 as integer columns, and other columns guessed.
+#'
+#' @importFrom readr cols col_integer col_guess
+#'
+#' @export
 ingest_students_satisfaction_2023 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_2023", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1823,6 +1889,25 @@ ingest_students_satisfaction_2023 <- function(..., filename = NULL, path = NULL,
     return(data_clean)
 }
 
+#' Helper Function to Ingest Employee Satisfaction Survey Answers
+#'
+#' @description
+#' Loads and processes employee satisfaction survey data from a file
+#'
+#' @param config_key A string identifying the configuration and school year.
+#' @param ... Additional arguments passed to `load_data()`.
+#' @param filename Optional. Name of the file to load.
+#' @param path Optional. Path to the file.
+#' @param config_data_path Optional. Configuration path for raw data (default: "data_raw_dir").
+#'
+#' @returns
+#' A cleaned data frame containing employee satisfaction survey responses with
+#' an added school year column. The config key is stored as a comment attribute.
+#'
+#' @importFrom readr cols col_character col_guess parse_number
+#' @importFrom dplyr mutate select everything
+#'
+#' @export
 ingest_employee_answers_satisfaction_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1838,10 +1923,10 @@ ingest_employee_answers_satisfaction_helper <- function(config_key, ..., filenam
 
     data_clean <- data_raw |>
         mutate(
-            SCHOOLJAAR_numeriek = parse_number(config_key)
+            SCHOOLJAAR_startjaar = parse_number(config_key)
         ) |>
         select(
-            SCHOOLJAAR_numeriek,
+            SCHOOLJAAR_startjaar,
             everything()
         )
 
@@ -1854,6 +1939,21 @@ ingest_employee_answers_satisfaction_helper <- function(config_key, ..., filenam
 
 }
 
+#' Ingest Employee Satisfaction Survey Answers for 2020
+#'
+#' @description
+#' Import and process employee satisfaction survey responses from the 2020 survey
+#'
+#' @param filename Optional. A single string for the filename.
+#' @param path Optional. A single string for the file path.
+#' @param config_key Optional. A single string specifying the configuration key (default: "employees_satisfaction_2020").
+#' @param config_data_path Optional. A single string specifying the config path for raw data (default: "data_raw_dir").
+#' @param ... Additional arguments passed to the helper function.
+#'
+#' @returns
+#' A tibble containing processed employee satisfaction survey responses.
+#'
+#' @export
 ingest_employee_answers_satisfaction_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_2020", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1867,6 +1967,21 @@ ingest_employee_answers_satisfaction_2020 <- function(..., filename = NULL, path
     return(data_clean)
 }
 
+#' Ingest Employee Satisfaction Survey Answers 2022
+#'
+#' @description
+#' Read and process employee satisfaction survey answers from 2022
+#'
+#' @param filename Optional. A string specifying the name of the input file.
+#' @param path Optional. A string specifying the path to the input file.
+#' @param config_key Optional. A string specifying the configuration key (default: "employees_satisfaction_2022").
+#' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
+#' @param ... Additional arguments passed to the underlying helper function.
+#'
+#' @returns
+#' A cleaned data frame containing employee satisfaction survey responses.
+#'
+#' @export
 ingest_employee_answers_satisfaction_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_2022", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1880,6 +1995,21 @@ ingest_employee_answers_satisfaction_2022 <- function(..., filename = NULL, path
     return(data_clean)
 }
 
+#' Ingest Employee Satisfaction Survey Data for 2024
+#'
+#' @description
+#' Reads and processes employee satisfaction survey responses from 2024
+#'
+#' @param filename Optional. A string specifying the name of the input file.
+#' @param path Optional. A string specifying the path to the input file.
+#' @param config_key Optional. A string specifying the configuration key (default: "employees_satisfaction_2024").
+#' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
+#' @param ... Additional arguments passed to the underlying helper function.
+#'
+#' @returns
+#' A tibble containing processed employee satisfaction survey data.
+#'
+#' @export
 ingest_employee_answers_satisfaction_2024 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_2024", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1893,6 +2023,24 @@ ingest_employee_answers_satisfaction_2024 <- function(..., filename = NULL, path
     return(data_clean)
 }
 
+#' Ingest Employee Satisfaction Survey Codebook
+#'
+#' @description
+#' Reads and processes employee satisfaction survey codebook data with specific column type handling
+#'
+#' @param config_key A string indicating the configuration key to use.
+#' @param ... Additional arguments passed to load_data.
+#' @param filename Optional. A string specifying the input file name.
+#' @param path Optional. A string specifying the input file path.
+#' @param config_data_path Optional. A string specifying the configuration data path.
+#'
+#' @returns
+#' Returns the processed data frame with QuestionId as character and other columns
+#' guessed. The data is also saved using save_ingested().
+#'
+#' @importFrom readr cols col_character col_guess
+#'
+#' @export
 ingest_employee_answers_satisfaction_codebook_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1917,6 +2065,21 @@ ingest_employee_answers_satisfaction_codebook_helper <- function(config_key, ...
 
 }
 
+#' Ingest 2020 Employee Satisfaction Survey Codebook
+#'
+#' @description
+#' Load and process the 2020 employee satisfaction survey codebook data
+#'
+#' @param filename Optional. A single string for the input file name.
+#' @param path Optional. A single string for the input file path.
+#' @param config_key Optional. A single string specifying the configuration key (defaults to "employees_satisfaction_codebook_2020").
+#' @param config_data_path Optional. A single string specifying the data directory in config (defaults to "data_raw_dir").
+#' @param ... Additional arguments passed to the underlying helper function.
+#'
+#' @returns
+#' A processed data frame containing the employee satisfaction survey codebook data.
+#'
+#' @export
 ingest_employee_answers_satisfaction_codebook_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2020", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1930,6 +2093,21 @@ ingest_employee_answers_satisfaction_codebook_2020 <- function(..., filename = N
     return(data_clean)
 }
 
+#' Ingest Employee Satisfaction Codebook Data for 2022
+#'
+#' @description
+#' Load and process employee satisfaction survey codebook data from 2022
+#'
+#' @param filename Optional. A string specifying the name of the file to read.
+#' @param path Optional. A string specifying the path to the file.
+#' @param config_key Optional. A string specifying the configuration key (default: "employees_satisfaction_codebook_2022").
+#' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
+#' @param ... Additional arguments passed to the underlying helper function.
+#'
+#' @returns
+#' A cleaned data frame containing employee satisfaction codebook data.
+#'
+#' @export
 ingest_employee_answers_satisfaction_codebook_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2022", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1943,6 +2121,21 @@ ingest_employee_answers_satisfaction_codebook_2022 <- function(..., filename = N
     return(data_clean)
 }
 
+#' Ingest Employee Satisfaction Survey Codebook Data for 2024
+#'
+#' @description
+#' Reads and processes employee satisfaction survey codebook data from a file
+#'
+#' @param filename Optional. A string specifying the name of the file to read.
+#' @param path Optional. A string specifying the path to the file.
+#' @param config_key Optional. A string specifying the configuration key to use (default: "employees_satisfaction_codebook_2024").
+#' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
+#' @param ... Additional arguments passed to the underlying data loading function.
+#'
+#' @returns
+#' A tibble containing processed employee satisfaction codebook data.
+#'
+#' @export
 ingest_employee_answers_satisfaction_codebook_2024 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2024", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed

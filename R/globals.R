@@ -294,7 +294,105 @@ utils::globalVariables(
         "VERBINTENIS_groep_type_omschrijving",
         "VERBINTENIS_groepdeelname_begindatum",
         "VERBINTENIS_groepdeelname_einddatum",
-        "VERBINTENIS_verzuim_week_nummer"
+        "VERBINTENIS_verzuim_week_nummer",
+
+        # add_helper_variables
+        "QuestionId",
+        "SCHOOLJAAR_startjaar",
+        "Organisatie",
+        "Characteristic 1",
+        "Characteristic 2",
+
+        # calculate_application_to_start
+        "VERBINTENIS_begindatum",
+        "VERBINTENIS_aanmelding_begin_dagen_tot_start",
+        "VERBINTENIS_aanmelding_afgerond_dagen_tot_start",
+
+        # calculate_bpv_status_to_specific_dates
+        "BPV_status_definitief_datum",
+        "datum_definitief",
+        "BPV_status_volledig_datum",
+        "datum_volledig",
+
+        # calculate_bpv_status_to_start
+        "BPV_status_definitief_datum",
+        "VERBINTENIS_begindatum",
+        "BPV_status_volledig_datum",
+
+        # calculate_exam_plan_to_specific_dates
+        "OPLEIDING_examen_plan_verplicht_begindatum",
+        "datum_exampenplan_af",
+        "OPLEIDING_examen_plan_keuze_begindatum",
+        "OPLEIDING_examen_plan_verplicht_einddatum",
+        "OPLEIDING_examen_plan_keuze_einddatum",
+
+        # calculate_exam_plan_to_start
+        "COHORT_start_datum",
+        "OPLEIDING_examen_plan_verplicht_begindatum",
+        "OPLEIDING_examen_plan_keuze_begindatum",
+        "OPLEIDING_examen_plan_verplicht_einddatum",
+        "OPLEIDING_examen_plan_keuze_einddatum",
+
+        # create_flex_boolean
+        "VERBINTENIS_flex_omschrijving",
+
+        # format_school_year_name
+        "SCHOOLJAAR_naam_met_streep",
+
+        # ingest_employee_answers_satisfaction_helper
+        "SCHOOLJAAR_startjaar",
+
+        # ingest_employees_job_type_helper
+        "Functie",
+
+        # ingest_students_satisfaction_helper
+        "SCHOOLJAAR_startjaar",
+
+        # ingest_teams_results_retention_start
+        "TEAM_teljaar",
+        "TEAM_team",
+        "TEAM_noemer_sr_1_jaars",
+        "TEAM_teller_sr_1_jaars",
+        "TEAM_startersresultaat_1_jaars",
+
+        # parse_result_pct
+        "TEAM_startersresultaat_1_jaars_omschrijving",
+
+        # pivot_answers_to_employees
+        "SCHOOLJAAR_startjaar",
+        "Organisatie",
+        "Characteristic 1",
+        "Characteristic 2",
+        "appearance_number",
+        "Question Text",
+        "Score",
+
+        # pivot_weeks_to_years
+        "employee_absences_in_weeks",
+
+        # summarise_employee_absence_to_years
+        "verzuim_duur",
+        "MEDEWERKER_verzuim_lang",
+        "days_in_year",
+        "MEDEWERKER_verzuim_middellang",
+        "MEDEWERKER_verzuim_kort",
+
+        # summarise_observations_to_weekly_attendance
+        "employee_absences_in_weeks",
+
+        # summarise_satisfaction_to_groups
+        "SCHOOLJAAR_startjaar",
+        "Organisatie",
+        "Characteristic 1",
+        "Characteristic 2",
+        "group_number",
+
+        # pivot_cat_values_to_pct:
+        "grouping_vars",
+        "prop",
+
+        # transform_to_cat_val_pct_columns:
+        "TEAM_naam"
 
     )
 )

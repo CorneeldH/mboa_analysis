@@ -247,10 +247,6 @@ split_absences_into_school_years <- function(data, first_year = NULL, last_year 
 }
 
 
-
-
-
-
 #' Convert BPV Status Date Types
 #'
 #' @description
@@ -323,6 +319,22 @@ parse_enrollment_level <- function(data) {
 }
 
 
+#' Parse Team Result Percentages
+#'
+#' @description
+#' Convert text-based result descriptions to numeric percentages
+#'
+#' @param teams_results A data frame containing team results with a column
+#'   TEAM_startersresultaat_1_jaars_omschrijving
+#'
+#' @returns
+#' A data frame with an additional numeric column TEAM_startersresultaat_1_jaars
+#' containing percentages multiplied by 100
+#'
+#' @importFrom dplyr mutate
+#' @importFrom readr parse_number
+#'
+#' @export
 parse_result_pct <- function(teams_results) {
     team_results_prepared <- teams_results |>
         mutate(
@@ -335,6 +347,20 @@ parse_result_pct <- function(teams_results) {
 
 }
 
+#' Format School Year Names
+#'
+#' @description
+#' Convert school year names from a dash format to a slash format
+#'
+#' @param teams_results A data frame containing a column SCHOOLJAAR_naam_met_streep
+#'
+#' @returns
+#' A data frame with formatted school year names in new column SCHOOLJAAR_naam
+#'
+#' @importFrom dplyr mutate
+#' @importFrom stringr str_replace
+#'
+#' @export
 format_school_year_name <- function(teams_results) {
 
     team_results_prepared <- teams_results |>
@@ -346,11 +372,29 @@ format_school_year_name <- function(teams_results) {
 
 }
 
+#' Add Helper Variables to Employee Satisfaction Data
+#'
+#' @description
+#' Adds grouping and appearance variables to employee satisfaction survey data
+#'
+#' @param employee_answers_satisfaction A data frame containing employee satisfaction survey responses.
+#'
+#' @returns
+#' A data frame with additional columns:
+#' \itemize{
+#'   \item group_number: A unique identifier for each group
+#'   \item appearance_number: Sequential numbering within each group
+#' }
+#'
+#' @importFrom dplyr filter group_by mutate ungroup row_number cur_group_id
+#' @importFrom stringr str_detect
+#'
+#' @export
 add_helper_variables <- function(employee_answers_satisfaction) {
 
     employee_answers_satisfaction_with_helper_vars <- employee_answers_satisfaction |>
     filter(!str_detect(QuestionId, "_")) |>
-        group_by(SCHOOLJAAR_numeriek, Organisatie, `Characteristic 1`, `Characteristic 2`) |>
+        group_by(SCHOOLJAAR_startjaar, Organisatie, `Characteristic 1`, `Characteristic 2`) |>
         mutate(group_number = cur_group_id()) |>
         ungroup() |>
         group_by(QuestionId, group_number) |>

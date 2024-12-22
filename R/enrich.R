@@ -21,7 +21,7 @@ calculate_application_to_start <- function(data) {
         mutate(
             VERBINTENIS_aanmelding_begin_datum = as.Date(VERBINTENIS_aanmelding_begin_datum, format = "%Y-%m-%d"),
             VERBINTENIS_aanmelding_laatst_gewijzigd_datum = as.Date(VERBINTENIS_aanmelding_laatst_gewijzigd_datum, format = "%Y-%m-%d"),
-            VERBINTENIS_begindatum = as.Date(VERBINTENIS_begindatum, format = "%Y-%m-%d"),
+            VERBINTENIS_begindatum = as.Date(VERBINTENIS_begindatum, format = "%d-%m-%Y"),
             VERBINTENIS_aanmelding_begin_dagen_tot_start = as.numeric(VERBINTENIS_begindatum - VERBINTENIS_aanmelding_begin_datum),
             VERBINTENIS_aanmelding_afgerond_dagen_tot_start = as.numeric(VERBINTENIS_begindatum - VERBINTENIS_aanmelding_laatst_gewijzigd_datum)
         ) |>

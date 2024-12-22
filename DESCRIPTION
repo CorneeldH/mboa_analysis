@@ -15,6 +15,7 @@ Imports:
     config,
     stringr,
     tidyr,
-    lubridate
+    lubridate,
+    purrr
 Suggests:
     testthat (>= 3.0.0)
