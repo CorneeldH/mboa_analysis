@@ -4,18 +4,25 @@
 \alias{pivot_cat_values_to_pct}
 \title{Pivot Categorical Values to Percentages}
 \usage{
-pivot_cat_values_to_pct(data, col_name)
+pivot_cat_values_to_pct(
+  data,
+  col_name,
+  grouping_vars = c("TEAM_naam", "COHORT_naam")
+)
 }
 \arguments{
-\item{data}{A data frame containing the categorical column to pivot}
+\item{data}{A data frame.}
 
-\item{col_name}{A string specifying the column name to pivot}
+\item{col_name}{A string specifying the column to pivot.}
+
+\item{grouping_vars}{Optional. A character vector of column names to group by.
+Defaults to c("TEAM_naam", "COHORT_naam").}
 }
 \value{
-A data frame with the categorical values pivoted to percentage columns.
-Each unique value in \code{col_name} becomes a new column with the percentage
-of occurrences within each group.
+A data frame where the categorical values from \code{col_name} have been pivoted
+into percentage columns, with the percentages calculated within each group
+specified by \code{grouping_vars}.
 }
 \description{
-Transform categorical values into columns with percentages
+Convert categorical values into percentage columns through pivoting
 }

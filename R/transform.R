@@ -1115,21 +1115,25 @@ summarise_satisfaction_to_groups <- function(employee_answers_satisfaction) {
 #' Pivot Categorical Values to Percentages
 #'
 #' @description
-#' Transform categorical values into columns with percentages
+#' Convert categorical values into percentage columns through pivoting
 #'
-#' @param data A data frame containing the categorical column to pivot
-#' @param col_name A string specifying the column name to pivot
+#' @param data A data frame.
+#' @param col_name A string specifying the column to pivot.
+#' @param grouping_vars Optional. A character vector of column names to group by.
+#'   Defaults to c("TEAM_naam", "COHORT_naam").
 #'
 #' @returns
-#' A data frame with the categorical values pivoted to percentage columns.
-#' Each unique value in `col_name` becomes a new column with the percentage
-#' of occurrences within each group.
+#' A data frame where the categorical values from `col_name` have been pivoted
+#' into percentage columns, with the percentages calculated within each group
+#' specified by `grouping_vars`.
 #'
 #' @importFrom dplyr select group_by summarise mutate ungroup across all_of
 #' @importFrom tidyr pivot_wider
 #'
 #' @export
-pivot_cat_values_to_pct <- function(data, col_name) {
+pivot_cat_values_to_pct <- function(data,
+                                    col_name,
+                                    grouping_vars = c("TEAM_naam", "COHORT_naam")) {
 
     data_pivoted <- data |>
         select(all_of(c(grouping_vars, col_name))) |>
@@ -1178,7 +1182,7 @@ transform_to_cat_val_pct_columns <- function(data,
     # First get your base data with the right columns
     data_selected <- data |>
         select(all_of(grouping_vars),
-               where(is.character) & where(~n_distinct(.) <= max_values)
+               where(is.character) & where(~n_distinct(.) <= max_n_values)
         )
 
     # Get the columns we need to process
@@ -1188,7 +1192,7 @@ transform_to_cat_val_pct_columns <- function(data,
 
     # Process all columns and join results
     teams_enrollments_fix <- cols_to_process |>
-        map(~pivot_cat_values_to_pct(data_selected, .)) |>
+        map(~pivot_cat_values_to_pct(data_selected, ., grouping_vars)) |>
         reduce(left_join, by = grouping_vars)
 
 }
