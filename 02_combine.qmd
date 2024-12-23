@@ -6,9 +6,10 @@ title: "Samenvoegen"
 #| include: false
 #| freeze: false
 #| cache: false
+
 source("utils/manage_packages.R")
-
-
+source("utils/dev_functions.R")
+load_all()
 
 ```
 
@@ -158,20 +159,18 @@ employees_contract <- readRDS(employees_contract_full_filename)
 employees_combined <- employees_contract |>
     left_join_load("employees_contract_extra_fte",
               by = join_by(MEDEWERKER_ID, 
-                           MEDEWERKER_contract_kostenplaats_code, 
+                           TEAM_kostenplaats_code, 
                            MEDEWERKER_contract_fte_peildatum),
               relationship = "one-to-one") |>
     left_join_load("employees_job_type",
               by = c("MEDEWERKER_ID", 
-                           "MEDEWERKER_contract_kostenplaats_code" = "MEDEWERKER_kostenplaats_code", 
+                           "TEAM_kostenplaats_code", 
                            "MEDEWERKER_contract_fte_peildatum" = "MEDEWERKER_functie_peildatum"),
               relationship = "one-to-one") |>
-    # TODO
-    add_school_year() |>
     left_join_load("employees_absence",
               by = join_by(MEDEWERKER_ID,
                            SCHOOLJAAR_naam),
-              # This can many since there is no kostenplaats in the absence data
+              # This can be many since there is no kostenplaats in the absence data
               relationship = "many-to-one") 
 
 save_combined(employees_combined)
@@ -179,40 +178,17 @@ rm(employees_contract)
 
 ```
 
-## Studenttevredenheid
-
-
-```{r}
-
-students_satisfaction_full_filename <- file.path(config::get("data_prepared_dir"), "students_satisfaction.rds")
-
-students_satisfaction <- readRDS(students_satisfaction_full_filename)
-
-
-
-
-
-```
-
-
-## Medewerkertevredenheid 
+### Verrijken
 
 ```{r}
 
-employees_satisfaction_full_filename <- file.path(
-    config::get("data_prepared_dir"), "employees_satisfaction.rds")
+employees_combined_enriched <- employees_combined |>
+    fix_absences() |>
+    create_total_fte()
 
-employees_satisfaction <- readRDS(employees_satisfaction_full_filename)
-
-teams_employee_satisfaction <- employees_satisfaction |>
-    group_by(characteristic_2, schooljaar_startjaar) |>
-    summarise(across(contains("score"), ~mean(., na.rm = TRUE)), .groups = "drop")
-        
-
+save_combined(employees_combined_enriched)
 
 ```
-
-
 
 ## Aggregeren naar teams
 
@@ -239,17 +215,19 @@ enrollments_combined_enriched_filtered <- enrollments_combined_enriched |>
            COHORT_startjaar <= config::get("last_year"),
            month(VERBINTENIS_begindatum) == 8,
            VERBINTENIS_intensiteit == "Voltijd",
-           VERBINTENIS_niveau %in% c("2", "3", "4"))
+           VERBINTENIS_niveau %in% c("2", "3", "4")) |>
+    select(-VERBINTENIS_intensiteit)
     
 
 ```
 
-### Verbintenis aggregeren
+### Verbintenis 
 
 ```{r}
 
-teams_enrollments_cat_vars <- enrollments_combined_enriched_filtered |>
+teams_enrollments_cat_vars2 <- enrollments_combined_enriched_filtered |>
     transform_to_cat_val_pct_columns()
+
 
 ```
 
@@ -258,12 +236,18 @@ teams_enrollments_cat_vars <- enrollments_combined_enriched_filtered |>
 
 teams_enrollments_num_vars <- enrollments_combined_enriched_filtered |>
     mutate(
-        VERBINTENIS_is_passend_onderwijs_gevuld = if_else(
-            is.na(VERBINTENIS_passend_onderwijs_kenmerk), FALSE, TRUE),
         # If boolean is NA, set to FALSE and create new var
         across(contains("_is_"), ~if_else(is.na(.), FALSE, .), .names = "{.col}_opgevuld")
     ) |>
-    group_by(TEAM_naam, TEAM_kostenplaats, TEAM_naam_afk, TEAM_school, TEAM_school_afk, COHORT_naam, COHORT_startjaar) |>
+    group_by(
+        TEAM_naam,
+        TEAM_kostenplaats_code,
+        TEAM_naam_afk,
+        TEAM_school,
+        TEAM_school_afk,
+        COHORT_naam,
+        COHORT_startjaar
+    ) |> 
     summarise(
         TEAM_studenten_aantal = n(),
         across(contains("dagen"), ~mean(., na.rm = TRUE)),
@@ -273,8 +257,12 @@ teams_enrollments_num_vars <- enrollments_combined_enriched_filtered |>
         .groups = "drop"
     ) |>
     # Deze variabele bevat enkel TRUE, de opgevuld variant zet NA op FALSE en levert daardoor wel meerdere waardes
-    select(-VERBINTENIS_aanmelding_is_eerste_jaar)
+    select(-AANMELDING_is_eerste_jaar)
         
+
+```
+
+```{r}
 
 teams_enrollments <- teams_enrollments_cat_vars |>
     left_join(teams_enrollments_num_vars, by = c("TEAM_naam", "COHORT_naam"))
@@ -283,24 +271,18 @@ save_combined(teams_enrollments)
 
 ```
 
-### Medewerkers aggregeren
+### Medewerkers
 
 
 
 ```{r}
 
-if (!exists("employees_combined")) {
-    employees_combined <- readRDS(file.path(config::get("data_combined_dir"), "employees_combined.rds"))
+if (!exists("employees_combined_enriched")) {
+    employees_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"), "employees_combined_enriched.rds"))
 }
 
-teams_employees <- employees_combined |>
-    mutate(
-        # TODO moet eerder bij aanmaken verzuim en samenvoegen contracten
-        across(contains("verzuim"), ~if_else(is.na(.), 0, .)),
-        MEDEWERKER_contract_fte_totaal = MEDEWERKER_contract_fte + MEDEWERKER_contract_fte_aanpassing
-    ) |>
-    filter(MEDEWERKER_contract_kostenplaats_code %in% teams_enrollments$TEAM_kostenplaats) |>
-    group_by(MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam) |>
+teams_employees <- employees_combined_enriched |>
+    group_by(TEAM_kostenplaats_code, SCHOOLJAAR_naam) |>
     summarise(
         MEDEWERKER_contract_fte = sum(MEDEWERKER_contract_fte, na.rm = TRUE),
         MEDEWERKER_contract_fte_aanpassing = sum(MEDEWERKER_contract_fte_aanpassing, na.rm = TRUE),
@@ -312,6 +294,46 @@ teams_employees <- employees_combined |>
 save_combined(teams_employees)
 
 ```
+
+### Studenttevredenheid
+
+```{r}
+
+students_satisfaction_full_filename <- file.path(config::get("data_prepared_dir"), "students_satisfaction.rds")
+
+students_satisfaction <- readRDS(students_satisfaction_full_filename)
+
+```
+
+```{r}
+
+teams_students_satisfaction <- students_satisfaction |> 
+    mutate(weegfac1 = as.numeric(weegfac1)) |>
+    group_by(label02, SCHOOLJAAR_startjaar) |>
+    summarise(
+        across(where(is.numeric), 
+               ~ sum(. * weegfac1 /sum(weegfac1), na.rm = TRUE)), 
+        .groups = "drop")
+
+```
+
+
+### Medewerkertevredenheid 
+
+```{r}
+
+employees_satisfaction_full_filename <- file.path(
+    config::get("data_prepared_dir"), "employees_satisfaction.rds")
+
+employees_satisfaction <- readRDS(employees_satisfaction_full_filename)
+
+teams_employee_satisfaction <- employees_satisfaction |>
+    group_by(characteristic_2, schooljaar_startjaar) |>
+    summarise(across(where(is.numeric), ~mean(., na.rm = TRUE)), .groups = "drop") |>
+    mutate(across(where(is.numeric), ~if_else(is.nan(.), NA_real_, .)))
+
+```
+
 
 ## Teams
 
@@ -325,10 +347,16 @@ teams_results_retention_start <- readRDS(teams_results_full_filename)
 
 teams_combined <- teams_enrollments |>
     left_join(teams_employees,
-              by = c("TEAM_kostenplaats" = "MEDEWERKER_contract_kostenplaats_code", "COHORT_naam" = "SCHOOLJAAR_naam"),
+              by = c("TEAM_kostenplaats_code", "COHORT_naam" = "SCHOOLJAAR_naam"),
               relationship = "one-to-one") |>
     left_join(teams_results_retention_start,
               by = c("TEAM_naam", "COHORT_naam" = "SCHOOLJAAR_naam"),
+              relationship = "one-to-one") |>
+    left_join(teams_students_satisfaction,
+              by = c("TEAM_naam" = "label02", "COHORT_startjaar" = "SCHOOLJAAR_startjaar"),
+              relationship = "one-to-one") |>
+    left_join(teams_employee_satisfaction,
+              by = c("TEAM_naam" = "characteristic_2", "COHORT_startjaar" = "schooljaar_startjaar"),
               relationship = "one-to-one")
 
 save_combined(teams_combined)
@@ -351,9 +379,11 @@ teams_combined_enriched <- teams_combined |>
             round(2)
     ) |>
     ungroup() |>
+    mutate(across(where(is.numeric),
+                      ~if_else(. == Inf, NA_real_, .))) |>
     filter(COHORT_startjaar >= config::get("first_year"))
 
-    
+save_combined(teams_combined_enriched)
 
 ```
 
@@ -370,10 +400,10 @@ test2 <- unique(teams_enrollments$TEAM_naam)
 
 intersect(test, test2)
 
-test_opleiding_mapping_team <- enrollments_combined_enriched |> count(OPLEIDING_code, OPLEIDING_naam, TEAM_naam, TEAM_kostenplaats) |> mutate(
+test_opleiding_mapping_team <- enrollments_combined_enriched |> count(OPLEIDING_code, OPLEIDING_naam, TEAM_naam, TEAM_kostenplaats_code) |> mutate(
     OPLEIDING_code_numeriek = parse_number(OPLEIDING_code)
 ) |>
-    group_by(OPLEIDING_code_numeriek, TEAM_naam, TEAM_kostenplaats) |> 
+    group_by(OPLEIDING_code_numeriek, TEAM_naam, TEAM_kostenplaats_code) |> 
     summarise(n = sum(n)) |>
     ungroup()
 

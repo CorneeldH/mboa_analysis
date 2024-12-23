@@ -7,6 +7,8 @@ editor: source
 #| freeze: false
 #| cache: false
 source("utils/manage_packages.R")
+source("utils/dev_functions.R")
+load_all()
 
 ```
 
@@ -32,7 +34,9 @@ enrollments_level <- ingest_enrollments_level() |>
 enrollments_flex <- ingest_enrollments_flex() |>
     create_flex_boolean()
 enrollments_special_needs <- ingest_enrollments_special_needs() |>
-    summarise_special_needs()
+    summarise_special_needs() |>
+    create_special_needs_boolean()
+            
 enrollments_study_advices <- ingest_study_advices() |>
     transform_advices_to_enrollments()
 enrollments_application <- ingest_enrollments_application() |>
@@ -119,6 +123,7 @@ employees_contract <- bind_rows(
     ingest_employees_contract_basics_2020(),
     ingest_employees_contract_basics_2019()
 ) |> 
+    add_school_year() |>
     save_prepared_and_return(filename = "employees_contract")
 
 employees_contract_extra_fte <- bind_rows(
@@ -168,7 +173,7 @@ employees_job_type <-  bind_rows(
     # TODO this removes a few teachers who have double contracts
     distinct(
         MEDEWERKER_ID, 
-        MEDEWERKER_kostenplaats_code, 
+        TEAM_kostenplaats_code, 
         MEDEWERKER_functie_peildatum, 
         .keep_all = TRUE
   ) |>
