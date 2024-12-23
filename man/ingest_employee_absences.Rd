@@ -26,7 +26,7 @@ ingest_employee_absences(
 \value{
 A tibble containing processed employee absence data with columns:
 \itemize{
-\item MEDEWERKER_contract_kostenplaats_code: Department cost center code
+\item TEAM_kostenplaats_code: Department cost center code
 \item MEDEWERKER_ID: Employee identifier
 \item FUNCTIE_ID: Function identifier
 \item MEDEWERKER_eerste_verzuimdag: First day of absence

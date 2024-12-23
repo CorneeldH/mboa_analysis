@@ -15,6 +15,7 @@ utils::globalVariables(
         "Team",
         "TeamAfk",
         "Kostenplaats",
+        "TEAM_kostenplaats",
         "SK_Kostenplaats",
         "SK_KostenplaatsHR2Day",
         "team",
@@ -208,15 +209,15 @@ utils::globalVariables(
         # summarise_employee_absence_to_weeks
         "datum",
         "MEDEWERKER_ID",
-        "MEDEWERKER_contract_kostenplaats_code",
+        "TEAM_kostenplaats_code",
         "MEDEWERKER_verzuim_week_nummer",
         "SCHOOLJAAR_naam",
         "verzuim_percentage",
         "MEDEWERKER_verzuim_totaal_week",
 
         # calculate_application_duration
-        "VERBINTENIS_aanmelding_laatst_gewijzigd_datum",
-        "VERBINTENIS_aanmelding_begin_datum",
+        "AANMELDING_laatst_gewijzigd_datum",
+        "AANMELDING_begin_datum",
 
         # convert_absence_types
         "MEDEWERKER_percentage_verzuim",
@@ -224,7 +225,7 @@ utils::globalVariables(
         # expand_to_daily
         "datum",
         "MEDEWERKER_ID",
-        "MEDEWERKER_contract_kostenplaats_code",
+        "TEAM_kostenplaats_code",
         "SCHOOLJAAR_naam",
         "verzuim_percentage",
 
@@ -238,7 +239,7 @@ utils::globalVariables(
 
         # summarise_components_to_employees
         "MEDEWERKER_ID",
-        "MEDEWERKER_contract_kostenplaats_code",
+        "TEAM_kostenplaats_code",
         "MEDEWERKER_contract_fte_peildatum",
         "MEDEWERKER_contract_fte_aanpassing",
 
@@ -305,8 +306,8 @@ utils::globalVariables(
 
         # calculate_application_to_start
         "VERBINTENIS_begindatum",
-        "VERBINTENIS_aanmelding_begin_dagen_tot_start",
-        "VERBINTENIS_aanmelding_afgerond_dagen_tot_start",
+        "AANMELDING_begin_dagen_tot_start",
+        "AANMELDING_afgerond_dagen_tot_start",
 
         # calculate_bpv_status_to_specific_dates
         "BPV_status_definitief_datum",
@@ -332,6 +333,7 @@ utils::globalVariables(
         "OPLEIDING_examen_plan_keuze_begindatum",
         "OPLEIDING_examen_plan_verplicht_einddatum",
         "OPLEIDING_examen_plan_keuze_einddatum",
+        "OPLEIDING_examen_plan_verplicht_begin_dagen_tot_start",
 
         # create_flex_boolean
         "VERBINTENIS_flex_omschrijving",
@@ -392,7 +394,10 @@ utils::globalVariables(
         "prop",
 
         # transform_to_cat_val_pct_columns:
-        "TEAM_naam"
+        "TEAM_naam",
+
+        # create_total_fte
+        "MEDEWERKER_contract_fte"
 
     )
 )

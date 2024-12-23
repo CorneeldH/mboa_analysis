@@ -32,7 +32,7 @@ A tibble containing processed team data with prefixed column names:
 \item TEAM_school_afk: School abbreviation
 \item TEAM_naam: Full team name
 \item TEAM_naam_afk: Team abbreviation
-\item TEAM_kostenplaats: Cost center code
+\item TEAM_kostenplaats_code: Cost center code
 \item TEAM_sk_kostenplaats: SK cost center code
 \item TEAM_sk_kostenplaats_hr2day: HR2Day cost center code
 }

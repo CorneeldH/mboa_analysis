@@ -11,7 +11,7 @@ calculate_application_duration(data)
 AANMELDING_begin_datum and AANMELDING_laatst_gewijzigd_datum}
 }
 \value{
-A data frame with an additional column VERBINTENIS_aanmelding_in_proces
+A data frame with an additional column AANMELDING_in_proces
 containing the rounded number of days between start and last modification
 }
 \description{

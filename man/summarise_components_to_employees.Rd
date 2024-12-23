@@ -8,7 +8,7 @@ summarise_components_to_employees(fte_components)
 }
 \arguments{
 \item{fte_components}{A data frame containing employee contract components with columns:
-MEDEWERKER_ID, MEDEWERKER_contract_kostenplaats_code,
+MEDEWERKER_ID, TEAM_kostenplaats_code,
 MEDEWERKER_contract_fte_peildatum, and MEDEWERKER_contract_fte_aanpassing}
 }
 \value{

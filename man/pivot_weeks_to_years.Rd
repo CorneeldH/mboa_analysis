@@ -8,7 +8,7 @@ pivot_weeks_to_years(employee_absence_in_weeks)
 }
 \arguments{
 \item{employee_absence_in_weeks}{A tibble containing employee absence data with columns:
-MEDEWERKER_ID, MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam,
+MEDEWERKER_ID, TEAM_kostenplaats_code, SCHOOLJAAR_naam,
 MEDEWERKER_verzuim_week_nummer, MEDEWERKER_verzuim_totaal,
 MEDEWERKER_verzuim_percentage, MEDEWERKER_verzuim_duur}
 }

@@ -7,7 +7,7 @@
 #' @param data A data frame containing application data with columns
 #'             AANMELDING_begin_datum and AANMELDING_laatst_gewijzigd_datum
 #'
-#' @return A data frame with an additional column VERBINTENIS_aanmelding_in_proces
+#' @return A data frame with an additional column AANMELDING_in_proces
 #'         containing the rounded number of days between start and last modification
 #'
 #' @details
@@ -23,10 +23,10 @@
 #' @export
 calculate_application_duration <- function(data) {
     data_prepared <- data |>
-        mutate(VERBINTENIS_aanmelding_dagen_in_proces = round(as.numeric(
+        mutate(AANMELDING_dagen_in_proces = round(as.numeric(
             difftime(
-                VERBINTENIS_aanmelding_laatst_gewijzigd_datum,
-                VERBINTENIS_aanmelding_begin_datum,
+                AANMELDING_laatst_gewijzigd_datum,
+                AANMELDING_begin_datum,
                 units = "days"
             )
         )))
@@ -97,6 +97,20 @@ create_flex_boolean <- function(data) {
 
 }
 
+create_special_needs_boolean <- function(data) {
+
+    data_prepared <- data |>
+        mutate(VERBINTENIS_is_passend_onderwijs = if_else(
+                is.na(VERBINTENIS_passend_onderwijs_kenmerk),
+                FALSE,
+                TRUE)
+            )
+
+    save_prepared(data_prepared)
+
+    return(data_prepared)
+
+}
 
 
 
@@ -146,7 +160,7 @@ add_cohort_start_date <- function(data) {
 #' @returns
 #' A data frame with converted column types:
 #' - MEDEWERKER_ID as character
-#' - MEDEWERKER_contract_kostenplaats_code as character
+#' - TEAM_kostenplaats_code as character
 #' - MEDEWERKER_eerste_verzuimdag as Date
 #' - MEDEWERKER_laatste_verzuimdag as Date
 #' - MEDEWERKER_percentage_verzuim as numeric (proportion)

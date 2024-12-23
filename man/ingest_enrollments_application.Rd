@@ -26,10 +26,10 @@ ingest_enrollments_application(
 \value{
 A tibble containing processed application data with columns:
 \itemize{
-\item VERBINTENIS_aanmelding_begin_datum: Start date
-\item VERBINTENIS_aanmelding_laatst_gewijzigd_datum: Last modified date
+\item AANMELDING_begin_datum: Start date
+\item AANMELDING_laatst_gewijzigd_datum: Last modified date
 \item VERBINTENIS_ID: Enrollment reference
-\item VERBINTENIS_aanmelding_is_eerste_jaar: First year application indicator
+\item AANMELDING_is_eerste_jaar: First year application indicator
 }
 }
 \description{

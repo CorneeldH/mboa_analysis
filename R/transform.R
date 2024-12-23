@@ -714,7 +714,7 @@ transform_prior_education_vo_and_highest_degree <- function(student_years_prior_
 #' Aggregates employee component data to contract level, summing FTE adjustments
 #'
 #' @param fte_components A data frame containing employee contract components with columns:
-#'   MEDEWERKER_ID, MEDEWERKER_contract_kostenplaats_code,
+#'   MEDEWERKER_ID, TEAM_kostenplaats_code,
 #'   MEDEWERKER_contract_fte_peildatum, and MEDEWERKER_contract_fte_aanpassing
 #'
 #' @returns
@@ -728,7 +728,7 @@ summarise_components_to_employees <- function(fte_components) {
 
     employees_contract_extra_fte <- fte_components |>
         group_by(MEDEWERKER_ID,
-                 MEDEWERKER_contract_kostenplaats_code,
+                 TEAM_kostenplaats_code,
                  MEDEWERKER_contract_fte_peildatum
         ) |>
         summarise(MEDEWERKER_contract_fte_aanpassing = sum(MEDEWERKER_contract_fte_aanpassing))
@@ -748,12 +748,12 @@ summarise_components_to_employees <- function(fte_components) {
 #'
 #' @param employee_absences A data frame containing employee absence records with columns:
 #'   MEDEWERKER_ID, MEDEWERKER_eerste_verzuimdag, MEDEWERKER_laatste_verzuimdag,
-#'   MEDEWERKER_percentage_verzuim, MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam
+#'   MEDEWERKER_percentage_verzuim, TEAM_kostenplaats_code, SCHOOLJAAR_naam
 #'
 #' @returns A data frame with daily absence records containing:
 #'   \itemize{
 #'     \item MEDEWERKER_ID: Employee identifier
-#'     \item MEDEWERKER_contract_kostenplaats_code: Cost center code
+#'     \item TEAM_kostenplaats_code: Cost center code
 #'     \item datum: Date
 #'     \item SCHOOLJAAR_naam: School year
 #'     \item verzuim_percentage: Absence percentage (0-1)
@@ -797,7 +797,7 @@ expand_to_daily <- function(employee_absences) {
         # Sometimes persons have multiple absences at the same time, we fix this by summarizing
         group_by(
             MEDEWERKER_ID,
-            # MEDEWERKER_contract_kostenplaats_code,
+            # TEAM_kostenplaats_code,
             datum,
             SCHOOLJAAR_naam
         ) |>
@@ -837,14 +837,14 @@ expand_to_daily <- function(employee_absences) {
 #' @param employee_absences_in_days A data frame containing daily absence records with columns:
 #'   - datum: Date of absence
 #'   - MEDEWERKER_ID: Employee identifier
-#'   - MEDEWERKER_contract_kostenplaats_code: Cost center code
+#'   - TEAM_kostenplaats_code: Cost center code
 #'   - SCHOOLJAAR_naam: School year
 #'   - verzuim_percentage: Daily absence percentage
 #'   - verzuim_duur: Absence duration category ("kort", "middellang", "lang")
 #'
 #' @returns A data frame with weekly absence summaries per employee and cost center:
 #'   - MEDEWERKER_ID: Employee identifier
-#'   - MEDEWERKER_contract_kostenplaats_code: Cost center code
+#'   - TEAM_kostenplaats_code: Cost center code
 #'   - SCHOOLJAAR_naam: School year
 #'   - verzuim_percentage: Weekly average absence percentage
 #'   - verzuim_duur: Most severe absence duration in the week
@@ -936,7 +936,7 @@ summarise_employee_absence_to_years <- function(emplyee_absences_in_days) {
 #' Transforms weekly employee absence data from long to wide format
 #'
 #' @param employee_absence_in_weeks A tibble containing employee absence data with columns:
-#'   MEDEWERKER_ID, MEDEWERKER_contract_kostenplaats_code, SCHOOLJAAR_naam,
+#'   MEDEWERKER_ID, TEAM_kostenplaats_code, SCHOOLJAAR_naam,
 #'   MEDEWERKER_verzuim_week_nummer, MEDEWERKER_verzuim_totaal,
 #'   MEDEWERKER_verzuim_percentage, MEDEWERKER_verzuim_duur
 #'
@@ -953,7 +953,7 @@ pivot_weeks_to_years <- function(employee_absence_in_weeks) {
         # First pivot the week numbers and their corresponding values
         pivot_wider(
             id_cols = c(MEDEWERKER_ID,
-                        # MEDEWERKER_contract_kostenplaats_code,
+                        # TEAM_kostenplaats_code,
                         SCHOOLJAAR_naam),
             names_from = MEDEWERKER_verzuim_week_nummer,
             values_from = c(MEDEWERKER_verzuim_totaal,
@@ -1115,38 +1115,52 @@ summarise_satisfaction_to_groups <- function(employee_answers_satisfaction) {
 #' Pivot Categorical Values to Percentages
 #'
 #' @description
-#' Convert categorical values into percentage columns through pivoting
+#' Transform categorical data into percentage columns, combining rare categories
+#' into an 'overig' (other) category
 #'
-#' @param data A data frame.
-#' @param col_name A string specifying the column to pivot.
-#' @param grouping_vars Optional. A character vector of column names to group by.
-#'   Defaults to c("TEAM_naam", "COHORT_naam").
+#' @param data A data frame containing the categorical column to transform
+#' @param col_name A string specifying the column to pivot
+#' @param grouping_vars Optional. A character vector of grouping variables.
+#'   Defaults to c("TEAM_naam", "COHORT_naam")
+#' @param min_pct Optional. A numeric value between 0 and 1 specifying the minimum
+#'   percentage threshold for categories. Defaults to 0.10
 #'
 #' @returns
-#' A data frame where the categorical values from `col_name` have been pivoted
-#' into percentage columns, with the percentages calculated within each group
-#' specified by `grouping_vars`.
+#' A data frame with rare categories (below min_pct) combined into 'overig' and
+#' pivoted to wide format, where each category becomes a column with its percentage
 #'
-#' @importFrom dplyr select group_by summarise mutate ungroup across all_of
-#' @importFrom tidyr pivot_wider
+#' @importFrom dplyr select group_by summarise mutate filter across all_of
+#' @importFrom tidyr pivot_wider := .data
 #'
 #' @export
 pivot_cat_values_to_pct <- function(data,
                                     col_name,
-                                    grouping_vars = c("TEAM_naam", "COHORT_naam")) {
+                                    grouping_vars = c("TEAM_naam", "COHORT_naam"),
+                                    min_pct = 0.10) {
 
     data_pivoted <- data |>
         select(all_of(c(grouping_vars, col_name))) |>
-        # Count number of appearances per value for eacht of the combination of grouping vars
+        # Initial counts and percentages
         group_by(across(all_of(c(grouping_vars, col_name)))) |>
         summarise(n = n(), .groups = "drop") |>
-        # Get percentages
         group_by(across(all_of(grouping_vars))) |>
         mutate(prop = n / sum(n)) |>
-        ungroup() |>
-        select(!n) |>
+        # Set rare categories to overig
+        group_by(across(all_of(grouping_vars))) |>
+        mutate(
+            {{col_name}} := if_else(prop >= min_pct,
+                                    .data[[col_name]],
+                                    "overig")
+        ) |>
+        group_by(across(all_of(c(grouping_vars, col_name)))) |>
+        summarise(
+            prop = sum(prop),
+            .groups = "drop"
+        ) |>
+        # Remove the rare categories, including rare Overig (so no longer 100%)
+        filter(prop > min_pct) |>
         pivot_wider(
-            id_cols = !!grouping_vars,
+            id_cols = all_of(grouping_vars),
             names_from = all_of(col_name),
             values_from = prop,
             names_prefix = paste0(col_name, "_"),
@@ -1154,6 +1168,7 @@ pivot_cat_values_to_pct <- function(data,
         )
 
     return(data_pivoted)
+
 }
 
 

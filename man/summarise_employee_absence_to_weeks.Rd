@@ -11,7 +11,7 @@ summarise_employee_absence_to_weeks(employee_absences_in_days)
 \itemize{
 \item datum: Date of absence
 \item MEDEWERKER_ID: Employee identifier
-\item MEDEWERKER_contract_kostenplaats_code: Cost center code
+\item TEAM_kostenplaats_code: Cost center code
 \item SCHOOLJAAR_naam: School year
 \item verzuim_percentage: Daily absence percentage
 \item verzuim_duur: Absence duration category ("kort", "middellang", "lang")
@@ -21,7 +21,7 @@ summarise_employee_absence_to_weeks(employee_absences_in_days)
 A data frame with weekly absence summaries per employee and cost center:
 \itemize{
 \item MEDEWERKER_ID: Employee identifier
-\item MEDEWERKER_contract_kostenplaats_code: Cost center code
+\item TEAM_kostenplaats_code: Cost center code
 \item SCHOOLJAAR_naam: School year
 \item verzuim_percentage: Weekly average absence percentage
 \item verzuim_duur: Most severe absence duration in the week

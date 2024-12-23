@@ -62,12 +62,12 @@ ingest_cohorts <- function(..., filename = NULL, path = NULL, config_key = "coho
 #'     \item TEAM_school_afk: School abbreviation
 #'     \item TEAM_naam: Full team name
 #'     \item TEAM_naam_afk: Team abbreviation
-#'     \item TEAM_kostenplaats: Cost center code
+#'     \item TEAM_kostenplaats_code: Cost center code
 #'     \item TEAM_sk_kostenplaats: SK cost center code
 #'     \item TEAM_sk_kostenplaats_hr2day: HR2Day cost center code
 #'   }
 #'
-#' @importFrom dplyr select rename rename_with
+#' @importFrom dplyr select rename rename_with distinct
 #' @importFrom janitor clean_names
 #'
 #' @export
@@ -98,6 +98,7 @@ ingest_teams <- function(..., filename = NULL, path = NULL, config_key = "teams"
                naam = team,
                naam_afk = team_afk) |>
         rename_with(~ paste0("TEAM_", .)) |>
+        rename(TEAM_kostenplaats_code = TEAM_kostenplaats) |>
         distinct()
 
     # keep the config with the data for later use
@@ -326,10 +327,10 @@ ingest_enrollments_basics <- function(..., filename = NULL, path = NULL, config_
 #'
 #' @return A tibble containing processed application data with columns:
 #'   \itemize{
-#'     \item VERBINTENIS_aanmelding_begin_datum: Start date
-#'     \item VERBINTENIS_aanmelding_laatst_gewijzigd_datum: Last modified date
+#'     \item AANMELDING_begin_datum: Start date
+#'     \item AANMELDING_laatst_gewijzigd_datum: Last modified date
 #'     \item VERBINTENIS_ID: Enrollment reference
-#'     \item VERBINTENIS_aanmelding_is_eerste_jaar: First year application indicator
+#'     \item AANMELDING_is_eerste_jaar: First year application indicator
 #'   }
 #'
 #' @importFrom dplyr select rename rename_with
@@ -346,10 +347,10 @@ ingest_enrollments_application <- function(..., filename = NULL, path = NULL, co
                           config_data_path = config_data_path)
 
     data_clean <- data_raw |>
-        select(VERBINTENIS_aanmelding_begin_datum = BEGINDATUM,
-               VERBINTENIS_aanmelding_laatst_gewijzigd_datum = LAST_MODIFIED_AT,
+        select(AANMELDING_begin_datum = BEGINDATUM,
+               AANMELDING_laatst_gewijzigd_datum = LAST_MODIFIED_AT,
                # Like TYPE and INGETROKKEN only available from 2023
-               VERBINTENIS_aanmelding_is_eerste_jaar = AANMELDINGVOOREERSTELEERJAAR,
+               AANMELDING_is_eerste_jaar = AANMELDINGVOOREERSTELEERJAAR,
                VERBINTENIS_ID = VERBINTENIS)
 
     # keep the config with the data for later use
@@ -623,7 +624,7 @@ ingest_reasons_for_leaving <- function(..., filename = NULL, path = NULL, config
 #'
 #' @return A tibble containing processed employee absence data with columns:
 #'   \itemize{
-#'     \item MEDEWERKER_contract_kostenplaats_code: Department cost center code
+#'     \item TEAM_kostenplaats_code: Department cost center code
 #'     \item MEDEWERKER_ID: Employee identifier
 #'     \item FUNCTIE_ID: Function identifier
 #'     \item MEDEWERKER_eerste_verzuimdag: First day of absence
@@ -1044,7 +1045,7 @@ ingest_bpv_statusses <- function(..., filename = NULL, path = NULL, config_key =
 #' @return A tibble containing processed basic job contract data with columns:
 #'   \itemize{
 #'     \item MEDEWERKER_ID: Employee identifier
-#'     \item MEDEWERKER_contract_kostenplaats_code: Department cost center code
+#'     \item TEAM_kostenplaats_code: Department cost center code
 #'     \item MEDEWERKER_contract_fte: Full Time Equivalent value
 #'     \item MEDEWERKER_contract_fte_peildatum: Reference date derived from config filename
 #'   }
@@ -1065,7 +1066,7 @@ ingest_employees_contract_basics_helper <- function(config_key,..., filename = N
     data_clean <- data_raw |>
         select(
             MEDEWERKER_ID = `ID Medewerker`,
-            MEDEWERKER_contract_kostenplaats_code = `Kostenplaats Afdeling`,
+            TEAM_kostenplaats_code = `Kostenplaats Afdeling`,
             MEDEWERKER_contract_fte = FTE
         ) |>
         mutate(
@@ -1247,7 +1248,7 @@ ingest_employees_contract_basics_2019 <- function(..., filename = NULL, path = N
 #' @return A tibble containing processed job contract FTE data with columns:
 #'   \itemize{
 #'     \item MEDEWERKER_ID: Employee identifier
-#'     \item MEDEWERKER_contract_kostenplaats_code: Department cost center code
+#'     \item TEAM_kostenplaats_code: Department cost center code
 #'     \item MEDEWERKER_contract_fte_aanpassing: FTE adjustment value
 #'     \item MEDEWERKER_contract_fte_peildatum: Date derived from config filename
 #'   }
@@ -1274,7 +1275,7 @@ ingest_job_components_extra_fte_helper <- function(config_key, ..., filename = N
     data_clean <- data_raw |>
         select(
             MEDEWERKER_ID = `ID Medewerker`,
-            MEDEWERKER_contract_kostenplaats_code = `Kostenplaats Afdeling`,
+            TEAM_kostenplaats_code = `Kostenplaats Afdeling`,
             MEDEWERKER_contract_fte_aanpassing = `FTE Looncomponent`
         ) |>
         mutate(
@@ -1450,7 +1451,7 @@ ingest_employees_job_type_helper <- function(config_key, ..., filename = NULL, p
 
     data_clean <- data_raw |>
         select(MEDEWERKER_ID = `ID Medewerker`,
-               MEDEWERKER_kostenplaats_code = `Kostenplaats Afdeling`,
+               TEAM_kostenplaats_code = `Kostenplaats Afdeling`,
                MEDEWERKER_functie = Functie) |>
         mutate(
             MEDEWERKER_functie_peildatum = ymd(get_filename_from_config(config_key))

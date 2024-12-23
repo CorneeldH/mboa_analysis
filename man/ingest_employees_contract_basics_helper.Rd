@@ -27,7 +27,7 @@ ingest_employees_contract_basics_helper(
 A tibble containing processed basic job contract data with columns:
 \itemize{
 \item MEDEWERKER_ID: Employee identifier
-\item MEDEWERKER_contract_kostenplaats_code: Department cost center code
+\item TEAM_kostenplaats_code: Department cost center code
 \item MEDEWERKER_contract_fte: Full Time Equivalent value
 \item MEDEWERKER_contract_fte_peildatum: Reference date derived from config filename
 }

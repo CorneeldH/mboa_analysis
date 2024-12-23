@@ -7,22 +7,26 @@
 pivot_cat_values_to_pct(
   data,
   col_name,
-  grouping_vars = c("TEAM_naam", "COHORT_naam")
+  grouping_vars = c("TEAM_naam", "COHORT_naam"),
+  min_pct = 0.1
 )
 }
 \arguments{
-\item{data}{A data frame.}
+\item{data}{A data frame containing the categorical column to transform}
 
-\item{col_name}{A string specifying the column to pivot.}
+\item{col_name}{A string specifying the column to pivot}
 
-\item{grouping_vars}{Optional. A character vector of column names to group by.
-Defaults to c("TEAM_naam", "COHORT_naam").}
+\item{grouping_vars}{Optional. A character vector of grouping variables.
+Defaults to c("TEAM_naam", "COHORT_naam")}
+
+\item{min_pct}{Optional. A numeric value between 0 and 1 specifying the minimum
+percentage threshold for categories. Defaults to 0.10}
 }
 \value{
-A data frame where the categorical values from \code{col_name} have been pivoted
-into percentage columns, with the percentages calculated within each group
-specified by \code{grouping_vars}.
+A data frame with rare categories (below min_pct) combined into 'overig' and
+pivoted to wide format, where each category becomes a column with its percentage
 }
 \description{
-Convert categorical values into percentage columns through pivoting
+Transform categorical data into percentage columns, combining rare categories
+into an 'overig' (other) category
 }

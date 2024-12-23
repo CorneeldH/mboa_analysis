@@ -27,7 +27,7 @@ ingest_job_components_extra_fte_helper(
 A tibble containing processed job contract FTE data with columns:
 \itemize{
 \item MEDEWERKER_ID: Employee identifier
-\item MEDEWERKER_contract_kostenplaats_code: Department cost center code
+\item TEAM_kostenplaats_code: Department cost center code
 \item MEDEWERKER_contract_fte_aanpassing: FTE adjustment value
 \item MEDEWERKER_contract_fte_peildatum: Date derived from config filename
 }
