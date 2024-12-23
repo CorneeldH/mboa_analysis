@@ -11,11 +11,11 @@ RoxygenNote: 7.3.2
 Imports:
     readr,
     dplyr,
-    janitor,
     config,
     stringr,
     tidyr,
     lubridate,
-    purrr
+    purrr,
+    janitor 
 Suggests:
     testthat (>= 3.0.0)
