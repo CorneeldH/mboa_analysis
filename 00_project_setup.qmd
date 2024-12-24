@@ -33,8 +33,11 @@ Naast de packages, laden we ook all functies in die we in dit project gemaakt he
 ```{r}
 #| cache: false
 #| output: false
+#| include: false
+#| freeze: false
 
 source("utils/manage_packages.R")
+source("utils/dev_functions.R")
 load_all()
 
 ```

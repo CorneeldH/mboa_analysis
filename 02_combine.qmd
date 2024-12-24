@@ -2,16 +2,7 @@
 title: "Samenvoegen"
 ---
 
-```{r}
-#| include: false
-#| freeze: false
-#| cache: false
-
-source("utils/manage_packages.R")
-source("utils/dev_functions.R")
-load_all()
-
-```
+{{< include 00_project_setup.qmd >}}
 
 Hier voegen we alle data samen in enkele bestanden.
 
@@ -110,10 +101,10 @@ enrollments_combined  <- enrollments_extra_id_joins |>
     left_join_load("cohorts",
               by = join_by(COHORT_ID),
               relationship = "many-to-one") |>
-    left_join_load("student_years_prior_education",
+    left_join_load("student_prior_education_yearly",
               by = join_by(DEELNEMER_ID, COHORT_naam),
               relationship = "many-to-one") |>
-    left_join_load("student_years_demographics",
+    left_join_load("student_demographics_yearly",
           by = join_by(DEELNEMER_ID, COHORT_naam),
           relationship = "many-to-one") |>
     left_join_load("enrollment_years_attendance",
@@ -167,7 +158,7 @@ employees_combined <- employees_contract |>
                            "TEAM_kostenplaats_code", 
                            "MEDEWERKER_contract_fte_peildatum" = "MEDEWERKER_functie_peildatum"),
               relationship = "one-to-one") |>
-    left_join_load("employees_absence",
+    left_join_load("employees_absence_yearly",
               by = join_by(MEDEWERKER_ID,
                            SCHOOLJAAR_naam),
               # This can be many since there is no kostenplaats in the absence data
@@ -223,10 +214,12 @@ enrollments_combined_enriched_filtered <- enrollments_combined_enriched |>
 
 ### Verbintenis 
 
+Let op, we negeren waardes die heel weinig voorkomen en we selecteren 
+
 ```{r}
 
-teams_enrollments_cat_vars2 <- enrollments_combined_enriched_filtered |>
-    transform_to_cat_val_pct_columns()
+teams_enrollments_cat_vars <- enrollments_combined_enriched_filtered |>
+    transform_to_cat_val_pct_columns(max_n_values = 6, min_pct = 0.10)
 
 
 ```
@@ -281,7 +274,15 @@ if (!exists("employees_combined_enriched")) {
     employees_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"), "employees_combined_enriched.rds"))
 }
 
-teams_employees <- employees_combined_enriched |>
+teams_employees_cat_vars <- employees_combined_enriched |>
+    filter(TEAM_kostenplaats_code %in% enrollments_combined_enriched_filtered$TEAM_kostenplaats_code) |>
+    transform_to_cat_val_pct_columns(
+        grouping_vars = c("TEAM_kostenplaats_code", "SCHOOLJAAR_naam"),
+        max_n_values = 100,
+        min_pct = 0.20
+    )
+
+teams_employees_num_vars <- employees_combined_enriched |>
     group_by(TEAM_kostenplaats_code, SCHOOLJAAR_naam) |>
     summarise(
         MEDEWERKER_contract_fte = sum(MEDEWERKER_contract_fte, na.rm = TRUE),
@@ -290,6 +291,9 @@ teams_employees <- employees_combined_enriched |>
         across(contains("verzuim"), ~mean(., na.rm = TRUE)),
         .groups = "drop"
     )
+
+teams_employees <- teams_employees_cat_vars |>
+    left_join(teams_employees_num_vars, by = c("TEAM_kostenplaats_code", "SCHOOLJAAR_naam"))
 
 save_combined(teams_employees)
 

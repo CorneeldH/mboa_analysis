@@ -2,14 +2,7 @@
 title: "Correlaties"
 ---
 
-```{r}
-#| include: false
-#| freeze: false
-#| cache: false
-source("utils/manage_packages.R")
-
-```
-
+{{< include 00_project_setup.qmd >}}
 
 ```{r}
 #| include: false

@@ -1,18 +1,8 @@
 ---
-editor: source
+title: Inladen en voorbereiden
 ---
 
-```{r}
-#| include: false
-#| freeze: false
-#| cache: false
-source("utils/manage_packages.R")
-source("utils/dev_functions.R")
-load_all()
-
-```
-
-# Inladen en voorbereiden
+{{< include 00_project_setup.qmd >}}
 
 Voordat we met de analyse beginnen, lade we eerst de data in. De functies hiervoor zijn te vinden in R/ingest.R.
 
@@ -67,9 +57,9 @@ print("BPV data succesvol ingeladen en getransformeerd naar verbintenis.")
 
 ```{r}
 #' *INFO* An enrollment can be longer or shorter than one year
-student_years_demographics <- ingest_students_demographics() |>
+student_demographics_yearly <- ingest_students_demographics() |>
     transform_students_to_student_year()
-student_years_prior_education <- ingest_students_prior_education() |>
+student_prior_education_yearly <- ingest_students_prior_education() |>
     transform_prior_education_to_student_year() |>
     transform_prior_education_vo_and_highest_degree()
 
@@ -112,7 +102,7 @@ print("Programma (incl. examenplan) data succesvol ingeladen en geprepareerd.")
 
 ## Medewerkers (employees)
 
-We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met aanpassingen. Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar wekelijkse verzuimpercentages en één tabel per schooljaar.
+We laden eerst informatie uit medewerkers contracten in. Deze data is per jaar aangeleverd met peildatum 1 oktober. Naast de contracten, zijn er ook componenten met FTE aanpassingen.
 
 ```{r}
 
@@ -140,22 +130,27 @@ print("Medewerker FTE data op peildatum succesvol ingeladen en geprepareerd.")
 
 ```
 
+Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar jaarlijkse
+verzuimpercentages. Hierbij ontbreken gegeven van medewerkers die geen enkele verzuim melding in een jaar hebben. Dit vullen op na het koppelen.
+
 ```{r}
 
 # Within map to keep the transformations separate by years, this makes it less memory intensive
-employees_absence <- ingest_employee_absences() |>
-    # TODO
+employees_absence_yearly <- ingest_employee_absences() |>
+    # Due to joins before the export there are duplicates
     distinct() |>
+    # TODO rename function after fixing dates at ingest
     convert_absence_types() |>
     # TODO interne functies maken
-    split_absences_into_school_years() |>
-    map(expand_to_daily) |>
-    map(summarise_employee_absence_to_years) |>
+    #split_absences_into_school_years() |>
+    #map(expand_to_daily) |>
+    #map(summarise_employee_absence_to_years) |>
     #map(summarise_employee_absence_to_weeks) |>
     #map(pivot_weeks_to_years) |>
     # TODO
-    map_dfr(bind_rows) |>
-    save_prepared_and_return(filename = "employees_absence")
+    #map_dfr(bind_rows) |>
+    summarise_employee_absence_to_years()
+    #save_prepared_and_return(filename = "employees_absence")
 
 print("Medewerker verzuim data succesvol ingeladen en getransformeerd naar schooljaar.")
 
@@ -170,7 +165,8 @@ employees_job_type <-  bind_rows(
     ingest_employees_job_type_2020(),
     ingest_employees_job_type_2019()
 ) |>
-    # TODO this removes a few teachers who have double contracts
+    # TODO some double values due to joins before export
+    # This unfortunately also removes a few teachers who have double contracts
     distinct(
         MEDEWERKER_ID, 
         TEAM_kostenplaats_code, 
