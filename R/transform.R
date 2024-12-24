@@ -132,7 +132,11 @@ transform_students_to_student_year <- function(students_demographics, first_year
 
     # TODO Number of moves is ignored
     students_demographics_filtered <- students_demographics |>
-        filter(DEELNEMER_begindatum >= SCHOOLJAAR_startdatum)
+        mutate(
+            DEELNEMER_begindatum = as.Date(DEELNEMER_begindatum),
+            DEELNEMER_einddatum = as.Date(DEELNEMER_einddatum)
+        )
+        #filter(DEELNEMER_begindatum >= SCHOOLJAAR_startdatum)
 
     peildatums <- data.frame(
         peildatum = seq.Date(
@@ -145,18 +149,19 @@ transform_students_to_student_year <- function(students_demographics, first_year
                                     "/",
                                     format(peildatum + years(1), "%Y")))
 
-    student_years_demographics <- students_demographics_filtered |>
+    student_demographics_yearly <- students_demographics_filtered |>
         cross_join(peildatums) |>
         filter(
-            peildatum >= DEELNEMER_begindatum,
+            #peildatum >= DEELNEMER_begindatum,
             peildatum <= DEELNEMER_einddatum | is.na(DEELNEMER_einddatum)
         ) |>
+        arrange(DEELNEMER_ID, peildatum, desc(DEELNEMER_begindatum)) |>
         # To remove duplicates due to use of is.na einddatum and cross_join
         distinct(DEELNEMER_ID, peildatum, .keep_all = TRUE)
 
-    save_transformed(student_years_demographics)
+    save_transformed(student_demographics_yearly)
 
-    return(student_years_demographics)
+    return(student_demographics_yearly)
 }
 
 #
@@ -605,7 +610,7 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
     }
 
     # Combine reference dates with prior education data
-    student_years_prior_education_expanded <- students_prior_education |>
+    student_prior_education_yearly_expanded <- students_prior_education |>
         cross_join(datums_start) |>
         filter(
             !is.na(DEELNEMER_vooropleiding_einddatum),
@@ -616,9 +621,9 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
         # Keep only the most recent end date
         ungroup()
 
-    save_transformed(student_years_prior_education_expanded)
+    save_transformed(student_prior_education_yearly_expanded)
 
-    return(student_years_prior_education_expanded)
+    return(student_prior_education_yearly_expanded)
 }
 
 
@@ -628,7 +633,7 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
 #' Processes student educational history data to extract information about prior
 #' secondary education (VO) and highest obtained degree.
 #'
-#' @param student_years_prior_education_expanded A data frame containing student educational history with columns:
+#' @param student_prior_education_yearly_expanded A data frame containing student educational history with columns:
 #'   \itemize{
 #'     \item DEELNEMER_ID: Student identifier
 #'     \item DEELNEMER_vooropleiding_hoogst_vo: Indicator for highest secondary education
@@ -646,9 +651,9 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
 #' @importFrom dplyr filter select group_by ungroup slice_max slice_tail full_join summarise case_when join_by
 #'
 #' @export
-transform_prior_education_vo_and_highest_degree <- function(student_years_prior_education_expanded) {
+transform_prior_education_vo_and_highest_degree <- function(student_prior_education_yearly_expanded) {
     # First get the records for highest VO
-    vo_records <- student_years_prior_education_expanded |>
+    vo_records <- student_prior_education_yearly_expanded |>
         filter(DEELNEMER_vooropleiding_hoogst_vo == 1) |>
         select(
             DEELNEMER_ID,
@@ -667,7 +672,7 @@ transform_prior_education_vo_and_highest_degree <- function(student_years_prior_
         ungroup()
 
     # Then get the records for highest gediplomeerde
-    gediplomeerde_records <- student_years_prior_education_expanded |>
+    gediplomeerde_records <- student_prior_education_yearly_expanded |>
         filter(DEELNEMER_vooropleiding_hoogst_gediplomeerde == 1) |>
         select(
             DEELNEMER_ID,
@@ -685,7 +690,7 @@ transform_prior_education_vo_and_highest_degree <- function(student_years_prior_
         slice_tail(n = 1) |>
         ungroup()
 
-    start_kwalificatie <- student_years_prior_education_expanded |>
+    start_kwalificatie <- student_prior_education_yearly_expanded |>
         group_by(DEELNEMER_ID, COHORT_naam) |>
         summarise(
             start_kwalificatie = case_when(
@@ -697,13 +702,13 @@ transform_prior_education_vo_and_highest_degree <- function(student_years_prior_
         ungroup()
 
     # Join the two datasets
-    student_years_prior_education <- start_kwalificatie |>
+    student_prior_education_yearly <- start_kwalificatie |>
         full_join(vo_records, by = join_by(DEELNEMER_ID, COHORT_naam)) |>
         full_join(gediplomeerde_records, by = join_by(DEELNEMER_ID, COHORT_naam))
 
-    save_transformed(student_years_prior_education)
+    save_transformed(student_prior_education_yearly)
 
-    return(student_years_prior_education)
+    return(student_prior_education_yearly)
 }
 
 
@@ -855,6 +860,7 @@ expand_to_daily <- function(employee_absences) {
 #' @export
 summarise_employee_absence_to_weeks <- function(employee_absences_in_days) {
 
+
     employee_absences_in_weeks <- employee_absences_in_days |>
         mutate(
             MEDEWERKER_verzuim_week_nummer = paste0("week_", sprintf("%02d", isoweek(datum)))
@@ -894,7 +900,43 @@ summarise_employee_absence_to_weeks <- function(employee_absences_in_days) {
     return(employee_absences_in_weeks)
 }
 
-summarise_employee_absence_to_years <- function(emplyee_absences_in_days) {
+summarise_employee_absence_in_days_to_year <- function(employees_absences_in_days) {
+
+    emplyee_absences_yearly <- employees_absences_in_days |>
+        group_by(
+            MEDEWERKER_ID,
+            SCHOOLJAAR_naam
+        ) |>
+        summarise(
+            days_in_year = n(),
+            MEDEWERKER_verzuim_lang = sum(verzuim_percentage[verzuim_duur == "lang"], na.rm = TRUE),
+            MEDEWERKER_verzuim_pct_lang = MEDEWERKER_verzuim_lang / days_in_year,
+            MEDEWERKER_verzuim_middellang = sum(verzuim_percentage[verzuim_duur == "middellang"], na.rm = TRUE),
+            MEDEWERKER_verzuim_pct_middellang = MEDEWERKER_verzuim_middellang / days_in_year,
+            MEDEWERKER_verzuim_kort = sum(verzuim_percentage[verzuim_duur == "kort"], na.rm = TRUE),
+            MEDEWERKER_verzuim_pct_kort = MEDEWERKER_verzuim_kort / days_in_year,
+            .groups = "drop"
+        )
+
+    return(emplyee_absences_yearly)
+
+}
+
+summarise_employee_absence_to_years <- function(employee_absences) {
+
+    employee_absences_in_years_split <- split_absences_into_school_years(employee_absences)
+
+    employees_absence_yearly <- employee_absences_in_years_split |>
+        map(expand_to_daily) |>
+        map(summarise_employee_absence_in_days_to_year) |>
+        map_dfr(bind_rows)
+
+    save_transformed(employees_absence_yearly)
+
+    return(employee_absence_yearly)
+}
+
+summarise_employee_absence_to_years_old <- function(emplyee_absences_in_days) {
 
     emplyee_absences_in_years <- emplyee_absences_in_days |>
         group_by(
@@ -1130,7 +1172,8 @@ summarise_satisfaction_to_groups <- function(employee_answers_satisfaction) {
 #' pivoted to wide format, where each category becomes a column with its percentage
 #'
 #' @importFrom dplyr select group_by summarise mutate filter across all_of
-#' @importFrom tidyr pivot_wider := .data
+#' @importFrom tidyr pivot_wider
+#' @importFrom rlang := .data
 #'
 #' @export
 pivot_cat_values_to_pct <- function(data,
@@ -1157,7 +1200,7 @@ pivot_cat_values_to_pct <- function(data,
             prop = sum(prop),
             .groups = "drop"
         ) |>
-        # Remove the rare categories, including rare Overig (so no longer 100%)
+        # Remove the rare categories, including rare overig (so no longer 100%)
         filter(prop > min_pct) |>
         pivot_wider(
             id_cols = all_of(grouping_vars),
@@ -1191,7 +1234,8 @@ pivot_cat_values_to_pct <- function(data,
 #' @export
 transform_to_cat_val_pct_columns <- function(data,
                                          grouping_vars = c("TEAM_naam", "COHORT_naam"),
-                                         max_n_values = 6) {
+                                         max_n_values = 6,
+                                         min_pct = 0.10) {
 
 
     # First get your base data with the right columns
@@ -1202,12 +1246,20 @@ transform_to_cat_val_pct_columns <- function(data,
 
     # Get the columns we need to process
     cols_to_process <- data_selected |>
-        select(!c(TEAM_naam, COHORT_naam)) |>
+        select(!c(all_of(grouping_vars))) |>
         names()
 
     # Process all columns and join results
-    teams_enrollments_fix <- cols_to_process |>
-        map(~pivot_cat_values_to_pct(data_selected, ., grouping_vars)) |>
-        reduce(left_join, by = grouping_vars)
+    data_pivoted <- cols_to_process |>
+        map(~pivot_cat_values_to_pct(data_selected, ., grouping_vars, min_pct)) #
+
+    tryCatch({
+        data_reduced <- data_pivoted |>
+            reduce(left_join, by = grouping_vars)
+    }, error = function(e) {
+        cli_abort("Error in processing categorical variables, no variables are selected. Try to increase the max_n_values")
+    })
+
+    return(data_reduced)
 
 }

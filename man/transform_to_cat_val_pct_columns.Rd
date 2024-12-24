@@ -7,7 +7,8 @@
 transform_to_cat_val_pct_columns(
   data,
   grouping_vars = c("TEAM_naam", "COHORT_naam"),
-  max_n_values = 6
+  max_n_values = 6,
+  min_pct = 0.1
 )
 }
 \arguments{

@@ -424,6 +424,21 @@ ingest_attendance_observations <- function(..., filename = NULL, path = NULL, co
 }
 
 
+#' Ingest enrollment to SK identifier mapping data
+#'
+#' @description
+#' Read and process mapping data between enrollment identifiers and SK identifiers
+#'
+#' @param filename Optional. A single string specifying the CSV file name.
+#' @param path Optional. A single string specifying the file path.
+#' @param config_key Optional. A single string specifying the configuration key (default: "enrollment_to_sk_mapping").
+#' @param config_data_path Optional. A single string specifying the config path for raw data (default: "data_raw_dir").
+#' @param ... Additional arguments passed to readr::read_delim.
+#'
+#' @returns
+#' A tibble containing processed mapping data between enrollment and SK identifiers.
+#'
+#' @export
 ingest_enrollment_to_sk_mapping <- function(..., filename = NULL, path = NULL, config_key = "enrollment_to_sk_mapping", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1440,6 +1455,30 @@ ingest_job_components_extra_fte_2019 <- function(..., filename = NULL, path = NU
     return(data_clean)
 }
 
+#' Ingest Employee Job Type Data
+#'
+#' @description
+#' Helper function to process employee job type information from a CSV file,
+#' mapping employees to their roles and cost centers.
+#'
+#' @param config_key A single string specifying the configuration key to use.
+#' @param ... Additional arguments passed to the file reading function.
+#' @param filename Optional. A string specifying the name of the CSV file.
+#' @param path Optional. A string specifying the path to the CSV file.
+#' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
+#'
+#' @returns A tibble containing processed employee job data:
+#'   \itemize{
+#'     \item MEDEWERKER_ID: Employee identifier
+#'     \item TEAM_kostenplaats_code: Department cost center code
+#'     \item MEDEWERKER_functie: Employee job function
+#'     \item MEDEWERKER_functie_peildatum: Reference date derived from filename
+#'   }
+#'
+#' @importFrom dplyr select mutate
+#' @importFrom lubridate ymd
+#'
+#' @export
 ingest_employees_job_type_helper <- function(config_key, ..., filename = NULL, path = NULL, config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed

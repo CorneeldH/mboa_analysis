@@ -1,4 +1,3 @@
-
 #' Calculate Days Between Exam Plan Dates and Start Date
 #'
 #' @description

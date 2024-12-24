@@ -5,11 +5,11 @@
 \title{Transform Prior Education and Highest Degree Data}
 \usage{
 transform_prior_education_vo_and_highest_degree(
-  student_years_prior_education_expanded
+  student_prior_education_yearly_expanded
 )
 }
 \arguments{
-\item{student_years_prior_education_expanded}{A data frame containing student educational history with columns:
+\item{student_prior_education_yearly_expanded}{A data frame containing student educational history with columns:
 \itemize{
 \item DEELNEMER_ID: Student identifier
 \item DEELNEMER_vooropleiding_hoogst_vo: Indicator for highest secondary education
