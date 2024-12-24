@@ -30,6 +30,7 @@ packages_base <- c(
 packages_cran <- c(
 
     # develop package
+    "slider",
     "devtools",
     "usethis",
     "roxygen2",
