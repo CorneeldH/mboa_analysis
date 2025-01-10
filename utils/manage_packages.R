@@ -67,12 +67,16 @@ packages_cran <- c(
 # Include both the package name (for loading) and the account name (for renv snapshot)
 packages_github <- c(
     #"vusa",            # Utilise packages from the VU team
-    "pal"              # pal for using llm assistants
+    "pal",              # pal for using llm assistants
+    "gander",
+    "shinychat"
 )
 
 packages_github_with_account <- c(
     #"vusaverse/vusa",
-    "simonpcouch/pal"
+    "simonpcouch/pal",
+    "simonpcouch/gander",
+    "posit-dev/shinychat"
 )
 
 
@@ -113,10 +117,6 @@ warn_conflicts <- FALSE
 suppressMessages(purrr::walk(packages, ~library(.x,
                                                 character.only = TRUE,
                                                 warn.conflicts = warn_conflicts)))
-
-# Load all functions from this package
-source("utils/dev_functions.R")
-load_all()
 
 ## +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## WRITE-AND-CLEAR ####

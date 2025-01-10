@@ -493,6 +493,30 @@
       ],
       "Hash": "bb0eec2fe32e88d9e2836c2f73ea2077"
     },
+    "ellmer": {
+      "Package": "ellmer",
+      "Version": "0.0.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "tidyverse",
+      "RemoteRepo": "ellmer",
+      "RemoteRef": "main",
+      "RemoteSha": "3ad1fffe376cd369f0280c04dcb38d12dbb3189b",
+      "Requirements": [
+        "R6",
+        "S7",
+        "cli",
+        "coro",
+        "glue",
+        "httr2",
+        "jsonlite",
+        "later",
+        "promises",
+        "rlang"
+      ],
+      "Hash": "d01fdf43160b62d9302e190520e632a4"
+    },
     "elmer": {
       "Package": "elmer",
       "Version": "0.0.0.9000",
@@ -588,6 +612,32 @@
         "methods"
       ],
       "Hash": "7f48af39fa27711ea5fbd183b399920d"
+    },
+    "gander": {
+      "Package": "gander",
+      "Version": "0.0.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "simonpcouch",
+      "RemoteRepo": "gander",
+      "RemoteRef": "main",
+      "RemoteSha": "62ea1b0d87874dd5a848e0526c8d6e3c58e44548",
+      "Requirements": [
+        "R",
+        "cli",
+        "ellmer",
+        "glue",
+        "miniUI",
+        "purrr",
+        "rlang",
+        "rstudioapi",
+        "shiny",
+        "streamy",
+        "treesitter",
+        "treesitter.r"
+      ],
+      "Hash": "87847b77b2dbf76e1beb7df4c174c4af"
     },
     "gclus": {
       "Package": "gclus",
@@ -1574,7 +1624,7 @@
     },
     "shiny": {
       "Package": "shiny",
-      "Version": "1.9.1",
+      "Version": "1.10.0",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
@@ -1603,7 +1653,27 @@
         "withr",
         "xtable"
       ],
-      "Hash": "6a293995a66e12c48d13aa1f957d09c7"
+      "Hash": "4b4477baa9a939c5577e5ddb4bf01f28"
+    },
+    "shinychat": {
+      "Package": "shinychat",
+      "Version": "0.1.1.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "posit-dev",
+      "RemoteRepo": "shinychat",
+      "RemoteRef": "main",
+      "RemoteSha": "1ef2bea9589651ee5153903aaff6999c987cf050",
+      "Requirements": [
+        "bslib",
+        "coro",
+        "htmltools",
+        "promises",
+        "rlang",
+        "shiny"
+      ],
+      "Hash": "66ef5eec2968269ba202fd4010451739"
     },
     "slider": {
       "Package": "slider",
@@ -1640,6 +1710,24 @@
         "R"
       ],
       "Hash": "5f5a7629f956619d519205ec475fe647"
+    },
+    "streamy": {
+      "Package": "streamy",
+      "Version": "0.0.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "simonpcouch",
+      "RemoteRepo": "streamy",
+      "RemoteRef": "main",
+      "RemoteSha": "3a75fae4e2866548beb0b33a5d16e059133941c0",
+      "Requirements": [
+        "cli",
+        "coro",
+        "rlang",
+        "rstudioapi"
+      ],
+      "Hash": "01f30269efb97afcccd9a9c83f09154e"
     },
     "stringi": {
       "Package": "stringi",
@@ -1810,6 +1898,30 @@
         "xfun"
       ],
       "Hash": "3ec7e3ddcacc2d34a9046941222bf94d"
+    },
+    "treesitter": {
+      "Package": "treesitter",
+      "Version": "0.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "R6",
+        "cli",
+        "rlang",
+        "vctrs"
+      ],
+      "Hash": "22a579e4ac2ddd021df1791da7fd080f"
+    },
+    "treesitter.r": {
+      "Package": "treesitter.r",
+      "Version": "1.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R"
+      ],
+      "Hash": "067c058dbd496c4cd696449870b11d52"
     },
     "tzdb": {
       "Package": "tzdb",
