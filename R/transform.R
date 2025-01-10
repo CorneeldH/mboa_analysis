@@ -69,7 +69,7 @@ transform_advices_to_enrollments <- function(study_advices) {
             names_glue = "{.value}_{type}_eerste_datum"
         )
 
-    save_transformed(enrollments_study_advices)
+    save_transformed_and_comment(enrollments_study_advices)
 
     return(enrollments_study_advices)
 }
@@ -98,7 +98,7 @@ transform_advices_to_enrollments <- function(study_advices) {
 #'     \item COHORT_naam: Academic year identifier (e.g., "2019/2020")
 #'   }
 #'
-#' @importFrom dplyr filter cross_join distinct mutate
+#' @importFrom dplyr filter cross_join distinct mutate desc
 #' @importFrom lubridate years
 #'
 #' @export
@@ -159,7 +159,7 @@ transform_students_to_student_year <- function(students_demographics, first_year
         # To remove duplicates due to use of is.na einddatum and cross_join
         distinct(DEELNEMER_ID, peildatum, .keep_all = TRUE)
 
-    save_transformed(student_demographics_yearly)
+    save_transformed_and_comment(student_demographics_yearly)
 
     return(student_demographics_yearly)
 }
@@ -200,7 +200,7 @@ summarise_special_needs <- function(special_needs) {
             .groups = "drop"
         )
 
-    save_transformed(enrollments_special_needs)
+    save_transformed_and_comment(enrollments_special_needs)
 
     return(enrollments_special_needs)
 }
@@ -288,9 +288,9 @@ summarise_observations_to_weekly_attendance <- function(attendance_observations)
     if (num_years == 1) {
         year <- parse_number(unique(employee_absences_in_weeks$SCHOOLJAAR_naam))
         filename <- paste0("employee_absences_in_weeks_", year)
-        save_transformed(employee_absences_in_weeks, filename = filename)
+        save_transformed_and_comment(employee_absences_in_weeks, filename = filename)
     } else {
-        save_transformed(employee_absences_in_weeks)
+        save_transformed_and_comment(employee_absences_in_weeks)
     }
 
     return(enrollment_weeks_attendance)
@@ -366,9 +366,9 @@ summarise_attendance_to_enrollment <- function(attendance_observations) {
     # if (num_years == 1) {
     #     year <- parse_number(unique(enrollment_years_attendance$SCHOOLJAAR_naam))
     #     filename <- paste0("enrollment_years_attendance_", year)
-    #     save_transformed(enrollment_years_attendance, filename = filename)
+    #     save_transformed_and_comment(enrollment_years_attendance, filename = filename)
     # } else {
-    #     save_transformed(enrollment_years_attendance)
+    #     save_transformed_and_comment(enrollment_years_attendance)
     # }
 
     return(enrollment_years_attendance)
@@ -385,7 +385,7 @@ summarise_attendance_to_enrollment <- function(attendance_observations) {
 #'
 #' @returns
 #' A data frame of yearly attendance statistics per enrollment. The data is also
-#' saved to disk using `save_transformed()`.
+#' saved to disk using `save_transformed_and_comment()`.
 #'
 #' @importFrom dplyr mutate group_by group_split bind_rows
 #' @importFrom purrr map map_dfr
@@ -406,7 +406,7 @@ summarise_observations_to_yearly_attendance <- function(attendance_observations)
         map(summarise_attendance_to_enrollment) |>
         map_dfr(bind_rows)
 
-    save_transformed(enrollment_years_attendance)
+    save_transformed_and_comment(enrollment_years_attendance)
 
     return(enrollment_years_attendance)
 
@@ -477,9 +477,9 @@ transform_attendance_weekly_to_enrollments <- function(enrollment_weeks_attendan
     if (num_years == 1) {
         year <- parse_number(unique(enrollments_years_attendance_weekly$SCHOOLJAAR_naam))
         filename <- paste0("enrollments_years_attendance_weekly_", year)
-        save_transformed(enrollments_years_attendance_weekly, filename = filename)
+        save_transformed_and_comment(enrollments_years_attendance_weekly, filename = filename)
     } else {
-        save_transformed(enrollments_years_attendance_weekly)
+        save_transformed_and_comment(enrollments_years_attendance_weekly)
     }
 
     return(enrollments_years_attendance_weekly)
@@ -536,7 +536,7 @@ summarise_plan_dates_to_programmes <- function(exam_plans) {
                       ~if_else(. == Inf, NA_Date_, .)))
 
 
-    save_transformed(programmes_exam_plan)
+    save_transformed_and_comment(programmes_exam_plan)
 
     return(programmes_exam_plan)
 }
@@ -621,7 +621,7 @@ transform_prior_education_to_student_year <- function(students_prior_education, 
         # Keep only the most recent end date
         ungroup()
 
-    save_transformed(student_prior_education_yearly_expanded)
+    save_transformed_and_comment(student_prior_education_yearly_expanded)
 
     return(student_prior_education_yearly_expanded)
 }
@@ -706,7 +706,7 @@ transform_prior_education_vo_and_highest_degree <- function(student_prior_educat
         full_join(vo_records, by = join_by(DEELNEMER_ID, COHORT_naam)) |>
         full_join(gediplomeerde_records, by = join_by(DEELNEMER_ID, COHORT_naam))
 
-    save_transformed(student_prior_education_yearly)
+    save_transformed_and_comment(student_prior_education_yearly)
 
     return(student_prior_education_yearly)
 }
@@ -738,7 +738,7 @@ summarise_components_to_employees <- function(fte_components) {
         ) |>
         summarise(MEDEWERKER_contract_fte_aanpassing = sum(MEDEWERKER_contract_fte_aanpassing))
 
-    save_transformed(employees_contract_extra_fte)
+    save_transformed_and_comment(employees_contract_extra_fte)
 
     return(employees_contract_extra_fte)
 
@@ -824,9 +824,9 @@ expand_to_daily <- function(employee_absences) {
     if (num_years == 1) {
         year <- parse_number(unique(employee_absences_in_days$SCHOOLJAAR_naam))
         filename <- paste0("employee_absences_in_days_", year)
-        save_transformed(employee_absences_in_days, filename = filename)
+        save_transformed_and_comment(employee_absences_in_days, filename = filename)
     } else {
-        save_transformed(employee_absences_in_days)
+        save_transformed_and_comment(employee_absences_in_days)
     }
 
     return(employee_absences_in_days)
@@ -892,14 +892,33 @@ summarise_employee_absence_to_weeks <- function(employee_absences_in_days) {
     if (num_years == 1) {
         year <- parse_number(unique(employee_absences_in_weeks$SCHOOLJAAR_naam))
         filename <- paste0("employee_absences_in_weeks_", year)
-        save_transformed(employee_absences_in_weeks, filename = filename)
+        save_transformed_and_comment(employee_absences_in_weeks, filename = filename)
     } else {
-        save_transformed(employee_absences_in_weeks)
+        save_transformed_and_comment(employee_absences_in_weeks)
     }
 
     return(employee_absences_in_weeks)
 }
 
+#' Summarize Employee Absence Data by Year
+#'
+#' @description
+#' Calculate yearly summaries of employee absences, breaking down absence percentages
+#' by duration category (short, medium, and long-term).
+#'
+#' @param employees_absences_in_days A data frame containing daily employee absence records
+#' with columns for employee ID (MEDEWERKER_ID), school year (SCHOOLJAAR_naam),
+#' absence percentage (verzuim_percentage), and absence duration category (verzuim_duur).
+#'
+#' @returns A data frame summarizing yearly absence metrics per employee, including:
+#'   * Total days in year
+#'   * Absolute absence days and percentages for long-term absences
+#'   * Absolute absence days and percentages for medium-term absences
+#'   * Absolute absence days and percentages for short-term absences
+#'
+#' @importFrom dplyr group_by summarise
+#'
+#' @export
 summarise_employee_absence_in_days_to_year <- function(employees_absences_in_days) {
 
     emplyee_absences_yearly <- employees_absences_in_days |>
@@ -922,6 +941,20 @@ summarise_employee_absence_in_days_to_year <- function(employees_absences_in_day
 
 }
 
+#' Summarise Employee Absences by School Year
+#'
+#' @description
+#' Transforms employee absence data into yearly summaries based on school years
+#'
+#' @param employee_absences A data frame containing employee absence records
+#'
+#' @returns
+#' A data frame containing yearly summarized absence data for employees
+#'
+#' @importFrom purrr map map_dfr
+#' @importFrom dplyr bind_rows
+#'
+#' @export
 summarise_employee_absence_to_years <- function(employee_absences) {
 
     employee_absences_in_years_split <- split_absences_into_school_years(employee_absences)
@@ -931,46 +964,10 @@ summarise_employee_absence_to_years <- function(employee_absences) {
         map(summarise_employee_absence_in_days_to_year) |>
         map_dfr(bind_rows)
 
-    save_transformed(employees_absence_yearly)
+    save_transformed_and_comment(employees_absence_yearly)
 
-    return(employee_absence_yearly)
+    return(employees_absence_yearly)
 }
-
-summarise_employee_absence_to_years_old <- function(emplyee_absences_in_days) {
-
-    emplyee_absences_in_years <- emplyee_absences_in_days |>
-        group_by(
-            MEDEWERKER_ID,
-            SCHOOLJAAR_naam
-        ) |>
-        summarise(
-            days_in_year = n(),
-            MEDEWERKER_verzuim_lang = sum(verzuim_percentage[verzuim_duur == "lang"], na.rm = TRUE),
-            MEDEWERKER_verzuim_pct_lang = MEDEWERKER_verzuim_lang / days_in_year,
-            MEDEWERKER_verzuim_middellang = sum(verzuim_percentage[verzuim_duur == "middellang"], na.rm = TRUE),
-            MEDEWERKER_verzuim_pct_middellang = MEDEWERKER_verzuim_middellang / days_in_year,
-            MEDEWERKER_verzuim_kort = sum(verzuim_percentage[verzuim_duur == "kort"], na.rm = TRUE),
-            MEDEWERKER_verzuim_pct_kort = MEDEWERKER_verzuim_kort / days_in_year,
-            .groups = "drop"
-        )
-
-    ## TODO DRY
-    num_years <- emplyee_absences_in_years |>
-        distinct(SCHOOLJAAR_naam) |>
-        nrow()
-
-    if (num_years == 1) {
-        year <- parse_number(unique(emplyee_absences_in_years$SCHOOLJAAR_naam))
-        filename <- paste0("emplyee_absences_in_years_", year)
-        save_transformed(emplyee_absences_in_years, filename = filename)
-    } else {
-        save_transformed(emplyee_absences_in_years)
-    }
-
-
-    return(emplyee_absences_in_years)
-}
-
 
 #' Pivot Weekly Data to Yearly Format
 #'
@@ -1011,13 +1008,13 @@ pivot_weeks_to_years <- function(employee_absence_in_weeks) {
     if (num_years == 1) {
         year <- parse_number(unique(employee_absences_in_weeks$SCHOOLJAAR_naam))
         filename <- paste0("employee_absences_in_weeks_", year)
-        save_transformed(employee_absences_in_weeks, filename = filename)
+        save_transformed_and_comment(employee_absences_in_weeks, filename = filename)
     } else {
-        save_transformed(employee_absences_in_weeks)
+        save_transformed_and_comment(employee_absences_in_weeks)
     }
 
 
-    save_transformed(employee_years_absence_weekly)
+    save_transformed_and_comment(employee_years_absence_weekly)
 
     return(employee_years_absence_weekly)
 }
@@ -1078,7 +1075,7 @@ transform_bpv_statusses_to_enrollments <- function(bpv_statusses) {
         left_join(enrollments_bpv_definitive, by = "VERBINTENIS_ID") |>
         left_join(enrollments_bpv_complete, by = "VERBINTENIS_ID")
 
-    save_transformed(enrollments_bpv)
+    save_transformed_and_comment(enrollments_bpv)
 
     return(enrollments_bpv)
 }
@@ -1115,12 +1112,50 @@ pivot_answers_to_employees <- function(employee_answers_satisfaction) {
     ) |>
             clean_names()
 
+     save_transformed_and_comment(employees_satisfaction)
+
      return(employees_satisfaction)
 
-     save_transformed(employees_satisfaction)
 
  }
 
+#' Convert Answer Data to Student-Level Format
+#'
+#' @description
+#' Restructures student satisfaction survey data from long to wide format
+#'
+#' @param student_answers_satisfaction A dataframe containing student satisfaction survey responses
+#' in long format.
+#'
+#' @returns
+#' A dataframe in wide format where each row represents an student's responses,
+#' with questions as columns and scores as values.
+#'
+#' @importFrom tidyr pivot_wider
+#' @importFrom janitor clean_names
+#'
+#' @export
+pivot_answers_to_students <- function(student_answers_satisfaction) {
+
+    students_satisfaction <- student_answers_satisfaction |>
+        pivot_wider(
+            id_cols = c(id,
+                        startjaar,
+                        opleiding,
+                        niveau,
+                        leerjaar),
+            names_from = attribute,
+            values_from = value
+        ) |>
+        clean_names() |>
+        rename_with(~ paste0("JOB_L_", .))
+
+    filename <- paste0("students_satisfaction", "_", unique(students_satisfaction$JOB_L_startjaar))
+
+    save_transformed_and_comment(students_satisfaction, filename = filename)
+
+    return(students_satisfaction)
+}
 
 
 #' Summarize Employee Satisfaction by Groups
@@ -1215,27 +1250,29 @@ pivot_cat_values_to_pct <- function(data,
 }
 
 
-#' Transform Categorical Variables into Value-Percentage Columns
+#' Transform Categorical Values to Percentage Columns
 #'
 #' @description
-#' Convert categorical variables into columns showing value counts and percentages
+#' Convert categorical variables into percentage columns based on grouping variables
 #'
 #' @param data A data frame containing categorical variables.
 #' @param grouping_vars Optional. A character vector of column names to group by. Defaults to `c("TEAM_naam", "COHORT_naam")`.
-#' @param max_n_values Optional. Maximum number of distinct values to consider for processing. Defaults to 6.
+#' @param max_n_values Optional. Maximum number of unique values for a column to be considered categorical. Defaults to 6.
+#' @param min_pct Optional. Minimum percentage threshold for including categories. Defaults to 0.10.
 #'
 #' @returns
-#' A data frame with categorical variables transformed into value count and percentage columns,
-#' grouped by the specified variables.
+#' A data frame with categorical variables transformed into percentage columns.
+#' Will error if no variables meet the selection criteria.
 #'
-#' @importFrom dplyr select where n_distinct left_join
+#' @importFrom dplyr select where n_distinct left_join all_of
 #' @importFrom purrr map reduce
+#' @importFrom cli cli_abort
 #'
 #' @export
-transform_to_cat_val_pct_columns <- function(data,
-                                         grouping_vars = c("TEAM_naam", "COHORT_naam"),
-                                         max_n_values = 6,
-                                         min_pct = 0.10) {
+transform_cat_val_to_pct_columns <- function(data,
+                                         grouping_vars,
+                                         max_n_values,
+                                         min_pct) {
 
 
     # First get your base data with the right columns
@@ -1262,4 +1299,300 @@ transform_to_cat_val_pct_columns <- function(data,
 
     return(data_reduced)
 
+}
+
+#' Transform Categorical Values to Percentage Columns for Enrollments
+#'
+#' @description
+#' Convert categorical variables in enrollment data to percentage columns,
+#' grouped by team and cohort
+#'
+#' @param enrollments A data frame containing enrollment data with TEAM_naam
+#'   and COHORT_naam columns.
+#'
+#' @returns
+#' A data frame with categorical variables converted to percentage columns.
+#'
+#' @export
+transform_enrollments_cat_val_to_pct_columns <- function(enrollments) {
+
+    teams_enrollments_cat_vars <- enrollments |>
+        transform_cat_val_to_pct_columns(
+            grouping_vars = c("TEAM_naam", "COHORT_naam"),
+            max_n_values = 6,
+            min_pct = 0.10)
+
+    return(teams_enrollments_cat_vars)
+
+
+}
+
+#' Transform Employee Categories to Percentage Columns
+#'
+#' @description
+#' Convert categorical employee data into percentage-based columns by team and school year
+#'
+#' @param employees A data frame containing employee data with columns for team cost center code and school year.
+#'
+#' @returns
+#' A data frame with categorical variables transformed into percentage columns.
+#' Only categories present in at least 20% of the data are included.
+#'
+#' @export
+transform_employees_cat_val_to_pct_columns <- function(employees) {
+
+    teams_employees_cat_vars <- employees |>
+        transform_cat_val_to_pct_columns(
+            grouping_vars = c("TEAM_kostenplaats_code", "SCHOOLJAAR_naam"),
+            # The n values should be very high, since job types are very diverse.
+            max_n_values = 100,
+            # We increase the min percentage as well, to filter these out.
+            min_pct = 0.20
+    )
+
+    return(teams_employees_cat_vars)
+
+}
+
+#' Summarize Employee Numeric Variables by Team
+#'
+#' @description
+#' Calculate team-level summaries of employee numeric data like FTE and absence metrics
+#'
+#' @param employees A data frame containing employee data with columns for team cost center,
+#'   school year, FTE values, and absence metrics
+#'
+#' @returns
+#' A data frame grouped by team cost center code and school year, containing:
+#'   - Summed FTE values
+#'   - Mean FTE per employee
+#'   - Mean absence metrics
+#'
+#' @importFrom dplyr group_by summarise across contains
+#'
+#' @export
+summarise_employees_num_vars_to_teams <- function(employees) {
+
+    teams_employees_num_vars <- employees |>
+        group_by(TEAM_kostenplaats_code, SCHOOLJAAR_naam) |>
+        summarise(
+            MEDEWERKER_contract_fte = sum(MEDEWERKER_contract_fte, na.rm = TRUE),
+            MEDEWERKER_contract_fte_aanpassing = sum(MEDEWERKER_contract_fte_aanpassing, na.rm = TRUE),
+            MEDEWERKER_contract_fte_totaal = sum(MEDEWERKER_contract_fte_totaal, na.rm = TRUE),
+            MEDEWERKER_contract_fte_gemiddelde = mean(MEDEWERKER_contract_fte_totaal, na.rm = TRUE),
+            across(contains("verzuim"), ~mean(., na.rm = TRUE)),
+            .groups = "drop"
+        )
+
+    return()
+}
+
+
+#' Filter Enrollments for Team Aggregation
+#'
+#' @description
+#' Filter student enrollment data based on specific criteria for team-level analysis
+#'
+#' @param enrollments A tibble containing enrollment data with columns for cohort,
+#'   enrollment dates, and enrollment characteristics.
+#'
+#' @returns
+#' A filtered tibble containing only enrollments that meet specific criteria:
+#' - Within configured year range
+#' - Started within 2 months after or 10 months before cohort start
+#' - Active on October 1st reference date
+#' - Funded enrollments
+#' - Full-time students
+#' - Education levels 2, 3, or 4
+#'
+#' @importFrom dplyr filter select
+#' @importFrom config get
+#'
+#' @export
+filter_enrollments_for_team_aggregation <- function(enrollments) {
+
+    enrollments_filtered <- enrollments |>
+        filter(COHORT_startjaar >= config::get("first_year") - 1, # Later on we want to calculate growth per year
+               COHORT_startjaar <= config::get("last_year"),
+               #month(VERBINTENIS_begindatum) == 8,
+               COHORT_start_datum + months(2) >= VERBINTENIS_begindatum,
+               COHORT_start_datum - months(10) < VERBINTENIS_begindatum,
+               VERBINTENIS_actief_op_1_okt_peildatum == TRUE,
+               VERBINTENIS_bekostigd == "Ja",
+               VERBINTENIS_intensiteit == "Voltijd",
+               VERBINTENIS_niveau %in% c("2", "3", "4")) |>
+        select(-VERBINTENIS_intensiteit)
+
+    return(enrollments_filtered)
+}
+
+#' Filter Employees to Education Teams Only
+#'
+#' @description
+#' Filter the employees dataset to only include those in education teams
+#'
+#' @param employees A dataframe of employees containing TEAM_kostenplaats_code
+#'
+#' @returns
+#' A filtered dataframe containing only employees in education teams
+#'
+#' @importFrom dplyr filter
+#'
+#' @export
+filter_employees_to_education_teams_only <- function(employees) {
+    employees_filtered <- employees |>
+        filter(TEAM_kostenplaats_code %in% enrollments_combined_enriched_filtered$TEAM_kostenplaats_code)
+
+    return(employees_filtered)
+}
+
+#' Select columns for correlation analysis
+#'
+#' @description
+#' Remove columns with too many missing values or no variation
+#'
+#' @param df A data frame.
+#' @param na_thresh Optional. A numeric value between 0 and 1 indicating the threshold for NA values
+#' (default: 0.8).
+#'
+#' @returns
+#' A data frame with columns removed that either have more NAs than the threshold
+#' or only one unique value.
+#'
+#' @importFrom dplyr select where n_distinct
+#'
+#' @export
+select_cols_for_correlation <- function(df, na_thresh = 0.8) {
+
+    df_selected <- df |>
+        select(where(~ (!((mean(is.na(.x)) > na_thresh) |
+                              (n_distinct(.x, na.rm = TRUE) == 1)
+        ))))
+
+    return(df_selected)
+}
+
+#' Calculate Correlations Between Team Variables
+#'
+#' @description
+#' Calculate correlations between numeric variables in team data
+#'
+#' @param teams A data frame containing team-related numeric variables
+#'
+#' @returns
+#' A correlation matrix of numeric variables, with NA values replaced by 0
+#' and rearranged for better visualization.
+#'
+#' @importFrom dplyr select mutate across
+#' @importFrom tidyr replace_na
+#' @importFrom corrr correlate rearrange
+#'
+#' @export
+correlate_teams <- function(teams) {
+
+    teams_correlations <- teams |>
+    select(where(is.numeric)) |>
+        correlate() |>
+        mutate(across(everything(), ~replace_na(., 0))) |>
+        rearrange()
+
+    return(teams_correlations)
+}
+
+#' Make Column Names User-Friendly
+#'
+#' @description
+#' Removes technical prefixes and underscores from column names to make them more readable
+#'
+#' @param teams_correlations A data frame containing column names with 'VERBINTENIS_' and 'TEAM_' prefixes
+#'
+#' @returns
+#' A data frame with cleaned column names, removing 'VERBINTENIS_' and 'TEAM_' prefixes
+#' and replacing underscores with spaces
+#'
+#' @importFrom dplyr mutate
+#' @importFrom stringr str_remove str_replace_all
+#'
+#' @export
+set_user_friendly_names <- function(teams_correlations) {
+
+    teams_correlations_friendly_names <- teams_correlations |>
+        mutate(term = term |>
+                   str_remove("VERBINTENIS_") |>
+                   str_remove("TEAM_") |>
+                   str_replace_all("_", " "))
+
+    names(teams_correlations_friendly_names) <- names(teams_correlations_friendly_names) |>
+        str_remove("VERBINTENIS_") |>
+        str_remove("TEAM_") |>
+        str_replace_all("_", " ")
+
+    return(teams_correlations_friendly_names)
+}
+
+#' Summarize Enrollment Data by Teams and Cohorts
+#'
+#' @description
+#' Creates a summary of enrollment metrics aggregated by team and cohort information
+#'
+#' @param enrollments A data frame containing enrollment data with team, cohort,
+#'   and various numeric metrics columns
+#'
+#' @returns A data frame with team-level summaries including:
+#'  * Count of students per team
+#'  * Mean values for variables containing "dagen" (days)
+#'  * Mean values for variables containing "waarneming" (observation)
+#'  * Mean values for binary indicators (containing "_is_")
+#'  * Mean BPV scope
+#'  * Mean of definitive BPV before October 1st for BOL students
+#'
+#' @importFrom dplyr group_by summarise across contains n
+#'
+#' @export
+summarise_enrollments_num_vars_to_teams <- function(enrollments) {
+
+    teams_enrollments <- enrollments |>
+        group_by(
+            TEAM_naam,
+            TEAM_kostenplaats_code,
+            TEAM_naam_afk,
+            TEAM_school,
+            TEAM_school_afk,
+            COHORT_naam,
+            COHORT_startjaar
+        ) |>
+        summarise(
+            # Do this before summarising the _is_ variables otherwise it becomes a mean of summarised variable
+            BPV_is_definitief_voor_1_okt_BOL = mean(
+                BPV_is_definitief_voor_1_okt[OPLEIDING_leerweg == "BOL"],
+                na.rm = TRUE
+            ),
+            BPV_is_definitief_voor_1_okt_BBL = mean(
+                BPV_is_definitief_voor_1_okt[OPLEIDING_leerweg == "BBL"],
+                na.rm = TRUE
+            ),
+            TEAM_studenten_aantal = n(),
+            across(contains("dagen"), ~mean(., na.rm = TRUE)),
+            across(contains("waarneming"), ~mean(., na.rm = TRUE)),
+            across(contains("_is_"), ~mean(., na.rm = TRUE)),
+            BPV_omvang = mean(BPV_omvang, na.rm = TRUE),
+            .groups = "drop"
+        )
+
+    return(teams_enrollments)
+}
+
+summarise_employees_num_vars_to_teams <- function(employees) {
+
+    teams_employees <- employees |>
+        group_by(TEAM_kostenplaats_code, SCHOOLJAAR_naam) |>
+        summarise(
+            MEDEWERKER_contract_fte = sum(MEDEWERKER_contract_fte, na.rm = TRUE),
+            MEDEWERKER_contract_fte_aanpassing = sum(MEDEWERKER_contract_fte_aanpassing, na.rm = TRUE),
+            MEDEWERKER_contract_fte_totaal = sum(MEDEWERKER_contract_fte_totaal, na.rm = TRUE),
+            across(contains("verzuim"), ~mean(., na.rm = TRUE)),
+            .groups = "drop"
+        )
+
+    return(teams_employees)
 }

@@ -16,6 +16,9 @@ Imports:
     tidyr,
     lubridate,
     purrr,
-    janitor 
+    janitor,
+    rlang,
+    cli,
+    corrr
 Suggests:
     testthat (>= 3.0.0)

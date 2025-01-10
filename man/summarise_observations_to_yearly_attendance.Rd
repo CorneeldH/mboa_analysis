@@ -12,7 +12,7 @@ at least a 'Datum' (date) column}
 }
 \value{
 A data frame of yearly attendance statistics per enrollment. The data is also
-saved to disk using \code{save_transformed()}.
+saved to disk using \code{save_transformed_and_comment()}.
 }
 \description{
 Transform daily attendance observations into yearly summaries per enrollment

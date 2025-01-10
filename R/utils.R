@@ -216,22 +216,11 @@ save_combined <- function(data, ..., filename = NULL, path = NULL, config_data_p
         filename <- deparse(substitute(data))
     }
 
-    if (!requireNamespace("config", quietly = TRUE)) {
-        stop("The 'config' package is not available. Either define the filename directly or install the package.")
-    }
-
-    path <- config::get(config_data_path)
-
-    if (!dir.exists(path)) {
-        dir.create(path, recursive = TRUE)
-    }
-
-    file_full_path <- file.path(path, filename)
-
-    saveRDS(data,
-            paste0(file_full_path,".rds"),
-            version = 3,
-            ...)
+    save_config(data,
+                filename,
+                ...,
+                path = path,
+                config_data_path = config_data_path)
 }
 
 
@@ -249,61 +238,70 @@ save_combined <- function(data, ..., filename = NULL, path = NULL, config_data_p
 #' @returns
 #' No return value. Saves the data as an RDS file.
 #'
-#' @importFrom config get
 #'
 #' @keywords internal
 save_ingested <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_ingested_dir") {
 
-    ## Set the object name to the file name if not given
+    ## Set the comment to the file name if not given
     if (is.null(filename)) {
         filename <- comment(data)
     }
 
-    if (!requireNamespace("config", quietly = TRUE)) {
-        stop("The 'config' package is not available. Either define the filename directly or install the package.")
-    }
+    save_config(data,
+                filename,
+                ...,
+                path = path,
+                config_data_path = config_data_path)
 
-    path <- config::get(config_data_path)
-
-    if (!dir.exists(path)) {
-        dir.create(path, recursive = TRUE)
-    }
-
-    file_full_path <- file.path(path, filename)
-
-    saveRDS(data,
-            paste0(file_full_path,".rds"),
-            version = 3,
-            ...)
 }
 
+#' Save Prepared Data to RDS File
+#'
+#' @description
+#' Save a data object to an RDS file in a specified directory
+#'
+#' @param data A data object to save.
+#' @param ... Additional arguments passed to saveRDS().
+#' @param filename Optional. Name for the output file (without extension).
+#' @param path Optional. Directory path for saving.
+#' @param config_data_path Optional. Config key for the data directory (default: "data_prepared_dir").
+#'
+#' @returns
+#' No return value, called for side effects. Creates an RDS file in the specified location.
+#' Will create the directory if it doesn't exist.
+#'
+#'
+#' @export
 save_prepared <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_prepared_dir") {
 
-    ## Set the object name to the file name if not given
+    ## Set the comment to the file name if not given
     if (is.null(filename)) {
         filename <- comment(data)
-        #filename <- deparse(substitute(data))
     }
 
-    if (!requireNamespace("config", quietly = TRUE)) {
-        stop("The 'config' package is not available. Either define the filename directly or install the package.")
-    }
-
-    path <- config::get(config_data_path)
-
-    if (!dir.exists(path)) {
-        dir.create(path, recursive = TRUE)
-    }
-
-    file_full_path <- file.path(path, filename)
-
-    saveRDS(data,
-            paste0(file_full_path,".rds"),
-            version = 3,
-            ...)
+    save_config(data,
+                filename,
+                ...,
+                path = path,
+                config_data_path = config_data_path)
 
 }
 
+#' Save Prepared Data and Return It
+#'
+#' @description
+#' Save data to a prepared data directory and return the same data
+#'
+#' @param data A data frame or tibble to save.
+#' @param filename Optional. A string specifying the output filename.
+#' @param path Optional. A string specifying the output path.
+#' @param config_data_path Optional. A string specifying the config path for prepared data.
+#' @param ... Additional arguments passed to save_prepared().
+#'
+#' @returns
+#' Returns the input `data` unchanged after saving it to disk.
+#'
+#' @export
 save_prepared_and_return <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_prepared_dir") {
 
     save_prepared(data, ..., filename = filename, path = path, config_data_path = config_data_path)
@@ -311,32 +309,55 @@ save_prepared_and_return <- function(data, ..., filename = NULL, path = NULL, co
     return(data)
 }
 
-save_transformed_helper <- function(data, filename = NULL, ..., path = NULL, config_data_path = "data_prepared_dir") {
+#' Save transformed data
+#'
+#' @description
+#' Save a data object as an RDS file in a specified directory
+#'
+#' @param data A data object to save.
+#' @param filename Optional. A string for the output filename. If NULL, uses the object name.
+#' @param ... Additional arguments passed to saveRDS().
+#' @param path Optional. A string specifying the output directory path.
+#' @param config_data_path Optional. A string specifying the config key for the output directory (default: "data_prepared_dir").
+#'
+#' @returns
+#' Invisibly returns the path to the saved file. Creates the output directory if it doesn't exist.
+#' Will error if the config package isn't available and no filename is provided.
+#'
+#'
+#' @export
+save_transformed <- function(data, filename = NULL, ..., path = NULL, config_data_path = "data_prepared_dir") {
 
     ## Set the object name to the file name if not given
     if (is.null(filename)) {
         filename <- deparse(substitute(data))
     }
 
-    if (!requireNamespace("config", quietly = TRUE)) {
-        stop("The 'config' package is not available. Either define the filename directly or install the package.")
-    }
+    save_config(data,
+                filename,
+                ...,
+                path = path,
+                config_data_path = config_data_path)
 
-    path <- config::get(config_data_path)
-
-    if (!dir.exists(path)) {
-        dir.create(path, recursive = TRUE)
-    }
-
-    file_full_path <- file.path(path, filename)
-
-    saveRDS(data,
-            paste0(file_full_path,".rds"),
-            version = 3,
-            ...)
 }
 
-save_transformed <- function(data, ..., filename = NULL, add_comment = TRUE) {
+#' Save Transformed Data with Optional Comments
+#'
+#' @description
+#' Save a transformed dataset while optionally adding its filename to its comments
+#'
+#' @param data A data frame or tibble to save.
+#' @param ... Currently unused; must be empty.
+#' @param filename Optional. A string specifying the filename. If NULL, uses the data argument name.
+#' @param add_comment Optional. A logical indicating whether to add the filename to comments.
+#'
+#' @returns
+#' The data, invisibly, after saving it to disk.
+#'
+#' @importFrom rlang check_dots_empty
+#'
+#' @export
+save_transformed_and_comment <- function(data, ..., filename = NULL, add_comment = TRUE) {
 
     if (is.null(filename)) {
         filename <- deparse(substitute(data))
@@ -348,10 +369,28 @@ save_transformed <- function(data, ..., filename = NULL, add_comment = TRUE) {
                                 collapse = ", ")
     }
 
-    save_transformed_helper(data, filename)
+    save_transformed(data, filename)
 
 }
 
+#' Load and Left Join Prepared Data
+#'
+#' @description
+#' Load a prepared dataset from disk and left join it with an existing dataset
+#'
+#' @param data_main A data frame to join data to.
+#' @param data_to_join_name A string specifying the name of the RDS file (without extension).
+#' @param ... Arguments passed to dplyr::left_join.
+#' @param .path Optional. A string specifying the path to load data from.
+#' @param .config_data_path Optional. A string specifying the config key for the data path.
+#'
+#' @returns
+#' A data frame containing the left join result of `data_main` with the loaded data.
+#' Will error if the main data is NULL or if the file to join cannot be found.
+#'
+#' @importFrom dplyr left_join
+#'
+#' @export
 left_join_load <- function(data_main, data_to_join_name, ..., .path = NULL, .config_data_path = "data_prepared_dir") {
 
     if (is.null(data_main)) {
@@ -371,14 +410,14 @@ left_join_load <- function(data_main, data_to_join_name, ..., .path = NULL, .con
     }
 
     filename <- paste0(data_to_join_name, ".rds")
-    file_full_path <- file.path(path, filename)
+    file_path <- file.path(path, filename)
 
-    if (!file.exists(file_full_path)) {
-        stop(sprintf("File not found: %s", file_full_path))
+    if (!file.exists(file_path)) {
+        stop(sprintf("File not found: %s", file_path))
     }
 
     # Load the data from the prepared folder
-    data_to_join <- readRDS(file_full_path)
+    data_to_join <- readRDS(file_path)
 
     # Perform the left join
     data_main_joined <- left_join(data_main, data_to_join, ...)
@@ -386,3 +425,78 @@ left_join_load <- function(data_main, data_to_join_name, ..., .path = NULL, .con
     return(data_main_joined)
 }
 
+#' Save Analyzed Data to RDS File
+#'
+#' @description
+#' Save data to an RDS file in the analyzed data directory
+#'
+#' @param data An R object to save.
+#' @param ... Additional arguments passed to saveRDS().
+#' @param filename Optional. A string for the output filename. If NULL, uses the input object name.
+#' @param path Optional. A string specifying the output path.
+#' @param config_data_path Optional. A string specifying the config key for the data directory.
+#'
+#' @returns
+#' Invisibly returns the path where the file was saved. Creates directory if it
+#' doesn't exist. Will error if the config package isn't available and no filename
+#' is provided.
+#'
+#' @export
+save_analysed <- function(data, ..., filename = NULL, path = NULL, config_data_path = "data_analysed_dir") {
+
+    ## Set the object name to the file name if not given
+    if (is.null(filename)) {
+        filename <- deparse(substitute(data))
+    }
+
+    save_config(data,
+                filename,
+                ...,
+                path = path,
+                config_data_path = config_data_path)
+
+}
+
+#' Save Data to RDS File
+#'
+#' @description
+#' Save a data object to an RDS file at a specified location
+#'
+#' @param data An R object to save.
+#' @param filename A string specifying the name of the file (without extension).
+#' @param ... Additional arguments passed to saveRDS().
+#' @param path Optional. A string specifying the directory path.
+#' @param config_data_path Optional. A string specifying the config key for the directory path.
+#'
+#' @returns
+#' Invisibly returns NULL. Creates an RDS file at the specified location.
+#' Will create directories if they don't exist.
+#'
+#' @export
+save_config <- function(data, filename, ..., path = NULL, config_data_path = NULL) {
+
+    if (!requireNamespace("config", quietly = TRUE)) {
+        stop("The 'config' package is not available. Either define the filename directly or install the package.")
+    }
+
+    if (is.null(path)) {
+
+        if (!is.null(config_data_path)) {
+            path <- config::get(config_data_path)
+        }
+        else {
+            stop("No path provided and no config_data_path specified. Provide one.")
+        }
+    }
+
+    if (!dir.exists(path)) {
+        dir.create(path, recursive = TRUE)
+    }
+
+    file_full_path <- file.path(path, filename)
+
+    saveRDS(data,
+            paste0(file_full_path,".rds"),
+            version = 3,
+            ...)
+}

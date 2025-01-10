@@ -378,6 +378,7 @@ utils::globalVariables(
         "days_in_year",
         "MEDEWERKER_verzuim_middellang",
         "MEDEWERKER_verzuim_kort",
+        "employee_absence_yearly",
 
         # summarise_observations_to_weekly_attendance
         "employee_absences_in_weeks",
@@ -397,7 +398,44 @@ utils::globalVariables(
         "TEAM_naam",
 
         # create_total_fte
-        "MEDEWERKER_contract_fte"
+        "MEDEWERKER_contract_fte",
+
+        # create_active_on_1_okt
+        "VERBINTENIS_einddatum",
+        "VERBINTENIS_eerste_1_okt",
+
+        # create_student_growth_vars
+        "TEAM_studenten_aantal",
+        "TEAM_studenten_aantal_vorig_jaar",
+
+        # create_student_staff_ratio
+        "TEAM_studenten_aantal",
+        "MEDEWERKER_contract_fte_totaal",
+
+        # filter_employees_to_education_teams_only
+        "enrollments_combined_enriched_filtered",
+
+        # filter_enrollments_for_team_aggregation
+        "VERBINTENIS_actief_op_1_okt_peildatum",
+        "VERBINTENIS_bekostigd",
+        "VERBINTENIS_intensiteit",
+        "VERBINTENIS_niveau",
+
+        # set_user_friendly_names
+        "term",
+
+        # summarise_employees_num_vars_to_teams
+        "MEDEWERKER_contract_fte_totaal",
+
+        # summarise_enrollments_num_vars_to_teams
+        "TEAM_naam_afk",
+        "TEAM_school",
+        "TEAM_school_afk",
+        "BPV_is_definitief_voor_1_okt",
+        "OPLEIDING_leerweg",
+
+        # summarise_eployees_num_vars_to_teams
+        "MEDEWERKER_contract_fte_totaal"
 
     )
 )

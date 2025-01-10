@@ -1505,6 +1505,21 @@ ingest_employees_job_type_helper <- function(config_key, ..., filename = NULL, p
 
 }
 
+#' Ingest Employee Job Type Data from 2019
+#'
+#' @description
+#' Reads and processes employee job type data from 2019 from a CSV file
+#'
+#' @param filename Optional. A string specifying the name of the CSV file to read.
+#' @param path Optional. A string specifying the path to the CSV file.
+#' @param config_key Optional. A string specifying the configuration key to use.
+#' @param config_data_path Optional. A string specifying the config path for raw data.
+#' @param ... Additional arguments passed to readr::read_delim.
+#'
+#' @returns
+#' A tibble containing processed employee job type data.
+#'
+#' @export
 ingest_employees_job_type_2019 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2019", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1518,6 +1533,21 @@ ingest_employees_job_type_2019 <- function(..., filename = NULL, path = NULL, co
     return(data_clean)
 }
 
+#' Ingest Employee Job Type Data for 2020
+#'
+#' @description
+#' Load and process employee job type data specific to the 2020 dataset
+#'
+#' @param filename Optional. A string specifying the input file name.
+#' @param path Optional. A string specifying the file path.
+#' @param config_key Optional. A string specifying the configuration key (default: "employees_job_type_2020").
+#' @param config_data_path Optional. A string specifying the configuration data path (default: "data_raw_dir").
+#' @param ... Additional arguments passed to the underlying data loading function.
+#'
+#' @returns
+#' A cleaned data frame containing employee job type information.
+#'
+#' @export
 ingest_employees_job_type_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2020", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1531,6 +1561,22 @@ ingest_employees_job_type_2020 <- function(..., filename = NULL, path = NULL, co
     return(data_clean)
 }
 
+
+#' Ingest Employee Job Type Data for 2021
+#'
+#' @description
+#' Read and process employee job type data from a CSV file for the year 2021
+#'
+#' @param filename Optional. A single string specifying the CSV file name.
+#' @param path Optional. A single string specifying the file path.
+#' @param config_key Optional. A single string specifying the configuration key to use.
+#' @param config_data_path Optional. A single string specifying the config path for raw data.
+#' @param ... Additional arguments passed to the underlying data reading function.
+#'
+#' @returns
+#' A tibble containing processed employee job type data.
+#'
+#' @export
 ingest_employees_job_type_2021 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2021", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1544,6 +1590,21 @@ ingest_employees_job_type_2021 <- function(..., filename = NULL, path = NULL, co
     return(data_clean)
 }
 
+#' Ingest Employee Job Type Data for 2022
+#'
+#' @description
+#' Read and process employee job type data from a CSV file for the year 2022
+#'
+#' @param filename Optional. A string specifying the name of the CSV file.
+#' @param path Optional. A string specifying the path to the CSV file.
+#' @param config_key Optional. A string specifying the configuration key (defaults to "employees_job_type_2022").
+#' @param config_data_path Optional. A string specifying the config path for raw data (defaults to "data_raw_dir").
+#' @param ... Additional arguments passed to underlying read functions.
+#'
+#' @returns
+#' A tibble containing processed employee job type data.
+#'
+#' @export
 ingest_employees_job_type_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2022", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
@@ -1557,20 +1618,22 @@ ingest_employees_job_type_2022 <- function(..., filename = NULL, path = NULL, co
     return(data_clean)
 }
 
+#' Ingest Employee Job Type Data for 2023
+#'
+#' @description
+#' Read and process employee job type data from a data source for the year 2023
+#'
+#' @param ... Additional arguments passed to the underlying data reading function.
+#' @param filename Optional. A string specifying the input file name.
+#' @param path Optional. A string specifying the path to the input file.
+#' @param config_key Optional. A string specifying the configuration key (default: "employees_job_type_2023").
+#' @param config_data_path Optional. A string specifying the configuration data path (default: "data_raw_dir").
+#'
+#' @returns
+#' A tibble containing processed employee job type data.
+#'
+#' @export
 ingest_employees_job_type_2023 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2023", config_data_path = "data_raw_dir") {
-
-    # Name arguments since order behind ... is not guaranteed
-    data_clean <- ingest_employees_job_type_helper(
-        config_key,
-        ...,
-        filename = filename,
-        path = path,
-        config_data_path = config_data_path)
-
-    return(data_clean)
-}
-
-ingest_employees_job_type_2024 <- function(..., filename = NULL, path = NULL, config_key = "employees_job_type_2024", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_employees_job_type_helper(
@@ -2187,4 +2250,130 @@ ingest_employee_answers_satisfaction_codebook_2024 <- function(..., filename = N
         config_data_path = config_data_path)
 
     return(data_clean)
+}
+
+#' Ingest CREBO to Organization Mapping Data
+#'
+#' @description
+#' Load and process CREBO (Dutch education code) to organization mapping data from a file
+#'
+#' @param filename Optional. A single string for the input file name.
+#' @param path Optional. A single string for the file path.
+#' @param config_key Optional. A single string for the configuration key (default: "crebo_to_organisation_mapping").
+#' @param config_data_path Optional. A single string for the raw data path in config (default: "data_raw_dir").
+#' @param ... Additional arguments passed to load_data().
+#'
+#' @returns
+#' A tibble with cleaned column names, all prefixed with "OPLEIDING_".
+#'
+#' @importFrom janitor clean_names
+#' @importFrom dplyr rename_with
+#'
+#' @export
+ingest_crebo_to_organisation_mapping <- function(..., filename = NULL, path = NULL, config_key = "crebo_to_organisation_mapping", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names() |>
+        rename_with(~ paste0("OPLEIDING_", .))
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+}
+
+ingest_student_answers_satisfaction_2020 <- function(..., filename = NULL, path = NULL, config_key = "student_answers_satisfaction_2020", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names() |>
+        rename(
+            school_team = bij_welke_school_welk_team_volg_je_een_opleiding
+        ) |>
+        mutate(startjaar = parse_number(config_key))
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+
+}
+
+ingest_student_answers_satisfaction_2022 <- function(..., filename = NULL, path = NULL, config_key = "student_answers_satisfaction_2022", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names() |>
+        # rename(
+        #     school_team = bij_welke_school_welk_team_volg_je_een_opleiding
+        # ) |>
+        mutate(startjaar = parse_number(config_key))
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+
+}
+
+ingest_students_satisfaction_codebook_2020 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_codebook_2020", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names()
+    #
+    # # keep the config with the data for later use
+    # comment(data_clean) <- config_key
+    # save_ingested(data_clean)
+    #
+    # return(data_clean)
+
+}
+
+ingest_students_satisfaction_codebook_2022 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_codebook_2022", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names()
+    #
+    # # keep the config with the data for later use
+    # comment(data_clean) <- config_key
+    # save_ingested(data_clean)
+    #
+    # return(data_clean)
+
 }

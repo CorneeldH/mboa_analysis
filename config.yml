@@ -10,6 +10,7 @@ default:
   data_prepared_dir: "data/prepared"
   #data_transformed_dir: "data/transformed"
   data_combined_dir: "data/combined"
+  data_analysed_dir: "data/analysed"
   first_year: 2019
   last_year: 2023
 
@@ -79,6 +80,10 @@ default:
   enrollment_to_sk_mapping:
     name: "enrollment_to_sk_mapping"
     filename: "Koppeltabel SK_Ins - Verbintenis.csv"
+
+  crebo_to_organisation_mapping:
+    name: "crebo_to_organisation_mapping"
+    filename: "JOB Crebo Koppeltabel.csv"
 
   group_placements:
     name: "group_placements"
@@ -184,9 +189,25 @@ default:
     name: "students_satisfaction_2019"
     filename: "JOB 2020.csv"
 
+  student_answers_satisfaction_2020:
+    name: "student_answers_satisfaction_2020"
+    filename: "JOB Light 2021 zonder Open vragen.csv"
+
+  students_satisfaction_codebook_2020:
+    name: "students_satisfaction_2020_codebook"
+    filename: "JOB Light 2021 Codeboek.csv"
+
   students_satisfaction_2021:
     name: "students_satisfaction_2021"
     filename: "JOB 2022.csv"
+
+  student_answers_satisfaction_2022:
+    name: "student_answers_satisfaction_2022"
+    filename: "JOB Light 2023.csv"
+
+  students_satisfaction_codebook_2022:
+    name: "students_satisfaction_codebook_2022"
+    filename: "JOB Light 2023 Codeboek.csv"
 
   students_satisfaction_2023:
     name: "students_satisfaction_2023"
@@ -217,14 +238,7 @@ default:
     filename: "MTO 2024 Codeboek.csv"
 
 
-# TODO
-# vooropleiding prepare, meerdere rijen per deelnemer
-# bpv prepare, welke variabelen hiervan maken?
-# koppelen kostenplaats, wat is dat aggregatieniveau (Erik weet het)
 
-# job
-# mto
-# resultaat
 
 
 

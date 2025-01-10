@@ -221,3 +221,109 @@ create_total_fte <- function(data) {
 
 }
 
+#' Add Filled Boolean Columns
+#'
+#' @description
+#' Create new boolean columns with NA values replaced by a specified value
+#'
+#' @param data A data frame containing logical columns with "_is_" in their names
+#' @param fill Optional. A logical value to replace NA values with (default: FALSE)
+#' @param text Optional. A string to append to the new column names (default: "opgevuld")
+#'
+#' @returns
+#' A data frame with additional boolean columns. New columns are named as
+#' original_name_text where NA values are replaced with the fill value.
+#'
+#' @importFrom dplyr mutate across where
+#'
+#' @export
+add_filled_booleans <- function(data, fill = FALSE, text = "opgevuld") {
+
+    new_col_names_spec = paste0("{.col}_", text)
+
+    data_enriched <- data |>
+        mutate(
+            # If boolean is NA, set to FALSE and create new var
+            across(
+                where(is.logical) & where(~any(is.na(.))),
+                ~if_else(is.na(.), fill, .), .names = new_col_names_spec
+            )
+        )
+
+    return(data_enriched)
+}
+
+#' Calculate Student-Staff Ratio
+#'
+#' @description
+#' Calculate the ratio between students and staff FTE per team
+#'
+#' @param teams A data frame containing team data with columns TEAM_studenten_aantal and MEDEWERKER_contract_fte_totaal.
+#'
+#' @returns
+#' The input data frame with an additional column TEAM_student_staf_ratio.
+#'
+#' @importFrom dplyr mutate
+#'
+#' @export
+create_student_staff_ratio <- function(teams) {
+    teams_enriched <- teams |>
+        mutate(TEAM_student_staf_ratio = TEAM_studenten_aantal / MEDEWERKER_contract_fte_totaal)
+
+    return(teams_enriched)
+}
+
+#' Create Student Growth Variables for Teams
+#'
+#' @description
+#' Calculate year-over-year growth metrics for student numbers in teams
+#'
+#' @param teams A data frame containing team-level student counts with columns
+#' 'TEAM_naam', 'COHORT_startjaar', and 'TEAM_studenten_aantal'
+#'
+#' @returns
+#' A data frame with additional columns:
+#' \itemize{
+#'   \item TEAM_studenten_aantal_vorig_jaar: Previous year's student count
+#'   \item TEAM_student_aantal_groei: Absolute growth in student numbers
+#'   \item TEAM_studenten_aantal_pct_groei: Percentage growth in student numbers
+#' }
+#'
+#' @importFrom dplyr arrange group_by mutate ungroup lag
+#'
+#' @export
+
+create_student_growth_vars <- function(teams) {
+    teams_enriched <- teams |>
+        arrange(TEAM_naam, COHORT_startjaar) |>
+        group_by(TEAM_naam) |>
+        mutate(
+            TEAM_studenten_aantal_vorig_jaar = lag(TEAM_studenten_aantal),
+            TEAM_student_aantal_groei = TEAM_studenten_aantal - TEAM_studenten_aantal_vorig_jaar,
+            TEAM_studenten_aantal_pct_groei = (
+                (TEAM_studenten_aantal - TEAM_studenten_aantal_vorig_jaar) / TEAM_studenten_aantal_vorig_jaar
+            ) |>
+                round(2)
+        ) |>
+        ungroup()
+}
+
+#' Replace infinite values with NA
+#'
+#' @description
+#' Replace infinite values in numeric columns with NA
+#'
+#' @param data A data frame or tibble.
+#'
+#' @returns
+#' A data frame with the same structure as the input, but with infinite values
+#' replaced by NA in all numeric columns.
+#'
+#' @importFrom dplyr mutate across where
+#'
+#' @export
+fix_inf_values <- function(data) {
+    data_fixed <- data |>
+        mutate(across(where(is.numeric),
+                      ~if_else(. == Inf, NA_real_, .)))
+}
