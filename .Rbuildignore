@@ -11,6 +11,7 @@
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^data/
+^00_setup.R
 
 # Environment management
 ^renv$

@@ -2,7 +2,7 @@
 title: Inladen en voorbereiden
 ---
 
-{{< include 00_project_setup.qmd >}}
+{{< include 00_setup.qmd >}}
 
 Voordat we met de analyse beginnen, lade we eerst de data in. De functies hiervoor zijn te vinden in R/ingest.R.
 
@@ -18,7 +18,8 @@ Deze tabellen transformeren we naar student-jaar om het zo te kunnen koppelen aa
 
 enrollments_basics <- ingest_enrollments_basics() |>
     #'*INFO* prepare derived variables regarding 'studiesucces' after combining data with programmes
-    combine_enrollment_numbers_for_order()
+    combine_enrollment_numbers_for_order() |>
+    create_active_on_1_okt()
 enrollments_level <- ingest_enrollments_level() |>
     parse_enrollment_level()
 enrollments_flex <- ingest_enrollments_flex() |>
@@ -223,17 +224,41 @@ We laden hier de JOB monitor in. In 2019 en 2021 waren er bijna dezelfde vragen,
 De Job light heeft ook andere vragen en deze zijn ook anders geformateerd. Voor nu is ervoor gekozen dit niet in te laden.
 
 ```{r}
+#| warning: false
+# CREBO is set as integer which gives warnings when it says "Niet getonond wegens AVG"
+
 
 students_satisfaction <- bind_rows(
     ingest_students_satisfaction_2019(),
     ingest_students_satisfaction_2021(),
     ingest_students_satisfaction_2023()
 ) |>
+    filter(!is.na(CREBO)) |>
     save_prepared_and_return(filename = "students_satisfaction")
 
 print("Student tevredenheid data succesvol ingeladen en geprepareerd.")
 
+crebo_to_organisation_mapping <- ingest_crebo_to_organisation_mapping() |>
+    distinct(OPLEIDING_crebo_correctie, .keep_all = TRUE) |>
+    save_prepared_and_return()
+    
+    
 ```
+
+
+```{r}
+
+# student_answers_satisfaction <- ingest_student_answers_satisfaction_2020()
+
+students_satisfaction_2020 <- ingest_student_answers_satisfaction_2020() |>
+    pivot_answers_to_students()
+
+students_satisfaction_2022 <- ingest_student_answers_satisfaction_2022() |>
+    pivot_answers_to_students()
+
+
+```
+
 
 
 ## Medewerker tevredenheid (satisfaction)

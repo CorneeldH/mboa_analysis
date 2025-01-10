@@ -1,6 +1,7 @@
 project:
   type: book
   output-dir: _book
+  execute-dir: project
 
 book:
   title: "How TO - MBOA Correlaties op teamniveau"
@@ -8,10 +9,10 @@ book:
   page-navigation: true
   chapters:
     - index.qmd
-    - 00_project_setup.qmd
-    - 01_ingest.qmd
-    - 02_combine.qmd
-    - 03_analyse.qmd
+    #- 00_project_setup.qmd
+    - analysis/01_ingest.qmd
+    - analysis/02_combine.qmd
+    - analysis/03_correlate.qmd
 
 # Custom chapter numbering
 number-sections: true
@@ -27,6 +28,3 @@ execute:
   cache: true
   freeze: auto
   include: true
-  setup-global:
-    code: |
-      devtools::load_all()

@@ -2,91 +2,64 @@
 title: "Correlaties"
 ---
 
-{{< include 00_project_setup.qmd >}}
+{{< include 00_setup.qmd >}}
 
 ```{r}
 #| include: false
 #| freeze: false
 #| cache: false
 
-teams_combined_full_filename <- file.path(config::get("data_combined_dir"), "teams_combined_enriched.rds")
+teams_file_path <- file.path(config::get("data_combined_dir"), "teams_combined_enriched.rds")
 
-teams_combined <- readRDS(teams_combined_full_filename)
-
-```
-
-```{r}
-
-clean_cols <- function(df, na_thresh = 0.8) {
-    
-  df |> 
-    select(where(
-      ~(!((mean(is.na(.x)) > na_thresh) | 
-          (n_distinct(.x, na.rm = TRUE) == 1))
-    )))
-}
-
-teams_combined_filtered <- teams_combined |>
-    clean_cols()
+teams <- readRDS(teams_file_path)
 
 ```
 
+We selecteren enkel kolommen die niet te vaak NA zijn en die meer dan 1 unieke waarde bevatten.
 
 ```{r}
 
-teams_correlation <- teams_combined_filtered |>
-    select(where(is.numeric)) |>
-    correlate() |>
-    mutate(across(everything(), ~replace_na(., 0))) |>
-    rearrange() |>
-    mutate(term = term |> 
-           str_remove("VERBINTENIS_") |>
-           str_remove("TEAM_") |>
-           str_replace_all("_", " "))
 
-names(teams_correlation) <- names(teams_correlation) |> 
-    str_remove("VERBINTENIS_") |>
-    str_remove("TEAM_") |>
-    str_replace_all("_", " ")
+teams_selected <- teams |>
+    select_cols_for_correlation()
+
+save_analysed(teams_selected)
+
 
 ```
 
+We maken een correlatie dataframe en hernoemen de variabelen.
+
 ```{r}
 
-teams_correlation |> 
-    select(term, matches("BPV|startersresultaat")) |>
-    filter(str_detect(term, "BPV|startersresultaat")) |>
-    rplot(print_cor = TRUE) + #, colours = c("red3", "white", "royalblue3")) + 
-  theme(
-    # Rotate x-axis labels for better readability
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-    # Adjust margin to prevent label cutoff
-    plot.margin = unit(c(1, 1, 4, 1), "lines")
-  )
+teams_correlation <- teams_selected |>
+    correlate_teams() |>
+    set_user_friendly_names()
+
+save_analysed(teams_correlation)
 
 ```
 
 
 ```{r}
 
-teams_correlation_select <- teams_combined_filtered |>
+teams_correlation_result <- teams_selected |>
   select(where(is.numeric)) |>
   correlate() |>
   select(term, TEAM_startersresultaat_1_jaars) |>
   filter(term != "TEAM_startersresultaat_1_jaars") |>
-  filter(TEAM_startersresultaat_1_jaars <= -0.2 | TEAM_startersresultaat_1_jaars >= 0.2) |>
+  filter(TEAM_startersresultaat_1_jaars <= -0.25 | TEAM_startersresultaat_1_jaars >= 0.25) |>
   # Arrange by correlation value from highest to lowest
   arrange(TEAM_startersresultaat_1_jaars) |>
-    filter(term != "MEDEWERKER_verzuim_kort", 
+    filter(term != "MEDEWERKER_verzuim_kort_opgevuld", 
            term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
   mutate(
     term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
-    term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
     term = factor(term, levels = term)       # Keep the ordering
   )
 
 
-ggplot(teams_correlation_select, 
+ggplot(teams_correlation_result, 
        aes(y = term)) +
   geom_segment(aes(
     x = 0,
@@ -126,12 +99,14 @@ ggplot(teams_correlation_select,
 
 ```{r}
 
-teams_correlation_all <- teams_combined_filtered |>
+teams_correlation_all <- teams_selected |>
   select(where(is.numeric)) |>
   correlate() |>
   select(term, TEAM_startersresultaat_1_jaars) |>
   filter(term != "TEAM_startersresultaat_1_jaars") |>
-  filter(TEAM_startersresultaat_1_jaars > -0.20 & TEAM_startersresultaat_1_jaars < 0.20) |>
+  filter(TEAM_startersresultaat_1_jaars > -0.25 & TEAM_startersresultaat_1_jaars < 0.25,
+         TEAM_startersresultaat_1_jaars < -0.15 | TEAM_startersresultaat_1_jaars > 0.15
+         ) |>
   # Arrange by correlation value from highest to lowest
   arrange(TEAM_startersresultaat_1_jaars) |>
     filter(term != "MEDEWERKER_verzuim_kort", 
@@ -176,7 +151,9 @@ ggplot(teams_correlation_all,
     panel.grid = element_blank(),
     legend.position = "none"
   ) +
-    ggtitle("Hoge correlatie met Startersresultaat 1 jaar")
+    ggtitle("Middelhoge correlatie met Startersresultaat 1 jaar")
 
 ```
+
+
 

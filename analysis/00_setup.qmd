@@ -1,0 +1,15 @@
+---
+#title: "00_setup"
+---
+
+```{r}
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+## The above settings ensure there is no visible output for the setup script below
+source("00_setup.R")
+
+
+```
