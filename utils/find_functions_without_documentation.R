@@ -17,12 +17,6 @@ find_functions <- function(content, fun_pattern, name_pattern) {
             fun_name = str_extract(text, "^\\s*([[:alnum:]_]+)(?=\\s*<-\\s*function)")
         )
 
-    # Debug lines with functions
-    if (any(result$is_fun_start)) {
-        print("Found function lines:")
-        print(result |> filter(is_fun_start) |> select(text, fun_name))
-    }
-
     result
 
 }

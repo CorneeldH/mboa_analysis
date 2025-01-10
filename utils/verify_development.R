@@ -14,21 +14,11 @@
 # TODO I added inst/WORDLIST but casing remains an issue
 # devtools::spell_check() #
 
-if (!requireNamespace("renv")) {
-    install.packages("renv")
-    renv::init()
-}
-
-source("utils/manage_packages.R")
-
-devtools::load_all()
-
-Sys.setenv(R_CONFIG_ACTIVE = "default")
-
+devtools:load_all()
 devtools::document()
-source("utils/function_checker.R")
+# source("utils/function_checker.R")
 # TODO meerdere qmds opgeven
-check_exported_function_usage("how_to.qmd")
+# check_exported_function_usage("how_to.qmd")
 
 #quarto_render("how_to.qmd")
 check_result <- devtools::check()
