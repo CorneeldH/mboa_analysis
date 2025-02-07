@@ -13,6 +13,7 @@ book:
     - analysis/01_ingest.qmd
     - analysis/02_combine.qmd
     - analysis/03_correlate.qmd
+    - analysis/04_report.qmd
 
 # Custom chapter numbering
 number-sections: true
