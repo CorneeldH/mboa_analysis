@@ -1,10 +1,6 @@
+# For package development this code ensures there are no clock errors
 .onLoad <- function(libname, pkgname) {
     Sys.setenv(R_CHECK_SYSTEM_CLOCK = 0)
-}
-
-if (!requireNamespace("renv")) {
-    install.packages("renv")
-    renv::init()
 }
 
 source("utils/dev_functions.R")
