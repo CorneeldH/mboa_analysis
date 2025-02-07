@@ -34,9 +34,11 @@ packages_cran <- c(
     "devtools",
     "usethis",
     "roxygen2",
+    "this.path",
 
     # quarto
     "quarto",
+    "here",
 
 
     "cli",            # Create command line interfaces
@@ -68,15 +70,15 @@ packages_cran <- c(
 packages_github <- c(
     #"vusa",            # Utilise packages from the VU team
     "pal",              # pal for using llm assistants
-    "gander",
-    "shinychat"
+    "gander"#,
+    #"shinychat"
 )
 
 packages_github_with_account <- c(
     #"vusaverse/vusa",
     "simonpcouch/pal",
-    "simonpcouch/gander",
-    "posit-dev/shinychat"
+    "simonpcouch/gander"#,
+    #"posit-dev/shinychat"
 )
 
 

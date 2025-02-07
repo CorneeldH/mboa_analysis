@@ -362,26 +362,32 @@ parse_enrollment_level <- function(data) {
 }
 
 
-#' Parse Team Result Percentages
+#' Parse Team Results
 #'
 #' @description
-#' Convert text-based result descriptions to numeric percentages
+#' Convert text-based result descriptions into numeric percentages
 #'
-#' @param teams_results A data frame containing team results with a column
-#'   TEAM_startersresultaat_1_jaars_omschrijving
+#' @param teams_results A data frame containing result columns
+#' @param pattern Optional. A string pattern to identify result columns (default: "resultaat")
+#' @param suffix Optional. The suffix of columns to process (default: "_omschrijving")
 #'
 #' @returns
-#' A data frame with an additional numeric column TEAM_startersresultaat_1_jaars
-#' containing percentages multiplied by 100
+#' A data frame with new numeric percentage columns, removing the suffix from the original column names
 #'
-#' @importFrom dplyr mutate
+#' @importFrom dplyr mutate across ends_with
+#' @importFrom stringr str_remove
 #' @importFrom readr parse_number
 #'
 #' @export
-parse_result_pct <- function(teams_results) {
+parse_result_pct <- function(teams_results,
+                             pattern = "resultaat",
+                             suffix = "_omschrijving") {
+
     team_results_prepared <- teams_results |>
         mutate(
-            TEAM_startersresultaat_1_jaars = parse_number(TEAM_startersresultaat_1_jaars_omschrijving) * 100
+            across(contains(pattern) & ends_with(suffix),
+                   ~parse_number(.x) * 100,
+                   .names = "{str_remove(.col, suffix)}")
         )
 
     save_prepared(team_results_prepared)
@@ -389,6 +395,7 @@ parse_result_pct <- function(teams_results) {
     return(team_results_prepared)
 
 }
+
 
 #' Format School Year Names
 #'

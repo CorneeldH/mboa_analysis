@@ -8,7 +8,7 @@ ingest_employee_answers_satisfaction_codebook_2020(
   ...,
   filename = NULL,
   path = NULL,
-  config_key = "employees_satisfaction_codebook_2020",
+  config_key = "codebook_employees_satisfaction_2020",
   config_data_path = "data_raw_dir"
 )
 }
@@ -19,7 +19,7 @@ ingest_employee_answers_satisfaction_codebook_2020(
 
 \item{path}{Optional. A single string for the input file path.}
 
-\item{config_key}{Optional. A single string specifying the configuration key (defaults to "employees_satisfaction_codebook_2020").}
+\item{config_key}{Optional. A single string specifying the configuration key (defaults to "codebook_employees_satisfaction_2020").}
 
 \item{config_data_path}{Optional. A single string specifying the data directory in config (defaults to "data_raw_dir").}
 }

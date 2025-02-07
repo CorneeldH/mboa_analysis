@@ -2,18 +2,24 @@
 % Please edit documentation in R/prepare.R
 \name{parse_result_pct}
 \alias{parse_result_pct}
-\title{Parse Team Result Percentages}
+\title{Parse Team Results}
 \usage{
-parse_result_pct(teams_results)
+parse_result_pct(
+  teams_results,
+  pattern = "resultaat",
+  suffix = "_omschrijving"
+)
 }
 \arguments{
-\item{teams_results}{A data frame containing team results with a column
-TEAM_startersresultaat_1_jaars_omschrijving}
+\item{teams_results}{A data frame containing result columns}
+
+\item{pattern}{Optional. A string pattern to identify result columns (default: "resultaat")}
+
+\item{suffix}{Optional. The suffix of columns to process (default: "_omschrijving")}
 }
 \value{
-A data frame with an additional numeric column TEAM_startersresultaat_1_jaars
-containing percentages multiplied by 100
+A data frame with new numeric percentage columns, removing the suffix from the original column names
 }
 \description{
-Convert text-based result descriptions to numeric percentages
+Convert text-based result descriptions into numeric percentages
 }

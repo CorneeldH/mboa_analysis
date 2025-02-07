@@ -19,6 +19,8 @@ Imports:
     janitor,
     rlang,
     cli,
-    corrr
+    corrr,
+    tidyselect,
+    ggplot2
 Suggests:
     testthat (>= 3.0.0)

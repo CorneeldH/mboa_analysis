@@ -495,14 +495,9 @@
     },
     "ellmer": {
       "Package": "ellmer",
-      "Version": "0.0.0.9000",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "tidyverse",
-      "RemoteRepo": "ellmer",
-      "RemoteRef": "main",
-      "RemoteSha": "3ad1fffe376cd369f0280c04dcb38d12dbb3189b",
+      "Version": "0.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
       "Requirements": [
         "R6",
         "S7",
@@ -515,7 +510,7 @@
         "promises",
         "rlang"
       ],
-      "Hash": "d01fdf43160b62d9302e190520e632a4"
+      "Hash": "4aabcd32a10f5afdb09c5f4210df95ef"
     },
     "elmer": {
       "Package": "elmer",
@@ -622,7 +617,7 @@
       "RemoteUsername": "simonpcouch",
       "RemoteRepo": "gander",
       "RemoteRef": "main",
-      "RemoteSha": "62ea1b0d87874dd5a848e0526c8d6e3c58e44548",
+      "RemoteSha": "bdf50fb2739409ea72fd2c8ee05ebfb3d8cd0012",
       "Requirements": [
         "R",
         "cli",
@@ -637,7 +632,7 @@
         "treesitter",
         "treesitter.r"
       ],
-      "Hash": "87847b77b2dbf76e1beb7df4c174c4af"
+      "Hash": "71046997f7d02465aaa253cc2cda8a5e"
     },
     "gclus": {
       "Package": "gclus",
@@ -771,6 +766,16 @@
         "stats"
       ],
       "Hash": "de949855009e2d4d0e52a844e30617ae"
+    },
+    "here": {
+      "Package": "here",
+      "Version": "1.0.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "rprojroot"
+      ],
+      "Hash": "24b224366f9c2e7534d2344d10d59211"
     },
     "highr": {
       "Package": "highr",
@@ -1655,26 +1660,6 @@
       ],
       "Hash": "4b4477baa9a939c5577e5ddb4bf01f28"
     },
-    "shinychat": {
-      "Package": "shinychat",
-      "Version": "0.1.1.9000",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "posit-dev",
-      "RemoteRepo": "shinychat",
-      "RemoteRef": "main",
-      "RemoteSha": "1ef2bea9589651ee5153903aaff6999c987cf050",
-      "Requirements": [
-        "bslib",
-        "coro",
-        "htmltools",
-        "promises",
-        "rlang",
-        "shiny"
-      ],
-      "Hash": "66ef5eec2968269ba202fd4010451739"
-    },
     "slider": {
       "Package": "slider",
       "Version": "0.3.2",
@@ -1819,6 +1804,16 @@
         "systemfonts"
       ],
       "Hash": "5142f8bc78ed3d819d26461b641627ce"
+    },
+    "this.path": {
+      "Package": "this.path",
+      "Version": "2.6.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R"
+      ],
+      "Hash": "b21ad87c95be5bb2d941f66ed0a2a8d4"
     },
     "tibble": {
       "Package": "tibble",

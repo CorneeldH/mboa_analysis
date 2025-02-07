@@ -8,7 +8,7 @@ ingest_employee_answers_satisfaction_codebook_2022(
   ...,
   filename = NULL,
   path = NULL,
-  config_key = "employees_satisfaction_codebook_2022",
+  config_key = "codebook_employees_satisfaction_2022",
   config_data_path = "data_raw_dir"
 )
 }
@@ -19,7 +19,7 @@ ingest_employee_answers_satisfaction_codebook_2022(
 
 \item{path}{Optional. A string specifying the path to the file.}
 
-\item{config_key}{Optional. A string specifying the configuration key (default: "employees_satisfaction_codebook_2022").}
+\item{config_key}{Optional. A string specifying the configuration key (default: "codebook_employees_satisfaction_2022").}
 
 \item{config_data_path}{Optional. A string specifying the config path for raw data (default: "data_raw_dir").}
 }

@@ -1851,6 +1851,60 @@ ingest_teams_results_retention_start <- function(..., filename = NULL, path = NU
     return(data_clean)
 }
 
+ingest_teams_results_year <- function(..., filename = NULL, path = NULL, config_key = "teams_results_year", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          delim = ",",
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names() |>
+        rename_with(~ paste0("TEAM_", .)) |>
+        rename(SCHOOLJAAR_naam_met_streep = TEAM_teljaar,
+               TEAM_naam = TEAM_team,
+               TEAM_aantal_verlaters_jaar = TEAM_noemer_jr_1_jaars,
+               TEAM_aantal_diplomas_in_jaar = TEAM_teller_jr_1_jaars,
+               TEAM_jaarresultaat_1_jaars_omschrijving = TEAM_jaarresultaat_1_jaars
+        )
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    # audit(data_clean, data_raw)
+    return(data_clean)
+}
+
+ingest_teams_results_degree <- function(..., filename = NULL, path = NULL, config_key = "teams_results_degree", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          delim = ",",
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names() |>
+        rename_with(~ paste0("TEAM_", .)) |>
+        rename(SCHOOLJAAR_naam_met_streep = TEAM_teljaar,
+               TEAM_naam = TEAM_team,
+               TEAM_aantal_verlaters_diploma = TEAM_noemer_dr_1_jaars,
+               TEAM_aantal_diplomas = TEAM_teller_dr_1_jaars,
+               TEAM_diplomaresultaat_1_jaars_omschrijving = TEAM_diplomaresultaat_1_jaars
+        )
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    # audit(data_clean, data_raw)
+    return(data_clean)
+}
+
 #' Helper Function to Ingest Student Satisfaction Data
 #'
 #' @description
@@ -1890,7 +1944,8 @@ ingest_students_satisfaction_helper <- function(config_key, ..., filename = NULL
         select(
             SCHOOLJAAR_startjaar,
             everything()
-        )
+        ) #|>
+        #rename_with(~ paste0("JOB_", .))
 
     # keep the config with the data for later use
     comment(data_clean) <- config_key
@@ -2175,7 +2230,7 @@ ingest_employee_answers_satisfaction_codebook_helper <- function(config_key, ...
 #'
 #' @param filename Optional. A single string for the input file name.
 #' @param path Optional. A single string for the input file path.
-#' @param config_key Optional. A single string specifying the configuration key (defaults to "employees_satisfaction_codebook_2020").
+#' @param config_key Optional. A single string specifying the configuration key (defaults to "codebook_employees_satisfaction_2020").
 #' @param config_data_path Optional. A single string specifying the data directory in config (defaults to "data_raw_dir").
 #' @param ... Additional arguments passed to the underlying helper function.
 #'
@@ -2183,7 +2238,7 @@ ingest_employee_answers_satisfaction_codebook_helper <- function(config_key, ...
 #' A processed data frame containing the employee satisfaction survey codebook data.
 #'
 #' @export
-ingest_employee_answers_satisfaction_codebook_2020 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2020", config_data_path = "data_raw_dir") {
+ingest_employee_answers_satisfaction_codebook_2020 <- function(..., filename = NULL, path = NULL, config_key = "codebook_employees_satisfaction_2020", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_employee_answers_satisfaction_codebook_helper(
@@ -2203,7 +2258,7 @@ ingest_employee_answers_satisfaction_codebook_2020 <- function(..., filename = N
 #'
 #' @param filename Optional. A string specifying the name of the file to read.
 #' @param path Optional. A string specifying the path to the file.
-#' @param config_key Optional. A string specifying the configuration key (default: "employees_satisfaction_codebook_2022").
+#' @param config_key Optional. A string specifying the configuration key (default: "codebook_employees_satisfaction_2022").
 #' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
 #' @param ... Additional arguments passed to the underlying helper function.
 #'
@@ -2211,7 +2266,7 @@ ingest_employee_answers_satisfaction_codebook_2020 <- function(..., filename = N
 #' A cleaned data frame containing employee satisfaction codebook data.
 #'
 #' @export
-ingest_employee_answers_satisfaction_codebook_2022 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2022", config_data_path = "data_raw_dir") {
+ingest_employee_answers_satisfaction_codebook_2022 <- function(..., filename = NULL, path = NULL, config_key = "codebook_employees_satisfaction_2022", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_employee_answers_satisfaction_codebook_helper(
@@ -2231,7 +2286,7 @@ ingest_employee_answers_satisfaction_codebook_2022 <- function(..., filename = N
 #'
 #' @param filename Optional. A string specifying the name of the file to read.
 #' @param path Optional. A string specifying the path to the file.
-#' @param config_key Optional. A string specifying the configuration key to use (default: "employees_satisfaction_codebook_2024").
+#' @param config_key Optional. A string specifying the configuration key to use (default: "codebook_employees_satisfaction_2024").
 #' @param config_data_path Optional. A string specifying the config path for raw data (default: "data_raw_dir").
 #' @param ... Additional arguments passed to the underlying data loading function.
 #'
@@ -2239,7 +2294,7 @@ ingest_employee_answers_satisfaction_codebook_2022 <- function(..., filename = N
 #' A tibble containing processed employee satisfaction codebook data.
 #'
 #' @export
-ingest_employee_answers_satisfaction_codebook_2024 <- function(..., filename = NULL, path = NULL, config_key = "employees_satisfaction_codebook_2024", config_data_path = "data_raw_dir") {
+ingest_employee_answers_satisfaction_codebook_2024 <- function(..., filename = NULL, path = NULL, config_key = "codebook_employees_satisfaction_2024", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_clean <- ingest_employee_answers_satisfaction_codebook_helper(
@@ -2338,7 +2393,7 @@ ingest_student_answers_satisfaction_2022 <- function(..., filename = NULL, path 
 
 }
 
-ingest_students_satisfaction_codebook_2020 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_codebook_2020", config_data_path = "data_raw_dir") {
+ingest_codebook_students_satisfaction_2020 <- function(..., filename = NULL, path = NULL, config_key = "codebook_students_satisfaction_2020", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_raw <- load_data(config_key,
@@ -2358,7 +2413,7 @@ ingest_students_satisfaction_codebook_2020 <- function(..., filename = NULL, pat
 
 }
 
-ingest_students_satisfaction_codebook_2022 <- function(..., filename = NULL, path = NULL, config_key = "students_satisfaction_codebook_2022", config_data_path = "data_raw_dir") {
+ingest_codebook_students_satisfaction_2022 <- function(..., filename = NULL, path = NULL, config_key = "codebook_students_satisfaction_2022", config_data_path = "data_raw_dir") {
 
     # Name arguments since order behind ... is not guaranteed
     data_raw <- load_data(config_key,
@@ -2369,11 +2424,102 @@ ingest_students_satisfaction_codebook_2022 <- function(..., filename = NULL, pat
 
     data_clean <- data_raw |>
         clean_names()
-    #
-    # # keep the config with the data for later use
-    # comment(data_clean) <- config_key
-    # save_ingested(data_clean)
-    #
-    # return(data_clean)
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
 
 }
+
+ingest_codebook_students_satisfaction_2023 <- function(..., filename = NULL, path = NULL, config_key = "codebook_students_satisfaction_2023", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names()
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+
+}
+
+ingest_codebook_students_satisfaction_mapping <- function(..., filename = NULL, path = NULL, config_key = "codebook_students_satisfaction_mapping", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names()
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+
+}
+
+
+ingest_codebook_employee_satisfaction_mapping <- function(..., filename = NULL, path = NULL, config_key = "codebook_employee_satisfaction_mapping", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names()
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+
+}
+
+ingest_mapping_employees_satisfaction <- function(..., filename = NULL, path = NULL, config_key = "mapping_employees_satisfaction", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                          ...,
+                          filename = filename,
+                          path = path,
+                          config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        clean_names() |>
+        select(
+            MTO_characteristic_1 = mto_characteristic_1,
+            MTO_characteristic_2 = mto_characteristic_2,
+            TEAM_cluster = mto_characteristic_3,
+            TEAM_kostenplaats_code = kostenplaats_code,
+            TEAM_kostenplaats_naam = kostenplaats_naam
+        )
+
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+
+}
+
+

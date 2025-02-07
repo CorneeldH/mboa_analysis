@@ -1107,10 +1107,11 @@ pivot_answers_to_employees <- function(employee_answers_satisfaction) {
                                 Organisatie,
                                 `Characteristic 1`,
                                 `Characteristic 2`, appearance_number),
-            names_from = `Question Text`,
+            names_from = omschrijving,
             values_from = c(Score) # TODO Answer text out for now, `Answer Text`)
     ) |>
-            clean_names()
+         clean_names()  |>
+         rename_with(~ paste0("MTO_", .))
 
      save_transformed_and_comment(employees_satisfaction)
 
@@ -1147,10 +1148,10 @@ pivot_answers_to_students <- function(student_answers_satisfaction) {
             names_from = attribute,
             values_from = value
         ) |>
-        clean_names() |>
-        rename_with(~ paste0("JOB_L_", .))
+        clean_names() #|>
+        #rename_with(~ paste0("JOB_Light_", .))
 
-    filename <- paste0("students_satisfaction", "_", unique(students_satisfaction$JOB_L_startjaar))
+    filename <- paste0("students_satisfaction", "_", unique(students_satisfaction$startjaar))
 
     save_transformed_and_comment(students_satisfaction, filename = filename)
 

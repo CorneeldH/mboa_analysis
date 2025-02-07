@@ -435,7 +435,41 @@ utils::globalVariables(
         "OPLEIDING_leerweg",
 
         # summarise_eployees_num_vars_to_teams
-        "MEDEWERKER_contract_fte_totaal"
+        "MEDEWERKER_contract_fte_totaal",
+
+        # ingest_mapping_employees_satisfaction
+        "mto_characteristic_1",
+        "mto_characteristic_2",
+        "mto_characteristic_3",
+        "kostenplaats_code",
+        "kostenplaats_naam",
+
+        # ingest_student_answers_satisfaction_2020
+        "bij_welke_school_welk_team_volg_je_een_opleiding",
+
+        # ingest_teams_results_degree
+        "TEAM_noemer_dr_1_jaars",
+        "TEAM_teller_dr_1_jaars",
+        "TEAM_diplomaresultaat_1_jaars",
+
+        # ingest_teams_results_year
+        "TEAM_noemer_jr_1_jaars",
+        "TEAM_teller_jr_1_jaars",
+        "TEAM_jaarresultaat_1_jaars",
+
+        # parse_result_pct
+        "ends_with", # This is a dplyr function that should be imported
+
+        # pivot_answers_to_employees
+        "omschrijving",
+
+        # pivot_answers_to_students
+        "startjaar",
+        "opleiding",
+        "niveau",
+        "leerjaar",
+        "attribute",
+        "value"
 
     )
 )
