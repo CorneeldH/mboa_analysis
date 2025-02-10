@@ -1,0 +1,41 @@
+---
+title: "Data ondersteund werken"
+---
+
+Er is geen 'single source of truth'. Blijkbaar is de goudlaag dit niet? Per rapport wordt er op basis van de vraag iets gecreëerd.
+
+Rijke data assets creëeren.
+
+Data kwaliteit van aanmeldingen data klopt niet. Kijken naar CAMBO?
+
+Aanbevelingen:
+
+-   Van 'detectie' naar 'diagnose'
+
+-   Data kwaliteit -\> Fit for Purpose
+
+    -   Marjolein Ransein intake vragen obv persona's
+    -   JOB light vragen aangevuld obv correlatie studiesucces
+
+-   Data volwassenheid
+
+    -   Strategie & Beleid
+        -   Welke beslissingen moeten data-ondersteund zijn?
+        -   Welke processen moeten gedataficeerd worden?
+        -   Aan welke randvoorwaarden moet worden voldaan voor data en AI worden gebruikt?
+    -   Mens & Cultuur
+        -   Data en AI geletterdheid
+        -   Interne trainingen en inspiratie-sessies
+        -   Is er een sponsor vanuit CvB / directie?
+    -   Organisatie
+        -   Welke dienst doet wat?
+        -   Wat ligt bij de scholen?
+        -   Waar in de organisatie horen gespecialiseerde data & AI vaardigheden?
+    -   Governance
+        -   Welke aansturing is er?
+        -   Wie ontwikkelt de data strategie en wie wordt er betrokken?
+        -   Welke centrale afspraken, coördinatie en netwerken zijn er?
+    -   IT
+        -   Welke data wordt gebruikt voor analytics?
+        -   Welke data assets hebben prioriteit?
+        -   Welke technologieën worden gebruikt?

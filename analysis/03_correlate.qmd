@@ -2,6 +2,8 @@
 title: "Correlaties"
 ---
 
+## Plot
+
 {{< include 00_setup.qmd >}}
 
 ```{r}
@@ -18,7 +20,7 @@ teams <- readRDS(teams_file_path)
 We selecteren enkel kolommen die niet te vaak NA zijn en die meer dan 1 unieke waarde bevatten.
 
 ```{r}
-
+#| include: false
 
 teams_selected <- teams |>
     select_cols_for_correlation()
@@ -31,6 +33,9 @@ save_analysed(teams_selected)
 We maken een correlatie dataframe en hernoemen de variabelen.
 
 ```{r}
+#| include: false
+
+# TODO Code wordt nu niet gebruikt
 
 teams_correlation <- teams_selected |>
     correlate_teams() |>
@@ -40,24 +45,64 @@ save_analysed(teams_correlation)
 
 ```
 
+Op basis van aanvullende testen hebben we de volgende variabelen geselecteerd voor de correlatie-analyse.
 
 ```{r}
 
+variables_job <- c(
+    "JOB_algemene_tevredenheid_opleiding",
+    "JOB_sfeer_opleiding",
+    "JOB_hulp_bij_presteren",
+    "JOB_luistert_naar_mening")
+
+variables_mto <- c(
+    "MTO_ik_doe_graag_iets_extra_voor_mboa",
+    "MTO_aandacht_persoonlijke_ontwikkeling",
+    "MTO_mogelijkheid_tot_doorgroeien",
+    #"MTO_vertrouwen_in_cvb",
+    "MTO_jaarlijkse_gesprekken_leidinggevende",
+    "MTO_open_communicatie_management",
+    "MTO_leidinggevende_motiveert",
+    "MTO_goede_samenwerking_binnen_team",
+    #"MTO_waardering_door_mboa",
+    #"MTO_ik_pas_bij_mboa",
+    "MTO_ik_doe_waar_ik_goed_in_ben",
+    #"MTO_waardering_door_leidinggevende",
+    "MTO_werkdrukbeleving_bespreken_leidinggevende",
+    "MTO_ik_wil_me_verbeteren")
+
+```
+
+We bereiden de data voor op correlatie.
+
+```{r}
+#| include: false
+
 teams_correlation_result <- teams_selected |>
-  select(where(is.numeric)) |>
-  correlate() |>
-  select(term, TEAM_startersresultaat_1_jaars) |>
-  filter(term != "TEAM_startersresultaat_1_jaars") |>
-  filter(TEAM_startersresultaat_1_jaars <= -0.25 | TEAM_startersresultaat_1_jaars >= 0.25) |>
-  # Arrange by correlation value from highest to lowest
-  arrange(TEAM_startersresultaat_1_jaars) |>
-    filter(term != "MEDEWERKER_verzuim_kort_opgevuld", 
+    select(where(is.numeric)) |>
+    select(
+         !matches("JOB|MTO"),
+         any_of(variables_job),
+         any_of(variables_mto)) |>
+    correlate() |>
+    select(term, TEAM_startersresultaat_1_jaars) |>
+    filter(term != "TEAM_startersresultaat_1_jaars") |>
+    filter(TEAM_startersresultaat_1_jaars <= -0.26 | TEAM_startersresultaat_1_jaars >= 0.27) |>
+    # Arrange by correlation value from highest to lowest
+    arrange(TEAM_startersresultaat_1_jaars) |>
+    filter(term != "MEDEWERKER_verzuim_kort", 
+           term != "MEDEWERKER_verzuim_kort_opgevuld",
            term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
-  mutate(
+    mutate(
     term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
     term = factor(term, levels = term)       # Keep the ordering
-  )
+    )
 
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high
 
 ggplot(teams_correlation_result, 
        aes(y = term)) +
@@ -70,7 +115,7 @@ ggplot(teams_correlation_result,
   linewidth = 2) +
   # Fixed position for numbers on the right
   geom_text(aes(
-    x = 0.5,  # Fixed x position for all numbers
+    x = 0.55,  # Fixed x position for all numbers
     label = sprintf("%.2f", TEAM_startersresultaat_1_jaars)
   ), 
   hjust = 0,  # Align text to the left at the fixed position
@@ -80,10 +125,10 @@ ggplot(teams_correlation_result,
     low = "indianred2",
     mid = "white",
     high = "skyblue1",
-    limits = c(-0.5, 0.5),
+    limits = c(-0.6, 0.6),
     midpoint = 0
   ) +
-  scale_x_continuous(limits = c(-0.6, 0.6)) +
+  scale_x_continuous(limits = c(-0.5, 0.6)) +
   theme_minimal() +
   theme(
     axis.text.y = element_text(size = 8),
@@ -96,64 +141,146 @@ ggplot(teams_correlation_result,
 
 ```
 
+## Toelichting
+
+In het plot vallen een aantal zaken op.
+
+### MTO
+
+Het **MTO** domineert. *Het gaat hier om het MTO uit 2020 en 2022. De correlatie met studieresultaten was stabiel over deze jaren. Binnen het MTO vallen de volgende thema's op:
+
+-   ontwikkeling
+
+-   samenwerking
+
+-   contact met leidinggevende & management
+
+Opvallende thema's die niet of nauwelijks terugkomen zijn bijvoorbeeld werkdruk en faciliteitens.
+
+::: {.callout-tip }
+
+Zorg voor aandacht, ontwikkeling en waardering voor medewerkers. Dit lijkt meer belangrijk dan werkdruk of faciliteiten.
+
+:::
+
+### Verzuim student en docent
+
+Van medewerkers en studenten is het verzuim van belang. Hoge aanwezigheid van student hang sterk samen met studieresultaten. Daarbij zien we dat specifiek kort verzuim van medewerkers (minder dan een week) negatief correleert met studieresultaten. Dit zijn twee kanten van hetzelfde aspect: een student is aanwezig in een goede les. Zonder de student (of de juiste docent) is er minder kennisoverdracht. Dit sluit aan bij andere onderzoeken in het MBO. 
+
+
+### JOB
+
+In mindere mate is ook de JOB aanwezig. *Het gaat hier om de JOB uit 2022 en 2024 (schooljaren 2021/2022 en 2023/2024). De samenhang met studieresultaten wisselde tussen deze jaren. Alleen variabelen die in beide jaren relatief hoge samenhang vertoonden zijn opgenomen. De vragen die hoge samenhang vertoonden waren lang niet altijd aanwezig in de JOB Light en de JOB Light was niet eenduidig te koppelen.
+
+Wat eruit springt is dat de JOB vooral gaat over algemene tevredenheid, sfeer en de hulp bij presteren. Dit zijn dus niet specifiek onderwijskundige elementen, maar meer algemene zaken en begeleiding.
+
+
+### Data kwaliteit
+
+Om te begrijpen wat er gebeurt en welke factoren echt van belang zijn is het noodzakelijk om over meerdere jaren te kijken. Op dit moment zijn de rapportage- en data-structuren hiervoor niet ingericht. Dit is een aandachtspunt voor de toekomst.
+
+
+## Test
 
 ```{r}
 
-teams_correlation_all <- teams_selected |>
-  select(where(is.numeric)) |>
-  correlate() |>
-  select(term, TEAM_startersresultaat_1_jaars) |>
-  filter(term != "TEAM_startersresultaat_1_jaars") |>
-  filter(TEAM_startersresultaat_1_jaars > -0.25 & TEAM_startersresultaat_1_jaars < 0.25,
-         TEAM_startersresultaat_1_jaars < -0.15 | TEAM_startersresultaat_1_jaars > 0.15
-         ) |>
-  # Arrange by correlation value from highest to lowest
-  arrange(TEAM_startersresultaat_1_jaars) |>
-    filter(term != "MEDEWERKER_verzuim_kort", 
-           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
-  mutate(
-    term = str_replace_all(term, "_", " "),  # Replace underscores with spaces
-    #term = str_remove(term, " opgevuld"),    # Remove "opgevuld"
-    term = factor(term, levels = term)       # Keep the ordering
-  )
+teams_correlation_result <- teams_selected |>
+    select(where(is.numeric)) |>
+    select(
+         !matches("JOB|MTO"),
+         any_of(variables_job),
+         any_of(variables_mto))
 
-
-ggplot(teams_correlation_all, 
-       aes(y = term)) +
-  geom_segment(aes(
-    x = 0,
-    xend = TEAM_startersresultaat_1_jaars,
-    yend = term,
-    color = TEAM_startersresultaat_1_jaars
-  ), 
-  linewidth = 2) +
-  # Fixed position for numbers on the right
-  geom_text(aes(
-    x = 0.5,  # Fixed x position for all numbers
-    label = sprintf("%.2f", TEAM_startersresultaat_1_jaars)
-  ), 
-  hjust = 0,  # Align text to the left at the fixed position
-  size = 3,
-  color = "black") +
-  scale_color_gradient2(
-    low = "indianred2",
-    mid = "white",
-    high = "skyblue1",
-    limits = c(-0.5, 0.5),
-    midpoint = 0
-  ) +
-  scale_x_continuous(limits = c(-0.6, 0.6)) +
-  theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 8),
-    axis.text.x = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    legend.position = "none"
-  ) +
-    ggtitle("Middelhoge correlatie met Startersresultaat 1 jaar")
 
 ```
+
+## Overig
+
+```{r}
+#| include: false
+
+teams_correlation_all <- correlate_teams_and_filter(teams_selected, "TEAM_startersresultaat_1_jaars", matches("JOB|MTO"))
+
+
+plot_teams_correlations(teams_correlation_all, "TEAM_startersresultaat_1_jaars", "Middelhoge correlatie met Startersresultaat 1 jaar")
+
+
+```
+
+## Jaar resultaat
+
+### zonder MTO en JOB
+
+```{r}
+#| include: false
+
+teams_correlation_result_year <- correlate_teams_and_filter(teams_selected, "TEAM_jaarresultaat_1_jaars", !matches("JOB|MTO"), filter_type = "outside")
+
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high
+
+plot_teams_correlations(teams_correlation_result_year, "TEAM_jaarresultaat_1_jaars", "Hoge correlatie met Jaarresultaat 1 jaar")
+
+```
+
+### MTO en JOB
+
+```{r}
+#| include: false
+
+teams_correlation_result_year_MTO_JOB <- correlate_teams_and_filter(teams_selected, "TEAM_jaarresultaat_1_jaars", matches("JOB|MTO"), filter_type = "outside")
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high
+
+plot_teams_correlations(teams_correlation_result_year_MTO_JOB, "TEAM_jaarresultaat_1_jaars", "Hoge correlatie met Jaarresultaat 1 jaar")
+
+
+
+```
+
+
+## Diploma resultaat
+
+### zonder MTO en JOB
+
+```{r}
+#| include: false
+
+teams_correlation_result_degree <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MTO"), filter_type = "outside")
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high
+
+plot_teams_correlations(teams_correlation_result_degree, "TEAM_diplomaresultaat_1_jaars", "Hoge correlatie met Diplomaresultaat 1 jaar")
+
+```
+
+### MTO en JOB
+
+```{r}
+#| include: false
+
+teams_correlation_result_degree_MTO_JBO <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MTO"), filter_type = "outside")
+
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high
+
+plot_teams_correlations(teams_correlation_result_degree_MTO_JBO, "TEAM_diplomaresultaat_1_jaars", "Hoge correlatie met Diplomaresultaat 1 jaar")
+
+```
+
+
 
 
 

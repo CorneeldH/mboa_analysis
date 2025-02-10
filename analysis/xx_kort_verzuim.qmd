@@ -1,0 +1,125 @@
+---
+title: "Kort verzuim"
+---
+
+## Inladen teams
+
+
+```{r}
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+```{r}
+
+
+teams_selected_file_path <- file.path(config::get("data_analysed_dir"), "teams_selected.rds")
+
+file.exists(teams_selected_file_path)
+
+teams_selected <- readRDS(teams_selected_file_path)
+
+```
+
+```{r}
+
+teams_correlation_employee_absence_other <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", !matches("JOB|MTO"), filter_type = "outside")
+
+```
+
+```{r}
+plot_teams_correlations(teams_correlation_employee_absence_other, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+
+```
+
+We zien dat d
+
+```{r}
+teams_correlation_employee_absence_MTO <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", matches("MTO"), filter_type = "outside")
+
+
+```
+
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MTO, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+```{r}
+teams_correlation_employee_absence_MTO_2022 <- correlate_teams_and_filter(
+    teams_selected %>% filter(COHORT_startjaar == 2022),
+    "MEDEWERKER_verzuim_pct_kort",
+    matches("MTO"),
+    filter_type = "none"
+) |>
+    mutate(order = row_number())
+
+```
+
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MTO_2022, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+
+```{r}
+teams_correlation_employee_absence_MTO_2020 <- 
+    correlate_teams_and_filter(teams_selected %>% 
+                                   filter(COHORT_startjaar == 2020),
+                               "MEDEWERKER_verzuim_pct_kort", 
+                               matches("MTO"), 
+                               filter_type = "none") |>
+    mutate(order = row_number())
+
+```
+
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MTO_2020, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+
+```{r}
+teams_MTO_correlation_both_years <- full_join(teams_correlation_employee_absence_MTO_2020, teams_correlation_employee_absence_MTO_2022, by = "term", suffix = c("_2020", "_2022")) |>
+    mutate(verschil = (MEDEWERKER_verzuim_pct_kort_2022 - MEDEWERKER_verzuim_pct_kort_2020),
+           verschil_order = order_2020 - order_2022,
+           totaal_order = order_2020 + order_2022,
+           mean = rowMeans(across(contains("MEDEWERKER_verzuim_pct_kort"))))
+
+teams_MTO_cor_slecht <- teams_MTO_correlation_both_years |>
+    filter(totaal_order > 80,
+           MEDEWERKER_verzuim_pct_kort_2020 > 0.18,
+           MEDEWERKER_verzuim_pct_kort_2022 > 0.18)
+
+teams_MTO_cor_goed <- teams_MTO_correlation_both_years |>
+    filter(totaal_order < 20,
+           MEDEWERKER_verzuim_pct_kort_2020 < -0.15,
+           MEDEWERKER_verzuim_pct_kort_2022 < -0.15)
+
+```
+
+
+
+```{r}
+
+MTO_Verzuim_goed <- as.character(teams_MTO_cor_goed$term) |> str_replace_all(" ", "_")
+MTO_Verzuim_slecht <- as.character(teams_MTO_cor_slecht$term) |> str_replace_all(" ", "_")
+
+
+test <- teams_selected |>
+    correlate_teams_and_filter("MEDEWERKER_verzuim_pct_kort", any_of(c(MTO_Verzuim_goed, MTO_Verzuim_slecht)), filter_type = "none")
+
+plot_teams_correlations(test, "MEDEWERKER_verzuim_pct_kort", "Correlatie met Kort verzuim")
+
+```

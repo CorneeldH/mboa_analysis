@@ -161,6 +161,14 @@ default:
     name: "teams_results_retention_start"
     filename: "startersresultaat_per_jaar_per_team.csv"
 
+  teams_results_degree:
+    name: "teams_results_degree"
+    filename: "diplomaresultaat_per_jaar_per_team.csv"
+
+  teams_results_year:
+    name: "teams_results_year"
+    filename: "jaarresultaat_per_jaar_per_team.csv"
+
   employees_job_type_2024:
     name: "employees_job_type"
     filename: "Medewerker en Functie 2024-10-01.csv"
@@ -193,7 +201,7 @@ default:
     name: "student_answers_satisfaction_2020"
     filename: "JOB Light 2021 zonder Open vragen.csv"
 
-  students_satisfaction_codebook_2020:
+  codebook_students_satisfaction_2020:
     name: "students_satisfaction_2020_codebook"
     filename: "JOB Light 2021 Codeboek.csv"
 
@@ -205,9 +213,17 @@ default:
     name: "student_answers_satisfaction_2022"
     filename: "JOB Light 2023.csv"
 
-  students_satisfaction_codebook_2022:
-    name: "students_satisfaction_codebook_2022"
+  codebook_students_satisfaction_2022:
+    name: "codebook_students_satisfaction_2022"
     filename: "JOB Light 2023 Codeboek.csv"
+
+  codebook_students_satisfaction_2023:
+    name: "codebook_students_satisfaction_2023"
+    filename: "JOB 2024 Codeboek.csv"
+
+  codebook_students_satisfaction_mapping:
+    name: "codebook_students_satisfaction_mapping"
+    filename: "job_vragen_gedeeltelijke_mapping.csv"
 
   students_satisfaction_2023:
     name: "students_satisfaction_2023"
@@ -225,20 +241,25 @@ default:
     name: "employees_satisfaction_2024"
     filename: "MTO 2024 zonder diensten.csv"
 
-  employees_satisfaction_codebook_2020:
+  codebook_employees_satisfaction_2020:
     name: "employees_satisfaction_2020_codebook"
     filename: "MTO 2020 Codeboek.csv"
 
-  employees_satisfaction_codebook_2022:
+  codebook_employees_satisfaction_2022:
     name: "employees_satisfaction_2022_codebook"
     filename: "MTO 2022 Codeboek.csv"
 
-  employees_satisfaction_codebook_2024:
+  codebook_employees_satisfaction_2024:
     name: "employees_satisfaction_2024_codebook"
     filename: "MTO 2024 Codeboek.csv"
 
+  mapping_employees_satisfaction:
+    name: "mapping_employees_satisfaction"
+    filename: "KoppeltabelMWO_aanpassing.csv"
 
-
+  codebook_employee_satisfaction_mapping:
+    name: "codebook_employee_satisfaction_mapping"
+    filename: "mto_vragen_gedeeltelijke_mapping.csv"
 
 
 

@@ -329,7 +329,7 @@ students_satisfaction <- readRDS(students_satisfaction_file_path)
 
 students_satisfaction_enriched <- students_satisfaction |>
     left_join_load("crebo_to_organisation_mapping",
-                   by = join_by(CREBO == OPLEIDING_crebo_correctie),
+                   by = join_by(JOB_CREBO == OPLEIDING_crebo_correctie),
                    relationship = "many-to-one"
                    )
 
@@ -338,32 +338,17 @@ save_combined(students_satisfaction_enriched)
 print("Succesvol studenttevredenheid gekoppeld aan teams")
 
 ```
-
-De studenttevredenheid uit de JOB light is op opleidingsniveau
-
-```{r}
-
-students_satisfaction_2020_file_path <- file.path(config::get("data_prepared_dir"), "students_satisfaction_2020.rds")
-
-students_satisfaction_2022_file_path <- file.path(config::get("data_prepared_dir"), "students_satisfaction_2022.rds")
-
-students_satisfaction_2020 <- readRDS(students_satisfaction_2020_file_path)
-students_satisfaction_2022 <- readRDS(students_satisfaction_2022_file_path)
-
-
-```
-
 Vervolgens aggregeren we de studenttevredenheid naar team niveau. We filteren hier ook de entree studenten weg, omdat dit niet wordt meegenomen in het correlatie-onderzoek. Hierbij nemen de weegfactor mee.
 
 ```{r}
 
 teams_students_satisfaction <- students_satisfaction_enriched |> 
-    filter(niveau != "entreeopleiding") |>
-    mutate(weegfac1 = as.numeric(weegfac1)) |>
-    group_by(OPLEIDING_team, SCHOOLJAAR_startjaar) |>
+    filter(JOB_niveau != "entreeopleiding") |>
+    mutate(JOB_weegfac1 = as.numeric(JOB_weegfac1)) |>
+    group_by(OPLEIDING_team, JOB_SCHOOLJAAR_startjaar) |>
     summarise(
         across(where(is.numeric), 
-               ~ sum(. * weegfac1 /sum(weegfac1), na.rm = TRUE)), 
+               ~ sum(. * JOB_weegfac1 /sum(JOB_weegfac1), na.rm = TRUE)), 
         .groups = "drop")
 
 save_combined(teams_students_satisfaction)
@@ -385,8 +370,10 @@ employees_satisfaction_file_path <- file.path(
 employees_satisfaction <- readRDS(employees_satisfaction_file_path)
 
 teams_employee_satisfaction <- employees_satisfaction |>
-    group_by(characteristic_2, schooljaar_startjaar) |>
-    summarise(across(where(is.numeric), ~mean(., na.rm = TRUE)), .groups = "drop") |>
+    group_by(TEAM_kostenplaats_code, MTO_schooljaar_startjaar) |>
+    summarise(
+        TEAM_MTO_aantal_ingevuld = n(),
+        across(where(is.numeric), ~mean(., na.rm = TRUE)), .groups = "drop") |>
     mutate(across(where(is.numeric), ~if_else(is.nan(.), NA_real_, .)))
 
 save_combined(teams_employee_satisfaction)
@@ -416,14 +403,22 @@ teams_combined <- teams_enrollments |>
               by = join_by(TEAM_naam, 
                            COHORT_naam == SCHOOLJAAR_naam),
               relationship = "one-to-one") |>
+    left_join_load("teams_results_year",
+              by = join_by(TEAM_naam, 
+                           COHORT_naam == SCHOOLJAAR_naam),
+              relationship = "one-to-one") |>
+    left_join_load("teams_results_degree",
+              by = join_by(TEAM_naam, 
+                           COHORT_naam == SCHOOLJAAR_naam),
+              relationship = "one-to-one") |>
     left_join_load("teams_students_satisfaction",
               by = join_by(TEAM_naam == OPLEIDING_team, 
-                           COHORT_startjaar == SCHOOLJAAR_startjaar),
+                           COHORT_startjaar == JOB_SCHOOLJAAR_startjaar),
               relationship = "one-to-one",
               .config_data_path = "data_combined_dir") |>
     left_join_load("teams_employee_satisfaction",
-              by = join_by(TEAM_naam == characteristic_2, 
-                           COHORT_startjaar == schooljaar_startjaar),
+              by = join_by(TEAM_kostenplaats_code, 
+                           COHORT_startjaar == MTO_schooljaar_startjaar),
               relationship = "one-to-one",
               .config_data_path = "data_combined_dir")
 

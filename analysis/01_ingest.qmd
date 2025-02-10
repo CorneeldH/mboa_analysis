@@ -14,6 +14,8 @@ We laden eerst alle data in die al op verbintenis-niveau is. Een aantal tabellen
 
 Deze tabellen transformeren we naar student-jaar om het zo te kunnen koppelen aan verbintenis. Tenslotte zijn er nog een aantal mapping tables met extra informatie over een specifieke aspecten van een verbintenis.
 
+Alle volgende ingests zijn complete exports. Als op een later moment het onderliggende SQL script opnieuw wordt gerund (zie Teams map) dan is het automatisch up-to-date.  
+
 ```{r}
 
 enrollments_basics <- ingest_enrollments_basics() |>
@@ -37,7 +39,6 @@ print("Data op verbintenis niveau succesvol ingeladen en geprepareerd.")
 
 ```
 
-
 ```{r}
 
 # BPV statusses transformed
@@ -54,7 +55,6 @@ enrollments_bpv <- bpv_statusses |>
 print("BPV data succesvol ingeladen en getransformeerd naar verbintenis.")
 
 ```
-
 
 ```{r}
 #' *INFO* An enrollment can be longer or shorter than one year
@@ -131,8 +131,7 @@ print("Medewerker FTE data op peildatum succesvol ingeladen en geprepareerd.")
 
 ```
 
-Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar jaarlijkse
-verzuimpercentages. Hierbij ontbreken gegeven van medewerkers die geen enkele verzuim melding in een jaar hebben. Dit vullen op na het koppelen.
+Tenslotte is er informatie over het verzuim van medewerkers. Deze zetten we om naar jaarlijkse verzuimpercentages. Hierbij ontbreken gegeven van medewerkers die geen enkele verzuim melding in een jaar hebben. Dit vullen op na het koppelen.
 
 ```{r}
 
@@ -219,7 +218,7 @@ print("Waarnemingen data succesvol ingeladen en getransformeerd naar schooljaar.
 
 ## Student tevredenheid (satisfaction)
 
-We laden hier de JOB monitor in. In 2019 en 2021 waren er bijna dezelfde vragen, in 2023 waren er veel meer vragen (138 tov 85 en 78). Voor het correlatie-onderzoek kunnen we deze allemaal gebruiken, omdat missende waardes geen probleem zijn. 
+We laden hier de JOB monitor in. In 2019 en 2021 waren er bijna dezelfde vragen, in 2023 waren er veel meer vragen (138 tov 85 en 78). Voor het correlatie-onderzoek kunnen we deze allemaal gebruiken, omdat missende waardes geen probleem zijn.
 
 De Job light heeft ook andere vragen en deze zijn ook anders geformateerd. Voor nu is ervoor gekozen dit niet in te laden.
 
@@ -236,6 +235,20 @@ students_satisfaction <- bind_rows(
     filter(!is.na(CREBO)) |>
     save_prepared_and_return(filename = "students_satisfaction")
 
+codebook_student_satisfaction_mapping <-  ingest_codebook_students_satisfaction_mapping()
+#Based on the context, I'll provide code to transform the students_satisfaction names using the codebook mapping. Here's the code:
+
+rename_mapping_job <- codebook_student_satisfaction_mapping |>
+    select(vraag_code_job, omschrijving) |>
+    filter(!is.na(omschrijving)) |>
+    pull(vraag_code_job, name = omschrijving) |>
+    discard(is.na)
+
+students_satisfaction <- students_satisfaction |>
+    rename(any_of(rename_mapping_job)) |>
+    rename_with(~ paste0("JOB_", .)) |>
+    save_prepared_and_return(filename = "students_satisfaction")
+
 print("Student tevredenheid data succesvol ingeladen en geprepareerd.")
 
 crebo_to_organisation_mapping <- ingest_crebo_to_organisation_mapping() |>
@@ -245,21 +258,45 @@ crebo_to_organisation_mapping <- ingest_crebo_to_organisation_mapping() |>
     
 ```
 
-
 ```{r}
 
 # student_answers_satisfaction <- ingest_student_answers_satisfaction_2020()
 
 students_satisfaction_2020 <- ingest_student_answers_satisfaction_2020() |>
+    mutate(attribute = parse_number(attribute)) |>
     pivot_answers_to_students()
 
-students_satisfaction_2022 <- ingest_student_answers_satisfaction_2022() |>
-    pivot_answers_to_students()
+rename_mapping_job_light_2021 <- codebook_student_satisfaction_mapping |>
+    select(vraag_code_job_light_2021, omschrijving) |>
+    mutate(vraag_code_job_light_2021 = paste0("x", vraag_code_job_light_2021)) |>
+    filter(!is.na(omschrijving)) |>
+    pull(vraag_code_job_light_2021, name = omschrijving) |>
+    discard(is.na)
 
+students_satisfaction_2020 <- students_satisfaction_2020 |>
+  rename(any_of(rename_mapping_job_light_2021)) |>
+    save_prepared_and_return()
 
 ```
 
+```{r}
+students_satisfaction_2022 <- ingest_student_answers_satisfaction_2022() |>
+    mutate(attribute = parse_number(attribute)) |>
+    pivot_answers_to_students()
 
+rename_mapping_job_light_2023 <- codebook_student_satisfaction_mapping |>
+    select(vraag_code_job_light_2023, omschrijving) |>
+    mutate(vraag_code_job_light_2023 = paste0("x", vraag_code_job_light_2023)) |>
+    filter(!is.na(omschrijving)) |>
+    pull(vraag_code_job_light_2023, name = omschrijving) |>
+    discard(is.na)
+
+students_satisfaction_2022 <- students_satisfaction_2022 |>
+    rename(any_of(rename_mapping_job_light_2023)) |>
+    rename_with(~str_replace(., "x", "x_")) |>
+    save_prepared_and_return()
+
+```
 
 ## Medewerker tevredenheid (satisfaction)
 
@@ -267,13 +304,38 @@ Laad de medewerker tevredenheid data in. Deze data is per jaar aangeleverd met Ã
 
 ```{r}
 
-employees_satisfaction_codebook_2020 <- ingest_employee_answers_satisfaction_codebook_2020()
-employees_satisfaction_codebook_2022 <- ingest_employee_answers_satisfaction_codebook_2022()
-employees_satisfaction_codebook_2024 <- ingest_employee_answers_satisfaction_codebook_2024()
+codebook_student_satisfaction_mapping <-  ingest_codebook_employee_satisfaction_mapping()
+
+codebook_employees_satisfaction_2020 <- ingest_employee_answers_satisfaction_codebook_2020() |>
+    left_join(
+        codebook_student_satisfaction_mapping,
+        by = c("Question Text" = "vraag"),
+        relationship = "many-to-one"
+    ) |>
+    mutate(omschrijving = coalesce(omschrijving, `Question Text`)) |>
+    save_prepared_and_return()
+
+codebook_employees_satisfaction_2022 <- ingest_employee_answers_satisfaction_codebook_2022() |>
+        left_join(
+        codebook_student_satisfaction_mapping,
+        by = c("Question Text" = "vraag"),
+        relationship = "many-to-one"
+    ) |>
+    mutate(omschrijving = coalesce(omschrijving, `Question Text`)) |>
+    save_prepared_and_return()
+
+codebook_employees_satisfaction_2024 <- ingest_employee_answers_satisfaction_codebook_2024() |>
+        left_join(
+        codebook_student_satisfaction_mapping,
+        by = c("Question Text" = "vraag"),
+        relationship = "many-to-one"
+    ) |>
+    mutate(omschrijving = coalesce(omschrijving, `Question Text`)) |>
+    save_prepared_and_return()
 
 employees_satisfaction_2020 <- ingest_employee_answers_satisfaction_2020() |>
     left_join(
-        employees_satisfaction_codebook_2020,
+        codebook_employees_satisfaction_2020,
         by = c("QuestionId" = "QuestionId", "Score" = "AnswerCode"),
         relationship = "many-to-one"
   ) |>
@@ -281,7 +343,7 @@ employees_satisfaction_2020 <- ingest_employee_answers_satisfaction_2020() |>
 
 employees_satisfaction_2022 <- ingest_employee_answers_satisfaction_2022() |>
     left_join(
-        employees_satisfaction_codebook_2022,
+        codebook_employees_satisfaction_2022,
         by = c("QuestionId" = "QuestionId", "Score" = "AnswerCode"),
         relationship = "many-to-one"
     ) |> 
@@ -289,31 +351,57 @@ employees_satisfaction_2022 <- ingest_employee_answers_satisfaction_2022() |>
 
 employees_satisfaction_2024 <- ingest_employee_answers_satisfaction_2024() |>
     left_join(
-        employees_satisfaction_codebook_2024,
+        codebook_employees_satisfaction_2024,
         by = c("QuestionId" = "QuestionId", "Score" = "AnswerCode"),
         relationship = "many-to-one"
     ) |> 
     pivot_answers_to_employees()
 
+mapping_employees_satisfaction <- ingest_mapping_employees_satisfaction()
+
 employees_satisfaction <- bind_rows(
     employees_satisfaction_2020, 
     employees_satisfaction_2022, 
     employees_satisfaction_2024
-) |> 
+    ) |>
+    left_join(
+        mapping_employees_satisfaction,
+        by = join_by(MTO_characteristic_1, MTO_characteristic_2),
+        relationship = "many-to-one"
+    ) |> 
     save_prepared_and_return(filename = "employees_satisfaction")
+
 
 print("Medewerker tevredenheid data succesvol ingeladen en geprepareerd.")
 
+
 ```
 
+## Rendementen
 
-## Startersresultaat (retention)
+Voor nu is het startersresultaat (retention start). Dit zijn studenten die 1 jaar in de opleiding zitten. Zo kunnen we variabelen die pear jaar verschillen zoals medewerkerstevredenheid en studenttevredenheid hieraan koppelen.
 
-Voor nu is het startersresultaat. Dit zijn studenten die 1 jaar in de opleiding zitten. Zo kunnen we variabelen die pear jaar verschillen zoals medewerkerstevredenheid en studenttevredenheid hieraan koppelen.
+Daarbij is er het jaarresultaat (year). Dit is het aantal vertrekkers van de instelling gedeeld door aantal vertrekkkers met diploma in dat jaar.
+
+En tenslotte het diplomaresultaat (degree). Dit is het aantal vertrekkers gedeeld door aantal vertrekkers die een diploma bij MBOA hebben gehaald). Oftewel bij het diplomaresultaat tellen ook studenten mee die in 5 eerdere jaren een diploma hebben gehaald, doorstuderen bij MBO Amersfoort en dan bij nieuwe opleiding uitvallen zonder diploma.
+
+Zie de MBO Informatie Encylopedie voor precieze definitie en voorbeelden:
+
+-   [Startersresultaat](https://www.informatie-encyclopedie.nl/indicator/4fcb1f2b-2c31-11b2-8056-00505687193f)
+-   [Diplomaresultaat](https://www.informatie-encyclopedie.nl/indicator/27693a2c-23ad-4d12-871b-10edecc4e6a4)
+-   [Jaarresultaat](https://www.informatie-encyclopedie.nl/indicator/ed395a2e-d2b7-42d1-b726-b1d091ca73f4)
 
 ```{r}
 
 teams_results_retention_start <- ingest_teams_results_retention_start() |>
+    format_school_year_name() |>
+    parse_result_pct()
+
+teams_results_year <- ingest_teams_results_year() |>
+    format_school_year_name() |>
+    parse_result_pct()
+
+teams_results_degree <- ingest_teams_results_degree() |>
     format_school_year_name() |>
     parse_result_pct()
 
