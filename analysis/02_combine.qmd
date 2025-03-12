@@ -144,7 +144,11 @@ enrollments_combined_enriched <- enrollments_combined |>
     calculate_application_to_start() |>
     calculate_bpv_status_to_start() |>
     calculate_bpv_status_to_specific_dates() |>
-    add_filled_booleans()
+    add_filled_booleans() |> 
+    add_grouped_enrollment_dates() |>
+    calculate_active_on_1_okt() |>
+    calculate_proper_placement() |>
+    calculate_is_havo_vwo_dropout()
 
 save_combined(enrollments_combined_enriched)
 
@@ -370,9 +374,9 @@ employees_satisfaction_file_path <- file.path(
 employees_satisfaction <- readRDS(employees_satisfaction_file_path)
 
 teams_employee_satisfaction <- employees_satisfaction |>
-    group_by(TEAM_kostenplaats_code, MTO_schooljaar_startjaar) |>
+    group_by(TEAM_kostenplaats_code, MWO_schooljaar_startjaar) |>
     summarise(
-        TEAM_MTO_aantal_ingevuld = n(),
+        TEAM_MWO_aantal_ingevuld = n(),
         across(where(is.numeric), ~mean(., na.rm = TRUE)), .groups = "drop") |>
     mutate(across(where(is.numeric), ~if_else(is.nan(.), NA_real_, .)))
 
@@ -418,7 +422,7 @@ teams_combined <- teams_enrollments |>
               .config_data_path = "data_combined_dir") |>
     left_join_load("teams_employee_satisfaction",
               by = join_by(TEAM_kostenplaats_code, 
-                           COHORT_startjaar == MTO_schooljaar_startjaar),
+                           COHORT_startjaar == MWO_schooljaar_startjaar),
               relationship = "one-to-one",
               .config_data_path = "data_combined_dir")
 
