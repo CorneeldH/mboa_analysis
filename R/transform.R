@@ -277,20 +277,21 @@ summarise_observations_to_weekly_attendance <- function(attendance_observations)
             VERBINTENIS_groepdeelname_einddatum = max(GROEP_groepdeelname_einddatum),
             .groups = "drop"
         ) |>
-        mutate(across(contains("_pct_"), round, 2)) |>
+        mutate(across(contains("_pct_"), round, 2)
+               ) |>
         arrange(VERBINTENIS_ID, SCHOOLJAAR_naam, VERBINTENIS_verzuim_week_nummer)
 
     ## TODO DRY
-    num_years <- employee_absences_in_weeks |>
+    num_years <- enrollment_weeks_attendance |>
         distinct(SCHOOLJAAR_naam) |>
         nrow()
 
     if (num_years == 1) {
-        year <- parse_number(unique(employee_absences_in_weeks$SCHOOLJAAR_naam))
-        filename <- paste0("employee_absences_in_weeks_", year)
-        save_transformed_and_comment(employee_absences_in_weeks, filename = filename)
+        year <- parse_number(unique(enrollment_weeks_attendance$SCHOOLJAAR_naam))
+        filename <- paste0("enrollment_weeks_attendance_", year)
+        save_transformed_and_comment(enrollment_weeks_attendance, filename = filename)
     } else {
-        save_transformed_and_comment(employee_absences_in_weeks)
+        save_transformed_and_comment(enrollment_weeks_attendance)
     }
 
     return(enrollment_weeks_attendance)
@@ -412,7 +413,6 @@ summarise_observations_to_yearly_attendance <- function(attendance_observations)
 
 
 }
-
 
 
 #' Transform Weekly Attendance Data to Enrollment Level
@@ -690,6 +690,21 @@ transform_prior_education_vo_and_highest_degree <- function(student_prior_educat
         slice_tail(n = 1) |>
         ungroup()
 
+    overige_records <- student_prior_education_yearly_expanded |>
+        select(
+            DEELNEMER_ID,
+            COHORT_naam,
+            DEELNEMER_vooropleiding_hoogst =  DEELNEMER_vooropleiding_vooropleiding,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort = DEELNEMER_vooropleiding_vooropleidings_categorie,
+            DEELNEMER_vooropleiding_diploma_behaald,
+            DEELNEMER_vooropleiding_einddatum
+        ) |>
+        group_by(DEELNEMER_ID, COHORT_naam) |>
+        slice_max(DEELNEMER_vooropleiding_einddatum, n = 1) |>
+        slice_tail(n = 1) |>
+        ungroup() |>
+        select(-DEELNEMER_vooropleiding_einddatum)
+
     start_kwalificatie <- student_prior_education_yearly_expanded |>
         group_by(DEELNEMER_ID, COHORT_naam) |>
         summarise(
@@ -701,10 +716,12 @@ transform_prior_education_vo_and_highest_degree <- function(student_prior_educat
         ) |>
         ungroup()
 
-    # Join the two datasets
+    # Join the three datasets
     student_prior_education_yearly <- start_kwalificatie |>
         full_join(vo_records, by = join_by(DEELNEMER_ID, COHORT_naam)) |>
-        full_join(gediplomeerde_records, by = join_by(DEELNEMER_ID, COHORT_naam))
+        full_join(gediplomeerde_records, by = join_by(DEELNEMER_ID, COHORT_naam)) |>
+        full_join(overige_records, by = join_by(DEELNEMER_ID, COHORT_naam))
+
 
     save_transformed_and_comment(student_prior_education_yearly)
 
@@ -1111,7 +1128,7 @@ pivot_answers_to_employees <- function(employee_answers_satisfaction) {
             values_from = c(Score) # TODO Answer text out for now, `Answer Text`)
     ) |>
          clean_names()  |>
-         rename_with(~ paste0("MTO_", .))
+         rename_with(~ paste0("MWO_", .))
 
      save_transformed_and_comment(employees_satisfaction)
 
@@ -1576,6 +1593,7 @@ summarise_enrollments_num_vars_to_teams <- function(enrollments) {
             across(contains("dagen"), ~mean(., na.rm = TRUE)),
             across(contains("waarneming"), ~mean(., na.rm = TRUE)),
             across(contains("_is_"), ~mean(., na.rm = TRUE)),
+            DEELNEMER_passend_niveau = mean(DEELNEMER_passend_niveau, na.rm = TRUE),
             BPV_omvang = mean(BPV_omvang, na.rm = TRUE),
             .groups = "drop"
         )

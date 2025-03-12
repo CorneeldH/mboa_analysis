@@ -327,3 +327,165 @@ fix_inf_values <- function(data) {
         mutate(across(where(is.numeric),
                       ~if_else(. == Inf, NA_real_, .)))
 }
+
+
+#' Calculate Active Status for October 1st Reference Date
+#'
+#' @description
+#' Determines if enrollments were active on October 1st reference dates
+#'
+#' @param enrollments A data frame containing enrollment data with columns:
+#'   VERBINTENIS_begindatum, VERBINTENIS_einddatum, VERBINTENIS_begindatum_eerst,
+#'   and VERBINTENIS_einddatum_laatst as dates
+#'
+#' @returns A data frame with two new logical columns:
+#'   \itemize{
+#'     \item VERBINTENIS_actief_op_1_okt_peildatum: Active status for current enrollment
+#'     \item VERBINTENIS_actief_op_1_okt_peildatum_laatst: Active status for last enrollment
+#'   }
+#'
+#' @importFrom dplyr mutate select case_when
+#' @importFrom lubridate floor_date years month today
+#'
+#' @export
+calculate_active_on_1_okt <- function(enrollments) {
+    enrollments_prepared <- enrollments |>
+        mutate(
+            VERBINTENIS_eerste_1_okt = floor_date(VERBINTENIS_begindatum + years(if_else(month(VERBINTENIS_begindatum) >= 10, 1, 0)), unit = "year") + months(9),
+            VERBINTENIS_actief_op_1_okt_peildatum = case_when(
+                VERBINTENIS_eerste_1_okt > today() ~ NA,
+                is.na(VERBINTENIS_einddatum) ~ TRUE, # verbintenis nog actief
+                VERBINTENIS_einddatum > VERBINTENIS_eerste_1_okt ~ TRUE,
+                .default = FALSE)
+        ) |>
+        select(-VERBINTENIS_eerste_1_okt) |>
+        mutate(
+            VERBINTENIS_eerste_1_okt_eerst = floor_date(VERBINTENIS_begindatum_eerst + years(if_else(month(VERBINTENIS_begindatum) >= 10, 1, 0)), unit = "year") + months(9),
+            VERBINTENIS_actief_op_1_okt_peildatum_laatst = case_when(
+                VERBINTENIS_eerste_1_okt_eerst > today() ~ NA,
+                is.na(VERBINTENIS_einddatum_laatst) ~ TRUE, # verbintenis nog actief
+                VERBINTENIS_einddatum_laatst > VERBINTENIS_eerste_1_okt_eerst ~ TRUE,
+                .default = FALSE)
+        ) |>
+        select(-VERBINTENIS_eerste_1_okt_eerst)
+
+    return(enrollments_prepared)
+}
+
+#' Add First and Last Enrollment Dates
+#'
+#' @description
+#' Calculate the first and last enrollment dates for each enrollment sequence
+#'
+#' @param enrollments A data frame containing enrollment data with columns
+#'   VERBINTENIS_volgnummer, VERBINTENIS_begindatum, and VERBINTENIS_einddatum
+#'
+#' @returns
+#' The input data frame with two additional columns:
+#' \itemize{
+#'   \item VERBINTENIS_begindatum_eerst: The earliest start date per VERBINTENIS_volgnummer
+#'   \item VERBINTENIS_einddatum_laatst: The latest end date per VERBINTENIS_volgnummer
+#' }
+#'
+#' @importFrom dplyr group_by ungroup mutate
+#'
+#' @export
+add_grouped_enrollment_dates <- function(enrollments) {
+
+    enrollments_prepared <- enrollments |>
+        mutate(
+            VERBINTENIS_begindatum = as.Date(VERBINTENIS_begindatum, format = "%d-%m-%Y"),
+            VERBINTENIS_einddatum = as.Date(VERBINTENIS_einddatum, format = "%d-%m-%Y")
+        ) |>
+        group_by(DEELNEMER_ID, OPLEIDING_bc_code) |>
+        mutate(VERBINTENIS_begindatum_eerst = min(VERBINTENIS_begindatum),
+               VERBINTENIS_einddatum_laatst = max(VERBINTENIS_einddatum)) |>
+        ungroup()
+
+    return(enrollments_prepared)
+
+}
+
+
+#' Calculate Student Placement Levels and Status
+#'
+#' @description
+#' Determines appropriate placement level based on prior education and compares to actual placement
+#'
+#' @param enrollments A data frame containing enrollment and student prior education data
+#'
+#' @returns
+#' A data frame with additional columns:
+#' \itemize{
+#'   \item DEELNEMER_passend_niveau: Appropriate level based on prior education
+#'   \item DEELNEMER_plaatsing: Placement status (Passend/Te laag/Te hoog)
+#'   \item DEELNEMER_havo_vwo_gezakt: If student failed HAVO/VWO
+#' }
+#'
+#' @importFrom dplyr mutate case_when if_else
+#' @importFrom stringr str_detect
+#'
+#' @export
+calculate_proper_placement <- function(enrollments) {
+    enrollments_enriched <- enrollments |>
+        mutate(DEELNEMER_passend_niveau = case_when(
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO_BB" ~ 2,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO_KB" ~ 3,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("VMBO_GL", "VMBO_TL", "VMBOTL", "HAVO", "MBO-3", "MBO-4") ~ 4,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO-1" ~ 2,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO-2" ~ 3,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("Basisonderwijs", "Basisvorming") & str_detect(DEELNEMER_vooropleiding_hoogst, "[Hh]avo|HAVO|[Vv]wo|VWO") ~ 4,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("Basisonderwijs", "Basisvorming") & str_detect(DEELNEMER_vooropleiding_hoogst, "MBO Niveau 2|Niet te achterhalen|Nog onbekend") ~ 2,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("Basisonderwijs", "Basisvorming", "Geen", "VSO", "VO") ~ 1,
+            is.na(DEELNEMER_vooropleiding_hoogste_diploma_soort) ~ 2,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" & str_detect(DEELNEMER_vooropleiding_hoogst, "[Kk]ader") ~ 3,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" & str_detect(DEELNEMER_vooropleiding_hoogst, "[Gg]emengd|[Tt]heo|4") ~ 4,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" & str_detect(DEELNEMER_vooropleiding_hoogst, "[Bb]asis") ~ 2,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" ~ 3,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO12" & str_detect(DEELNEMER_vooropleiding_hoogst, "1") ~ 2,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO12" ~ 3,
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO34" ~ 4,
+            .default = 4
+        )) |>
+        mutate(
+            DEELNEMER_plaatsing = case_when(
+                DEELNEMER_passend_niveau == VERBINTENIS_niveau ~ "passend",
+                DEELNEMER_passend_niveau < VERBINTENIS_niveau ~ "onder_niveau",
+                DEELNEMER_passend_niveau > VERBINTENIS_niveau ~ "boven_niveau",
+                TRUE ~ "Onbekend"
+            )
+        )
+
+    return(enrollments_enriched)
+}
+
+
+#' Identify Failed HAVO/VWO Students
+#'
+#' @description
+#' Determine if students failed HAVO/VWO based on prior education data
+#'
+#' @param data A data frame containing prior education columns
+#'
+#' @returns
+#' A data frame with an additional column DEELNEMER_havo_vwo_gezakt indicating
+#' if the student failed HAVO/VWO
+#'
+#' @importFrom dplyr mutate if_else
+#' @importFrom stringr str_detect
+#'
+#' @export
+calculate_is_havo_vwo_dropout <- function(enrollments) {
+    enrollments_enriched <- enrollments |>
+        mutate(
+            DEELNEMER_havo_vwo_is_gezakt = if_else(
+                DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("Basisonderwijs", "Basisvorming") &
+                    str_detect(DEELNEMER_vooropleiding_hoogst, "[Hh]avo|HAVO|[Vv]wo|VWO"),
+                TRUE,
+                FALSE
+            )
+        )
+
+    return(enrollments_enriched)
+}
+

@@ -70,6 +70,33 @@ combine_enrollment_numbers_for_order <- function(data) {
     return(data_prepared)
 }
 
+#' Parse Enrollment Dates
+#'
+#' @description
+#' Convert enrollment start and end dates from character to Date format
+#'
+#' @param enrollments A data frame containing enrollment dates in columns
+#'   'VERBINTENIS_begindatum' and 'VERBINTENIS_einddatum' in "dd-mm-yyyy" format.
+#'
+#' @returns
+#' A data frame with dates converted to Date class.
+#'
+#' @importFrom dplyr mutate
+#'
+#' @export
+parse_enrollment_dates <- function(enrollments) {
+
+    enrollments_prepared <- enrollments |>
+        mutate(
+            VERBINTENIS_begindatum = as.Date(VERBINTENIS_begindatum, format = "%d-%m-%Y"),
+            VERBINTENIS_einddatum = as.Date(VERBINTENIS_einddatum, format = "%d-%m-%Y")
+        )
+
+    save_prepared(enrollments_prepared)
+
+    return(enrollments_prepared)
+
+}
 
 #' Create Boolean Flex Status
 #'
@@ -453,40 +480,3 @@ add_helper_variables <- function(employee_answers_satisfaction) {
 
     return(employee_answers_satisfaction_with_helper_vars)
 }
-
-
-#' Create Active Status for October 1st Reference Date
-#'
-#' @description
-#' Determines if enrollments are active on the October 1st reference date
-#'
-#' @param enrollments A data frame containing enrollment data with columns
-#' VERBINTENIS_begindatum and VERBINTENIS_einddatum in "dd-mm-yyyy" format.
-#'
-#' @returns
-#' A data frame with added column VERBINTENIS_actief_op_1_okt_peildatum indicating
-#' if the enrollment was active on October 1st after the start date.
-#'
-#' @importFrom dplyr mutate select case_when
-#' @importFrom lubridate floor_date years month today
-#'
-#' @export
-create_active_on_1_okt <- function(enrollments) {
-    enrollments_prepared <- enrollments |>
-        mutate(
-            VERBINTENIS_begindatum = as.Date(VERBINTENIS_begindatum, format = "%d-%m-%Y"),
-            VERBINTENIS_einddatum = as.Date(VERBINTENIS_einddatum, format = "%d-%m-%Y"),
-            VERBINTENIS_eerste_1_okt = floor_date(VERBINTENIS_begindatum + years(if_else(month(VERBINTENIS_begindatum) >= 10, 1, 0)), unit = "year") + months(9),
-            VERBINTENIS_actief_op_1_okt_peildatum = case_when(
-                VERBINTENIS_eerste_1_okt > today() ~ NA,
-                is.na(VERBINTENIS_einddatum) ~ TRUE, # verbintenis nog actief
-                VERBINTENIS_einddatum > VERBINTENIS_eerste_1_okt ~ TRUE,
-                .default = FALSE)
-        ) |>
-        select(-VERBINTENIS_eerste_1_okt)
-
-    save_prepared(enrollments_prepared)
-
-    return(enrollments_prepared)
-}
-
