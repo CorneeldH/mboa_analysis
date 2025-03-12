@@ -21,7 +21,7 @@ Alle volgende ingests zijn complete exports. Als op een later moment het onderli
 enrollments_basics <- ingest_enrollments_basics() |>
     #'*INFO* prepare derived variables regarding 'studiesucces' after combining data with programmes
     combine_enrollment_numbers_for_order() |>
-    create_active_on_1_okt()
+    parse_enrollment_dates()
 enrollments_level <- ingest_enrollments_level() |>
     parse_enrollment_level()
 enrollments_flex <- ingest_enrollments_flex() |>
@@ -304,11 +304,11 @@ Laad de medewerker tevredenheid data in. Deze data is per jaar aangeleverd met Ã
 
 ```{r}
 
-codebook_student_satisfaction_mapping <-  ingest_codebook_employee_satisfaction_mapping()
+codebook_employee_satisfaction_mapping <-  ingest_codebook_employee_satisfaction_mapping()
 
 codebook_employees_satisfaction_2020 <- ingest_employee_answers_satisfaction_codebook_2020() |>
     left_join(
-        codebook_student_satisfaction_mapping,
+        codebook_employee_satisfaction_mapping,
         by = c("Question Text" = "vraag"),
         relationship = "many-to-one"
     ) |>
@@ -317,7 +317,7 @@ codebook_employees_satisfaction_2020 <- ingest_employee_answers_satisfaction_cod
 
 codebook_employees_satisfaction_2022 <- ingest_employee_answers_satisfaction_codebook_2022() |>
         left_join(
-        codebook_student_satisfaction_mapping,
+        codebook_employee_satisfaction_mapping,
         by = c("Question Text" = "vraag"),
         relationship = "many-to-one"
     ) |>
@@ -326,7 +326,7 @@ codebook_employees_satisfaction_2022 <- ingest_employee_answers_satisfaction_cod
 
 codebook_employees_satisfaction_2024 <- ingest_employee_answers_satisfaction_codebook_2024() |>
         left_join(
-        codebook_student_satisfaction_mapping,
+        codebook_employee_satisfaction_mapping,
         by = c("Question Text" = "vraag"),
         relationship = "many-to-one"
     ) |>
@@ -366,7 +366,7 @@ employees_satisfaction <- bind_rows(
     ) |>
     left_join(
         mapping_employees_satisfaction,
-        by = join_by(MTO_characteristic_1, MTO_characteristic_2),
+        by = join_by(MWO_characteristic_1, MWO_characteristic_2),
         relationship = "many-to-one"
     ) |> 
     save_prepared_and_return(filename = "employees_satisfaction")
