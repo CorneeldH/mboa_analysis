@@ -55,21 +55,21 @@ variables_job <- c(
     "JOB_hulp_bij_presteren",
     "JOB_luistert_naar_mening")
 
-variables_mto <- c(
-    "MTO_ik_doe_graag_iets_extra_voor_mboa",
-    "MTO_aandacht_persoonlijke_ontwikkeling",
-    "MTO_mogelijkheid_tot_doorgroeien",
-    #"MTO_vertrouwen_in_cvb",
-    "MTO_jaarlijkse_gesprekken_leidinggevende",
-    "MTO_open_communicatie_management",
-    "MTO_leidinggevende_motiveert",
-    "MTO_goede_samenwerking_binnen_team",
-    #"MTO_waardering_door_mboa",
-    #"MTO_ik_pas_bij_mboa",
-    "MTO_ik_doe_waar_ik_goed_in_ben",
-    #"MTO_waardering_door_leidinggevende",
-    "MTO_werkdrukbeleving_bespreken_leidinggevende",
-    "MTO_ik_wil_me_verbeteren")
+variables_MWO <- c(
+    "MWO_ik_doe_graag_iets_extra_voor_mboa",
+    "MWO_aandacht_persoonlijke_ontwikkeling",
+    "MWO_mogelijkheid_tot_doorgroeien",
+    #"MWO_vertrouwen_in_cvb",
+    "MWO_jaarlijkse_gesprekken_leidinggevende",
+    "MWO_open_communicatie_management",
+    "MWO_leidinggevende_motiveert",
+    "MWO_goede_samenwerking_binnen_team",
+    #"MWO_waardering_door_mboa",
+    #"MWO_ik_pas_bij_mboa",
+    "MWO_ik_doe_waar_ik_goed_in_ben",
+    #"MWO_waardering_door_leidinggevende",
+    "MWO_werkdrukbeleving_bespreken_leidinggevende",
+    "MWO_ik_wil_me_verbeteren")
 
 ```
 
@@ -81,9 +81,9 @@ We bereiden de data voor op correlatie.
 teams_correlation_result <- teams_selected |>
     select(where(is.numeric)) |>
     select(
-         !matches("JOB|MTO"),
+         !matches("JOB|MWO"),
          any_of(variables_job),
-         any_of(variables_mto)) |>
+         any_of(variables_MWO)) |>
     correlate() |>
     select(term, TEAM_startersresultaat_1_jaars) |>
     filter(term != "TEAM_startersresultaat_1_jaars") |>
@@ -102,7 +102,8 @@ teams_correlation_result <- teams_selected |>
 ```
 
 ```{r}
-#| label: fig-plot-correlation-high
+#| label: fig-plot-correlation-high-start-general
+#| column-scroll-x: true
 
 ggplot(teams_correlation_result, 
        aes(y = term)) +
@@ -145,9 +146,9 @@ ggplot(teams_correlation_result,
 
 In het plot vallen een aantal zaken op.
 
-### MTO
+### MWO
 
-Het **MTO** domineert. *Het gaat hier om het MTO uit 2020 en 2022. De correlatie met studieresultaten was stabiel over deze jaren. Binnen het MTO vallen de volgende thema's op:
+Het **MWO** domineert. *Het gaat hier om het MWO uit 2020 en 2022. De correlatie met studieresultaten was stabiel over deze jaren. Binnen het MWO vallen de volgende thema's op:
 
 -   ontwikkeling
 
@@ -187,9 +188,9 @@ Om te begrijpen wat er gebeurt en welke factoren echt van belang zijn is het noo
 teams_correlation_result <- teams_selected |>
     select(where(is.numeric)) |>
     select(
-         !matches("JOB|MTO"),
+         !matches("JOB|MWO"),
          any_of(variables_job),
-         any_of(variables_mto))
+         any_of(variables_MWO))
 
 
 ```
@@ -199,7 +200,7 @@ teams_correlation_result <- teams_selected |>
 ```{r}
 #| include: false
 
-teams_correlation_all <- correlate_teams_and_filter(teams_selected, "TEAM_startersresultaat_1_jaars", matches("JOB|MTO"))
+teams_correlation_all <- correlate_teams_and_filter(teams_selected, "TEAM_startersresultaat_1_jaars", matches("JOB|MWO"))
 
 
 plot_teams_correlations(teams_correlation_all, "TEAM_startersresultaat_1_jaars", "Middelhoge correlatie met Startersresultaat 1 jaar")
@@ -209,36 +210,43 @@ plot_teams_correlations(teams_correlation_all, "TEAM_startersresultaat_1_jaars",
 
 ## Jaar resultaat
 
-### zonder MTO en JOB
+### zonder MWO en JOB
 
 ```{r}
 #| include: false
 
-teams_correlation_result_year <- correlate_teams_and_filter(teams_selected, "TEAM_jaarresultaat_1_jaars", !matches("JOB|MTO"), filter_type = "outside")
+print(glimpse(teams_selected))
+
+teams_correlation_result_year <- correlate_teams_and_filter(teams_selected,
+                                                            "TEAM_jaarresultaat_1_jaars",
+                                                            !matches("JOB|MWO"),
+                                                            filter_type = "outside")
 
 
 ```
 
 ```{r}
-#| label: fig-plot-correlation-high
+#| label: fig-plot-correlation-high-year-not-MWO-JOB
+#| column-scroll-x: true
 
 plot_teams_correlations(teams_correlation_result_year, "TEAM_jaarresultaat_1_jaars", "Hoge correlatie met Jaarresultaat 1 jaar")
 
 ```
 
-### MTO en JOB
+### MWO en JOB
 
 ```{r}
 #| include: false
 
-teams_correlation_result_year_MTO_JOB <- correlate_teams_and_filter(teams_selected, "TEAM_jaarresultaat_1_jaars", matches("JOB|MTO"), filter_type = "outside")
+teams_correlation_result_year_MWO_JOB <- correlate_teams_and_filter(teams_selected, "TEAM_jaarresultaat_1_jaars", matches("JOB|MWO"), filter_type = "outside")
 
 ```
 
 ```{r}
-#| label: fig-plot-correlation-high
+#| label: fig-plot-correlation-high-year-MWO-JOB
+#| column-scroll-x: true
 
-plot_teams_correlations(teams_correlation_result_year_MTO_JOB, "TEAM_jaarresultaat_1_jaars", "Hoge correlatie met Jaarresultaat 1 jaar")
+plot_teams_correlations(teams_correlation_result_year_MWO_JOB, "TEAM_jaarresultaat_1_jaars", "Hoge correlatie met Jaarresultaat 1 jaar")
 
 
 
@@ -247,40 +255,39 @@ plot_teams_correlations(teams_correlation_result_year_MTO_JOB, "TEAM_jaarresulta
 
 ## Diploma resultaat
 
-### zonder MTO en JOB
+### zonder MWO en JOB
 
 ```{r}
 #| include: false
 
-teams_correlation_result_degree <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MTO"), filter_type = "outside")
+teams_correlation_result_degree <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MWO"), filter_type = "outside")
 
 ```
 
 ```{r}
-#| label: fig-plot-correlation-high
+#| label: fig-plot-correlation-high-degree-not-MWO-JOB
+#| column-scroll-x: true
 
 plot_teams_correlations(teams_correlation_result_degree, "TEAM_diplomaresultaat_1_jaars", "Hoge correlatie met Diplomaresultaat 1 jaar")
 
 ```
 
-### MTO en JOB
+### MWO en JOB
 
 ```{r}
 #| include: false
 
-teams_correlation_result_degree_MTO_JBO <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MTO"), filter_type = "outside")
+teams_correlation_result_degree_MWO_JBO <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MWO"), filter_type = "outside")
 
 
 ```
 
 ```{r}
-#| label: fig-plot-correlation-high
+#| label: fig-plot-correlation-high-degree-MWO-JOB
+#| column-scroll-x: true
+#| layout-ncol: 1
 
-plot_teams_correlations(teams_correlation_result_degree_MTO_JBO, "TEAM_diplomaresultaat_1_jaars", "Hoge correlatie met Diplomaresultaat 1 jaar")
+plot_teams_correlations(teams_correlation_result_degree_MWO_JBO, "TEAM_diplomaresultaat_1_jaars", "Hoge correlatie met Diplomaresultaat 1 jaar")
 
 ```
-
-
-
-
 
