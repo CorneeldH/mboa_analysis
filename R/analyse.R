@@ -22,7 +22,7 @@
 #' @export
 correlate_teams_and_filter <- function(df,
                             target_var,
-                            cols = !matches("JOB|MTO"),
+                            cols = !matches("JOB|MWO"),
                             filter_type = c("none", "between", "outside"),
                             correlation_limits = c(-0.3, 0.3),
                             exclude_terms = c(
@@ -30,13 +30,13 @@ correlate_teams_and_filter <- function(df,
                                 "MEDEWERKER_verzuim_kort_opgevuld",
                                 "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld"
                             )) {
+
     filter_type <- match.arg(filter_type)
 
     result <- df |>
-        select(where(is.numeric)) |>
-        select(!!sym(target_var), {{cols}}) |>
+        select(target_var, {{cols}}) |>
         correlate() |>
-        select(term, !!sym(target_var)) |>
+        select(all_of(c("term", target_var))) |>
         filter(
             term != !!sym(target_var),
             !term %in% exclude_terms

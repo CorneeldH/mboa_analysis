@@ -438,9 +438,9 @@ utils::globalVariables(
         "MEDEWERKER_contract_fte_totaal",
 
         # ingest_mapping_employees_satisfaction
-        "mto_characteristic_1",
-        "mto_characteristic_2",
-        "mto_characteristic_3",
+        "mwo_characteristic_1",
+        "mwo_characteristic_2",
+        "MWO_characteristic_3",
         "kostenplaats_code",
         "kostenplaats_naam",
 

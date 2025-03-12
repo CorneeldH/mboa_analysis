@@ -2506,8 +2506,8 @@ ingest_mapping_employees_satisfaction <- function(..., filename = NULL, path = N
     data_clean <- data_raw |>
         clean_names() |>
         select(
-            MTO_characteristic_1 = mto_characteristic_1,
-            MTO_characteristic_2 = mto_characteristic_2,
+            MWO_characteristic_1 = mto_characteristic_1,
+            MWO_characteristic_2 = mto_characteristic_2,
             TEAM_cluster = mto_characteristic_3,
             TEAM_kostenplaats_code = kostenplaats_code,
             TEAM_kostenplaats_naam = kostenplaats_naam
