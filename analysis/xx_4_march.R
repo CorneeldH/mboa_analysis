@@ -1,0 +1,586 @@
+# SDV ####
+
+
+
+# Onderwijsbeleid ####
+
+## Crebo niveau leerweg ####
+counts_students <- readRDS("shiny_apps/counts_students.rds")
+
+ggplot(counts_students %>%
+           filter(COHORT_startjaar == 2023),
+       aes(x = n, weight = n)) +
+    geom_histogram(binwidth = 3, fill = "steelblue", alpha = 0.7,
+                   color = "white", boundary = 0) +
+    geom_density(aes(y = after_stat(count) * 3),
+                 color = "darkblue", linewidth = 1, alpha = 0.2, fill = "lightblue") +
+    geom_vline(aes(xintercept = 30), color = "red", linetype = "dashed") +
+    annotate("text", x = 30, y = 50,
+             label = "Grens data analyse: 30",
+             color = "red",
+             hjust = -0.1,
+             vjust = 0) +
+    scale_x_continuous(breaks = seq(0, 200, by = 20),
+                       limits = c(0, 200)) +
+    scale_y_continuous(breaks = seq(0, 200, by = 50)) +
+    theme_minimal(base_size = 12) +
+    theme(
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold", size = 14),
+        axis.title = element_text(face = "bold")
+    ) +
+    labs(x = "Aantal studenten per combinatie",
+         y = "Aantal combinaties",
+         title = "Verdeling aantal studenten per combinatie")
+
+# Bereken de cumulatieve gegevens
+cum_data_crebo_niveau_leerweg <- counts_students %>%
+    filter(COHORT_startjaar == 2023) %>%
+    arrange(n) %>%
+    mutate(
+        students = n,  # Aantal studenten per combinatie
+        combinations = 1,  # Elke rij is één combinatie
+        cum_combinations = cumsum(combinations),
+        cum_students = cumsum(students),
+        perc_combinations = cum_combinations / sum(combinations) * 100,
+        perc_students = cum_students / sum(students) * 100
+    )
+
+# Bereken specifieke gegevens voor de grens van 30
+grens_data_crebo_niveau_leerweg <- cum_data_crebo_niveau_leerweg %>%
+    filter(n <= 30) %>%
+    summarise(
+        total_students = max(cum_students),
+        perc_students = max(perc_students)
+    )
+
+# Maak een informatieve tekst voor de annotatie
+info_text_crebo_niveau_leerweg <- paste0(
+    "Studenten in combinaties kleiner dan 30: \n",
+    formatC(grens_data_crebo_niveau_leerweg$total_students, format="f", big.mark=".", digits=0),
+    " (", round(grens_data$perc_students, 1), "%)"
+)
+
+ggplot(cum_data_crebo_niveau_leerweg) +
+    geom_line(aes(x = n, y = cum_students), color = "#f49600", size = 1.5) +
+    geom_vline(aes(xintercept = 30), color = "black", linetype = "dashed") +
+    annotate("text", x = 32, y = max(cum_data_crebo_niveau_leerweg$cum_students) * 0.6,
+             label = info_text_crebo_niveau_leerweg,
+             color = "black",
+             fontface = "bold",
+             hjust = 0) +
+    scale_y_continuous(
+        name = "Cumulatief aantal studenten",
+        labels = scales::comma,
+        sec.axis = sec_axis(~ . / max(cum_data_crebo_niveau_leerweg$cum_students) * 100,
+                            name = "Percentage van alle studenten",
+                            labels = function(x) paste0(round(x), "%"))
+    ) +
+    scale_x_continuous(
+        name = "Groepsgrootte (studenten per crebo/niveau/leerweg)",
+        breaks = seq(0, max(cum_data_crebo_niveau_leerweg$n), by = 25)
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+        panel.grid.minor = element_blank(),
+        axis.title.y.left = element_text(color = "#f49600", face = "bold"),
+        axis.title.y.right = element_text(color = "#f49600", face = "bold"),
+        axis.text.y.left = element_text(color = "black"),
+        axis.text.y.right = element_text(color = "black"),
+        plot.title = element_text(face = "bold", size = 16),
+        plot.subtitle = element_text(size = 12, margin = margin(b = 15)),
+        plot.title.position = "plot"
+    ) +
+    labs(
+        title = "Verdeling van Studenten",
+        subtitle = "Bijna de helft zit in kleine groepen (minder dan 30 studenten)"
+    )
+
+## Team niveau leerweg ####
+cum_data_team_niveau_leerweg <- counts_students %>%
+    filter(COHORT_startjaar == 2023) %>%
+    group_by(COHORT_startjaar, TEAM_naam_kort, VERBINTENIS_niveau, OPLEIDING_leerweg) %>%
+    summarise(n = sum(n),
+              .groups = "drop") %>%
+    arrange(n) %>%
+    mutate(
+        students = n,  # Aantal studenten per combinatie
+        combinations = 1,  # Elke rij is één combinatie
+        cum_combinations = cumsum(combinations),
+        cum_students = cumsum(students),
+        perc_combinations = cum_combinations / sum(combinations) * 100,
+        perc_students = cum_students / sum(students) * 100
+    )
+
+# Bereken specifieke gegevens voor de grens van 30
+grens_data_team_niveau_leerweg <- cum_data_team_niveau_leerweg %>%
+    filter(n <= 30) %>%
+    summarise(
+        total_students = max(cum_students),
+        perc_students = max(perc_students)
+    )
+
+# Maak een informatieve tekst voor de annotatie
+info_text_team_niveau_leerweg <- paste0(
+    "Studenten in combinaties kleiner dan 30: \n",
+    formatC(grens_data_team_niveau_leerweg$total_students, format="f", big.mark=".", digits=0),
+    " (", round(grens_data$perc_students, 1), "%)"
+)
+
+ggplot(cum_data_team_niveau_leerweg) +
+    geom_line(aes(x = n, y = cum_students), color = "#f49600", size = 1.5) +
+    geom_vline(aes(xintercept = 30), color = "black", linetype = "dashed") +
+    annotate("text", x = 32, y = max(cum_data_team_niveau_leerweg$cum_students) * 0.6,
+             label = info_text_team_niveau_leerweg,
+             color = "black",
+             fontface = "bold",
+             hjust = 0) +
+    scale_y_continuous(
+        name = "Cumulatief aantal studenten",
+        labels = scales::comma,
+        sec.axis = sec_axis(~ . / max(cum_data_team_niveau_leerweg$cum_students) * 100,
+                            name = "Percentage van alle studenten",
+                            labels = function(x) paste0(round(x), "%"))
+    ) +
+    scale_x_continuous(
+        name = "Groepsgrootte (studenten per team/niveau/leerweg)",
+        breaks = seq(0, max(cum_data_team_niveau_leerweg$n), by = 25)
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+        panel.grid.minor = element_blank(),
+        axis.title.y.left = element_text(color = "#f49600", face = "bold"),
+        axis.title.y.right = element_text(color = "#f49600", face = "bold"),
+        axis.text.y.left = element_text(color = "black"),
+        axis.text.y.right = element_text(color = "black"),
+        plot.title = element_text(face = "bold", size = 16),
+        plot.subtitle = element_text(size = 12, margin = margin(b = 15)),
+        plot.title.position = "plot"
+    ) +
+    labs(
+        title = "Verdeling van Studenten",
+        subtitle = "5 van 6 studenten zitten nu in grote groepen (meer dan 30 studenten)"
+    )
+
+
+# HR ####
+teams_selected_file_path <- file.path(config::get("data_analysed_dir"), "teams_selected.rds")
+
+file.exists(teams_selected_file_path)
+
+teams_selected <- readRDS(teams_selected_file_path)
+
+teams_selected_verzuim <- teams_selected |>
+    select(TEAM_naam, COHORT_startjaar, (matches("verzuim") & matches("pct")) | matches("startersresultaat"))
+
+
+custom_colors <- c("Kort" = "#868686", "Middellang" = "#0073C2", "Lang" = "#EFC000")
+
+## Samenhang verzuim ####
+teams_selected_verzuim |>
+    select(matches("verzuim_pct")) |>
+    pivot_longer(cols = c(MEDEWERKER_verzuim_pct_lang, MEDEWERKER_verzuim_pct_middellang),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim_x") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang"
+    ),
+    type_verzuim = factor(type_verzuim, levels = c("Kort", "Middellang", "Lang"))) |>
+    ggpubr::ggscatter(
+        x = "verzuim_x",
+        y = "MEDEWERKER_verzuim_pct_kort",
+        color = "type_verzuim",
+        add = "reg.line",
+        palette = custom_colors
+    ) +
+    stat_cor(aes(color = type_verzuim), label.x = 0.07) +
+    labs(x = "Verzuim (Lang/Middellang)",
+         y = "Kort verzuim (%)",
+         color = "Type verzuim (%)")
+
+## Samenhang startersresultaat ####
+teams_selected_verzuim |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 100) |>
+    select(matches("verzuim_pct"), TEAM_startersresultaat_1_jaars) |>
+    pivot_longer(cols = matches("verzuim_pct"),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_kort" ~ "Kort"
+    ),
+    type_verzuim = factor(type_verzuim, levels = c("Kort", "Middellang", "Lang"))) |>
+    ggpubr::ggscatter(
+        x = "verzuim",
+        y = "TEAM_startersresultaat_1_jaars",
+        color = "type_verzuim",
+        add = "reg.line",
+        palette = custom_colors
+    ) +
+    stat_cor(aes(color = type_verzuim), label.x = 0.07) +
+    labs(x = "Verzuim (%)",
+         y = "Startersresultaat (%)",
+         color = "Type verzuim")
+
+## Samenhang startersresultaat - HR ####
+variables_MWO <- c(
+    "MWO_ik_doe_graag_iets_extra_voor_mboa",
+    "MWO_aandacht_persoonlijke_ontwikkeling",
+    "MWO_mogelijkheid_tot_doorgroeien",
+    "MWO_jaarlijkse_gesprekken_leidinggevende",
+    "MWO_open_communicatie_management",
+    "MWO_leidinggevende_motiveert",
+    "MWO_goede_samenwerking_binnen_team",
+    "MWO_werkdrukbeleving_bespreken_leidinggevende",
+    "MWO_ik_ervaar_een_goede_balans_tussen_werk_en_prive",
+    "MWO_ik_ben_tevreden_over_de_omstandigheden_waaronder_ik_mijn_werk_doe",
+    "MWO_de_hoeveelheid_werk_die_ik_moet_verzetten_is_haalbaar",
+    "MWO_ik_vind_mijn_werkdruk"
+)
+
+teams_selected_hr <- teams_selected |>
+    select(
+        TEAM_naam,
+        COHORT_startjaar,
+        any_of(variables_MWO),
+        #(matches("verzuim") & matches("pct")),
+        matches("startersresultaat")
+    )
+
+
+
+teams_selected_hr %>%
+    select(starts_with("MWO_"), TEAM_startersresultaat_1_jaars) %>%
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars/100) %>%
+    pivot_longer(cols = starts_with("MWO_"),
+                 names_to = "mwo_variable",
+                 values_to = "score") %>%
+    mutate(mwo_variable = str_replace_all(mwo_variable, "MWO_", "")) %>%
+    ggplot(aes(x = score, y = TEAM_startersresultaat_1_jaars, color = mwo_variable)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(x = "Score MWO",
+         y = "Startersresultaat (%)",
+         color = "MWO Variable") +
+    theme_minimal() +
+    theme(legend.position = "bottom",
+          legend.text = element_text(size = 8))
+
+teams_selected_hr |>
+    select(starts_with("MWO_"), TEAM_startersresultaat_1_jaars) |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars/100) |>
+    pivot_longer(cols = starts_with("MWO_"),
+                 names_to = "type_mwo",
+                 values_to = "score") |>
+    mutate(type_mwo = str_replace_all(type_mwo, "MWO_", ""),
+           type_mwo = str_replace_all(type_mwo, "_", " ")) |>
+    ggpubr::ggscatter(
+        x = "score",
+        y = "TEAM_startersresultaat_1_jaars",
+        color = "type_mwo",
+        palette = "jco",
+        add = "reg.line",
+        alpha = 0.2
+    ) +
+    #stat_cor(aes(color = type_mwo), label.x = 2) +
+    labs(x = "Score MWO",
+         y = "Startersresultaat (%)",
+         color = "Type MWO") +
+    theme_minimal()
+
+## MWO ####
+# Definieer clusters voor MWO-variabelen
+# mwo_clusters <- list(
+#     persoonlijk = c("ik wil me verbeteren", "ik doe waar ik goed in ben"),
+#     team = c("goede samenwerking binnen team", "ik doe graag iets extra voor mboa"),
+#     leiderschap = c("jaarlijkse gesprekken leidinggevende", "leidinggevende motiveert",
+#                     "werkdrukbeleving bespreken leidinggevende"),
+#     communicatie = c("open communicatie management", "aandacht persoonlijke ontwikkeling"),
+#     groei = c("mogelijkheid tot doorgroeien")
+# )
+# # Creëer een functie om clusterlabels toe te voegen
+# get_cluster <- function(mwo_var, clusters) {
+#     for (cluster_name in names(clusters)) {
+#         if (mwo_var %in% clusters[[cluster_name]]) {
+#             return(cluster_name)
+#         }
+#     }
+#     return("overig")
+# }
+#
+# # Data voorbereiden met clusters
+# plot_data <- teams_selected_hr |>
+#     select(starts_with("MWO_"), TEAM_startersresultaat_1_jaars) |>
+#     mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 10000) |>
+#     pivot_longer(cols = starts_with("MWO_"),
+#                  names_to = "type_mwo",
+#                  values_to = "score") |>
+#     mutate(
+#         type_mwo = str_replace_all(type_mwo, "MWO_", ""),
+#         type_mwo = str_replace_all(type_mwo, "_", " "),
+#         cluster = sapply(type_mwo, get_cluster, clusters = mwo_clusters)
+#     ) %>%
+#     filter(!is.na(TEAM_startersresultaat_1_jaars),
+#            !is.na(score))
+#
+# # Maak de plot
+# ggplot(plot_data, aes(x = score, y = TEAM_startersresultaat_1_jaars, color = type_mwo)) +
+#     geom_point(alpha = 0.2) +
+#     geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
+#     scale_y_continuous(
+#         limits = c(0.7, 0.9),
+#         labels = scales::percent_format(accuracy = 1),
+#         breaks = seq(0.7, 0.9, by = 0.05)
+#     ) +
+#     scale_color_manual(
+#         values = c(
+#             # Persoonlijke ontwikkeling (blauwtinten)
+#             #"ik wil me verbeteren" = "#1E88E5",           # Helder blauw
+#             #"ik doe waar ik goed in ben" = "#64B5F6",     # Lichter blauw
+#             "aandacht persoonlijke ontwikkeling" = "#90CAF9", # Zacht blauw
+#             "mogelijkheid tot doorgroeien" = "#0D47A1",   # Donkerblauw
+#
+#             # Team (groentinten)
+#             "goede samenwerking binnen team" = "#4CAF50", # Helder groen
+#             "ik doe graag iets extra voor mboa" = "#81C784", # Lichter groen
+#
+#             # Leiderschap (roodtinten)
+#             "jaarlijkse gesprekken leidinggevende" = "#E53935", # Helder rood
+#             "leidinggevende motiveert" = "#EF5350",       # Helderrood/lichter
+#             "werkdrukbeleving bespreken leidinggevende" = "#FFCDD2", # Lichtrood
+#             "open communicatie management" = "#C62828"    # Donkerrood
+#         )
+#     ) +
+#     labs(
+#         title = "Relatie tussen MWO-scores en startersresultaten",
+#         subtitle = "Hogere MWO-scores voor aandacht (blauw), samenwerking (groen) en communicatie leidinggevende (rood)",
+#         x = "Score MWO (1-4 schaal)",
+#         y = "Startersresultaat (%)",
+#         color = "Type MWO"
+#     ) +
+#     theme_minimal() +
+#     theme(
+#         legend.position = "right",
+#         legend.title = element_text(face = "bold"),
+#         panel.grid.minor = element_blank(),
+#         plot.title = element_text(face = "bold", size = 14),
+#         plot.subtitle = element_text(size = 12, color = "grey40"),
+#         axis.title = element_text(face = "bold")
+#     )
+
+# Definieer de MWO variabelen die je wilt gebruiken
+variables_MWO <- c(
+    "MWO_ik_doe_graag_iets_extra_voor_mboa",
+    "MWO_aandacht_persoonlijke_ontwikkeling",
+    "MWO_mogelijkheid_tot_doorgroeien",
+    "MWO_jaarlijkse_gesprekken_leidinggevende",
+    "MWO_open_communicatie_management",
+    "MWO_leidinggevende_motiveert",
+    "MWO_goede_samenwerking_binnen_team",
+    "MWO_werkdrukbeleving_bespreken_leidinggevende",
+    "MWO_ik_ervaar_een_goede_balans_tussen_werk_en_prive",
+    "MWO_ik_ben_tevreden_over_de_omstandigheden_waaronder_ik_mijn_werk_doe",
+    "MWO_de_hoeveelheid_werk_die_ik_moet_verzetten_is_haalbaar",
+    "MWO_ik_vind_mijn_werkdruk"
+)
+
+
+
+teams_selected_hr <- teams_selected |>
+    select(
+        TEAM_naam,
+        COHORT_startjaar,
+        any_of(variables_MWO),
+        #(matches("verzuim") & matches("pct")),
+        matches("startersresultaat")
+    )
+
+# Definieer clusters voor MWO-variabelen
+mwo_clusters <- list(
+    persoonlijk = c("aandacht persoonlijke ontwikkeling", "mogelijkheid tot doorgroeien"),
+    team = c("ik doe graag iets extra voor mboa", "goede samenwerking binnen team"),
+    leiderschap = c("jaarlijkse gesprekken leidinggevende", "leidinggevende motiveert",
+                    "werkdrukbeleving bespreken leidinggevende", "open communicatie management"),
+    werkdruk = c("ik ervaar een goede balans tussen werk en prive",
+                 "ik ben tevreden over de omstandigheden waaronder ik mijn werk doe",
+                 "ik vind mijn werkdruk",
+                 "de hoeveelheid werk die ik moet verzetten is haalbaar")
+)
+
+# Creëer een functie om clusterlabels toe te voegen
+get_cluster <- function(mwo_var, clusters) {
+    for (cluster_name in names(clusters)) {
+        if (mwo_var %in% clusters[[cluster_name]]) {
+            return(cluster_name)
+        }
+    }
+    return("overig")
+}
+
+# Order MWO variabelen zodat ze in clusters staan in de legenda
+create_mwo_order <- function(mwo_types, clusters) {
+    ordered_types <- c()
+    for (cluster_name in names(clusters)) {
+        cluster_vars <- clusters[[cluster_name]]
+        # Voeg variabelen van deze cluster toe in de volgorde waarin ze voorkomen
+        for (var in cluster_vars) {
+            if (var %in% mwo_types) {
+                ordered_types <- c(ordered_types, var)
+            }
+        }
+    }
+    return(ordered_types)
+}
+
+# Data voorbereiden met clusters
+plot_data <- teams_selected_hr |>
+    select(all_of(variables_MWO), TEAM_startersresultaat_1_jaars) |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars/10000) |>
+    pivot_longer(cols = all_of(variables_MWO),
+                 names_to = "type_mwo",
+                 values_to = "score") |>
+    mutate(
+        type_mwo = str_replace_all(type_mwo, "MWO_", ""),
+        type_mwo = str_replace_all(type_mwo, "_", " "),
+        cluster = sapply(type_mwo, get_cluster, clusters = mwo_clusters)
+    ) %>%
+    filter(!is.na(TEAM_startersresultaat_1_jaars),
+           !is.na(score))
+
+# Creëer de juiste volgorde voor de legenda
+mwo_order <- create_mwo_order(unique(plot_data$type_mwo), mwo_clusters)
+plot_data$type_mwo <- factor(plot_data$type_mwo, levels = mwo_order)
+
+# Creëer kleurenpalet per cluster
+color_values <- c(
+    # Persoonlijke ontwikkeling (blauwtinten)
+    "aandacht persoonlijke ontwikkeling" = "#1E88E5",   # Helder blauw
+    "mogelijkheid tot doorgroeien" = "#64B5F6",         # Lichter blauw
+
+    # Team (groentinten)
+    "goede samenwerking binnen team" = "#81C784",       # Helder groen
+    "ik doe graag iets extra voor mboa" = "#4CAF50",    # Lichter groen
+
+    # Leiderschap (roodtinten)
+    "jaarlijkse gesprekken leidinggevende" = "#B71C1C", # Donkerder rood
+    "leidinggevende motiveert" = "#E53935",             # Helder rood
+    "werkdrukbeleving bespreken leidinggevende" = "#880E4F", # Middenrood (donkerder dan voorheen)
+    "open communicatie management" = "#EF9A9A",         # Meer richting bordeaux/paars rood
+
+    # Werkdruk (paarstinten)
+    "ik ervaar een goede balans tussen werk en prive" = "#7B1FA2",            # Donker paars
+    "ik ben tevreden over de omstandigheden waaronder ik mijn werk doe" = "#9C27B0", # Helder paars
+    "de hoeveelheid werk die ik moet verzetten is haalbaar" = "#E1BEE7",      # Lichter paars
+    "ik vind mijn werkdruk" = "#BA68C8"
+)
+
+ggplot(plot_data, aes(x = score, y = TEAM_startersresultaat_1_jaars, color = type_mwo)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
+    # Voeg correlatiecoëfficiënten toe
+    ggpubr::stat_cor(aes(label = after_stat(r.label)),
+                     label.x = 4.5,
+                     r.accuracy = 0.01
+                     #label.x.npc = "right",
+                     #label.y.npc = "top",
+                     #size = 3
+                     ) +
+    scale_x_continuous(
+        limits = c(1, 5),
+        breaks = seq(1, 5, by = 1)
+    ) +
+    scale_y_continuous(
+        limits = c(0.7, 0.9),
+        labels = scales::percent_format(accuracy = 1),
+        breaks = seq(0.7, 0.9, by = 0.05)
+    ) +
+    scale_color_manual(
+        values = color_values,
+        breaks = mwo_order,
+        guide = guide_legend(
+            title = "Type MWO",
+            # Voeg meer ruimte toe tussen clusters in de legenda
+            byrow = TRUE
+        )
+    ) +
+    labs(
+        title = "Relatie tussen specifieke MWO-scores en startersresultaten per team",
+        subtitle = "Persoonlijk (blauw), team (groen), leiderschap (rood), werkdruk (paars)",
+        x = "Score MWO (1-5 schaal)",
+        y = "Startersresultaat (%)",
+        color = "Type MWO"
+    ) +
+    theme_minimal() +
+    theme(
+        legend.position = "right",
+        legend.title = element_text(face = "bold"),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold", size = 14),
+        plot.subtitle = element_text(size = 12, color = "grey40"),
+        axis.title = element_text(face = "bold"),
+        # Speciale styling voor de legenda om clusters te scheiden
+        legend.spacing.y = unit(0.2, "cm")
+    )
+
+# Marketing ####
+```{r}
+
+teams_passende_plaatsing <- teams %>%
+    select(TEAM_startersresultaat_1_jaars,
+           #contains("passend"),
+           TEAM_aantal_eerstejaars,
+           contains("plaatsing"),
+           contains("niveau"),
+           contains("havo"))
+
+```
+
+```{r}
+correlate_teams_and_filter(teams_passende_plaatsing,
+                           "TEAM_startersresultaat_1_jaars",
+                           cols = everything(),
+                           filter_type = "none")
+
+
+```
+
+
+```{r}
+
+
+teams_passende_plaatsing |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 10000) |>
+    select(contains("DEELNEMER"),
+           TEAM_aantal_eerstejaars,
+           TEAM_startersresultaat_1_jaars,
+           -DEELNEMER_passend_niveau,
+           -DEELNEMER_havo_vwo_is_gezakt) |>
+    rename_with(~ str_replace_all(., "_", " ")) |>
+    pivot_longer(cols = -c(`TEAM startersresultaat 1 jaars`, `TEAM aantal eerstejaars`),
+                 names_to = "variable",
+                 values_to = "value") |>
+    ggscatter(x = "value",
+              y = "TEAM startersresultaat 1 jaars",
+              size = "TEAM aantal eerstejaars",
+              color = "variable",
+              palette = "jco",
+              alpha = 0.4,
+              add = "reg.line",
+              conf.int = FALSE) +
+    stat_cor(aes(color = variable),
+             label.x.npc = "left",
+             label.y.npc = "top") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+    labs(x = "Percentage per type plaatsing",
+         y = "Startersresultaat (%)",
+         color = "Type plaatsing",
+         title = "Correlatie tussen plaatsing en Startersresultaat") +
+    theme(legend.position = "right")
+
+
+```
+
+

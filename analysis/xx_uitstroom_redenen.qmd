@@ -1,0 +1,274 @@
+---
+    title: "Oorzaak uitstroom"
+    author: "Corneel den Hartogh"
+    affiliation: "CEDA - Npuls"
+    date: "`r format(Sys.time(), '%d %B %Y')`"
+    format: 
+      html:
+        toc: true
+        toc-title: Inhoudsopgave
+        code-fold: true
+        code-summary: "Laat code zien"
+      pdf:
+        toc: true
+        toc-title: Inhoudsopgave
+        #number-sections: true
+        #colorlinks: true
+        echo: false
+        #code-fold: true
+        #code-summary: "Laat code zien"
+    execute:
+      cache: true
+      freeze: auto
+      include: true
+      warning: false
+
+---
+
+
+```{r}
+#| label: setup
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+
+```{r}
+
+enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
+                                                   "enrollments_combined_enriched.rds"))
+
+enrollments_combined_enriched_file_path <- file.path(config::get("data_combined_dir"), "enrollments_combined_enriched_filtered.rds")
+    enrollments_combined_enriched_filtered <- readRDS(enrollments_combined_enriched_file_path)
+
+```
+
+## Indeling Igor
+Igor heeft een iets andere indeling gemaakt dan degene in xx_prognosis_exploration.qmd. We zullen deze indeling hier gebruiken.
+
+```{r}
+
+# Function to categorize reasons for leaving
+categorize_reasons <- function(reason) {
+    case_when(
+        # Persoonlijk, of tenminste niet instelling-gerelateerd (Personal reasons)
+        reason %in% c(
+            "Verhuizing/reistijd",
+            "Financi\xeble situatie",
+            "Niet verschenen",
+            "Verwijderd",
+            "Detentie"
+        ) ~ "Persoonsgebonden buiten invloed MBOA",
+        
+        reason %in% c(
+            "Persoonlijk functioneren",
+            "Persoonlijke omstandigheden",
+            "Leerproblemen/onvoldoende capaciteit",
+            "Onvoldoende taal/rekenen"
+            
+        ) ~ "Persoonsgebonden binnen invloed MBOA",
+        
+        # Werk (Work-related)
+        reason %in% c(
+            "Geen (erkend) leerbedrijf",
+            "Ontslag of POK be\xebindigd",
+            "Liever (fulltime) werken",
+            "Werk of stage past niet",
+            "Heeft arbeidsovereenkomst"
+        ) ~ "Arbeidsmarkt",
+        
+        # Organisatie (Organizational)
+        reason %in% c(
+            "Schoolorganisatie",
+            "Sociale/fysieke veiligheid",
+            "Huisvesting/voorzieningen",
+            "Onderwijs/didactiek",
+            "Onvoldoende begeleiding"
+        ) ~ "Instellingsgeboden",
+        
+        # Marketing (Expectations vs reality)
+        reason %in% c(
+            "Belangstelling andere opleiding/beroep",
+            "Verkeerd beroepsbeeld",
+            "Verkeerd opleidingsbeeld"
+        ) ~ "Studie en beroepskeuze",
+        
+        reason %in% c(
+            "No Show", 
+            "Ambtshalve"
+        ) ~ "Ambsthalve & No Show",
+        
+        reason %in% c(
+            "Keuzedeel toevoegen",
+            "DOORstroom: Organisatorisch",
+            "DOORstroom: Examenstudent",
+            "DOORstroom: Profiel => Uitstroomcrebo",
+            "DOORstroom:Verlenger/Vertrager"
+        ) ~ "Administratief",
+        
+        # Succes (Successful completion/progression)
+        reason %in% c(
+            "Certificaat",
+            "Diploma",
+            "Tweede diploma (in kalenderjaar)",
+            "Zonder diploma, wel succesvol"
+        ) ~ "Succes",
+        
+        is.na(reason) ~ "Nog steeds ingeschreven",
+        # Everything else goes to "Overig" (Other)
+        #  "Houding medewerkers",
+        # "Administratieve  fout"
+        #     "Persoonsgebonden",
+        # "Besluit Student zie documenten",
+        # "Te veel nevenactiviteiten",
+        # "Besluit Intake vlg Stamkaart",
+        TRUE ~ "Overig"
+    )
+}
+
+```
+
+
+## Redenen uitschrijving categorie
+
+```{r}
+
+enrollments_combined_enriched <- enrollments_combined_enriched %>%
+  mutate(
+    VERBINTENIS_reden_uitschrijving_categorie = categorize_reasons(VERBINTENIS_reden_uitschrijving)
+  )
+
+```
+
+```{r}
+enrollments_combined_enriched %>%
+    filter(
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes",
+        VERBINTENIS_reden_uitschrijving_categorie != "Administratief"
+    ) %>%
+    mutate(uitstroom_cohort = if_else(
+        month(VERBINTENIS_einddatum) >= 8,
+        year(VERBINTENIS_einddatum),
+        year(VERBINTENIS_einddatum) - 1
+    )) %>%
+    filter(uitstroom_cohort >= 2018, uitstroom_cohort <= 2023) %>%
+    count(uitstroom_cohort, VERBINTENIS_reden_uitschrijving_categorie) %>%
+    group_by(uitstroom_cohort) %>%
+    mutate(pct = n / sum(n)) %>%
+    ggline(
+        x = "uitstroom_cohort",
+        y = "pct",
+        color = "VERBINTENIS_reden_uitschrijving_categorie",
+        palette = "Dark2"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(x = "Schooljaar uitstroom", y = "Aandeel uitval reden", color = "Oorzaak uitstroom") +
+    theme_minimal()
+```
+Based on the percentages in 2023, I'll help you set the colors in descending order. First, we need to calculate the order, then set the colors accordingly. Here's the code:
+
+```{r}
+# Get order of categories by 2023 percentages
+category_order <- enrollments_combined_enriched %>%
+    filter(
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes",
+        VERBINTENIS_reden_uitschrijving_categorie != "Administratief"
+    ) %>%
+    mutate(uitstroom_cohort = if_else(
+        month(VERBINTENIS_einddatum) >= 8,
+        year(VERBINTENIS_einddatum),
+        year(VERBINTENIS_einddatum) - 1
+    )) %>%
+    filter(uitstroom_cohort == 2023) %>%
+    count(VERBINTENIS_reden_uitschrijving_categorie) %>%
+    arrange(desc(n)) %>%
+    pull(VERBINTENIS_reden_uitschrijving_categorie)
+
+# Create color vector
+my_colors <- RColorBrewer::brewer.pal(length(category_order), "Dark2")
+names(my_colors) <- category_order
+
+# Updated plot
+enrollments_combined_enriched %>%
+    filter(
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes",
+        VERBINTENIS_reden_uitschrijving_categorie != "Administratief"
+    ) %>%
+    mutate(uitstroom_cohort = if_else(
+        month(VERBINTENIS_einddatum) >= 8,
+        year(VERBINTENIS_einddatum),
+        year(VERBINTENIS_einddatum) - 1
+    )) %>%
+    filter(uitstroom_cohort >= 2018, uitstroom_cohort <= 2023) %>%
+    count(uitstroom_cohort, VERBINTENIS_reden_uitschrijving_categorie) %>%
+    group_by(uitstroom_cohort) %>%
+    mutate(pct = n / sum(n)) %>%
+    ggplot(aes(x = uitstroom_cohort, y = pct, color = factor(VERBINTENIS_reden_uitschrijving_categorie, levels = category_order))) +
+    geom_line() +
+    geom_point() +
+    scale_color_manual(values = my_colors) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(x = "Schooljaar uitstroom", y = "Aandeel uitval reden", color = "Oorzaak uitstroom") +
+    theme_minimal()
+```
+Here's the modified plotting code to show actual numbers instead of percentages:
+
+```{r}
+enrollments_combined_enriched %>%
+    filter(
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes",
+        VERBINTENIS_reden_uitschrijving_categorie != "Administratief"
+    ) %>%
+    mutate(uitstroom_cohort = if_else(
+        month(VERBINTENIS_einddatum) >= 8,
+        year(VERBINTENIS_einddatum),
+        year(VERBINTENIS_einddatum) - 1
+    )) %>%
+    filter(uitstroom_cohort >= 2018, uitstroom_cohort <= 2023) %>%
+    count(uitstroom_cohort, VERBINTENIS_reden_uitschrijving_categorie) %>%
+    ggline(
+        x = "uitstroom_cohort",
+        y = "n",
+        color = "VERBINTENIS_reden_uitschrijving_categorie",
+        palette = "Dark2"
+    ) +
+    labs(x = "Schooljaar uitstroom", y = "Aantal uitschrijvingen", color = "Oorzaak uitstroom") +
+    theme_minimal()
+```
+
+Based on your request, I'll provide the code to generate real numbers/percentages for the enrollment reasons. Here's the code:
+
+```{r}
+enrollments_combined_enriched %>%
+    filter(
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes",
+        VERBINTENIS_reden_uitschrijving_categorie != "Administratief"
+    ) %>%
+    mutate(uitstroom_cohort = if_else(
+        month(VERBINTENIS_einddatum) >= 8,
+        year(VERBINTENIS_einddatum),
+        year(VERBINTENIS_einddatum) - 1
+    )) %>%
+    filter(uitstroom_cohort >= 2018, uitstroom_cohort <= 2023) %>%
+    count(uitstroom_cohort, VERBINTENIS_reden_uitschrijving_categorie) %>%
+    group_by(uitstroom_cohort) %>%
+    mutate(pct = n / sum(n)) %>%
+    arrange(uitstroom_cohort, desc(pct)) %>%
+    mutate(pct = scales::percent(pct, accuracy = 0.1)) %>%
+    select(uitstroom_cohort, VERBINTENIS_reden_uitschrijving_categorie, n, pct) %>%
+    knitr::kable()
+```

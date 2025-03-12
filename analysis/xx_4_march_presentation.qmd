@@ -1,0 +1,818 @@
+---
+    title: "4 Maart Workshop"
+    subtitle: "5 D via data"
+    author: "Corneel den Hartogh"
+    affiliation: "CEDA - Npuls"
+    date: "`r format(Sys.time(), '%d %B %Y')`"
+    format: 
+      html:
+        toc: true
+        toc-title: Inhoudsopgave
+        code-fold: true
+        code-summary: "Laat code zien"
+      pdf:
+        toc: true
+        toc-title: Inhoudsopgave
+        #number-sections: true
+        #colorlinks: true
+        echo: false
+        #code-fold: true
+        #code-summary: "Laat code zien"
+    execute:
+      cache: false
+      freeze: false
+      include: true
+      warning: false
+
+---
+
+
+```{r}
+#| label: setup
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+## Samenvatting
+
+Deze presentatie laat zien hoe we met de 5D-methodiek (Detect, Diagnose, Design, Determine, Decide) tot duurzame onderwijsverbetering kunnen komen op basis van data. We onderzoeken vier belangrijke gebieden:
+
+1. **Studenten Dienstverlening (SDV)**: We constateren dat 14U momenteel niet goed in de data zit en er geen duidelijke KPI's zijn, wat het moeilijk maakt om problemen te kwantificeren.
+
+2. **HR**: We zien sterke correlaties tussen specifieke MWO-scores (met name persoonlijke ontwikkeling, samenwerking binnen team en communicatie leidinggevenden) en startersresultaat. Ook blijkt dat met name kort verzuim een negatieve correlatie heeft met startersresultaat.
+
+3. **Marketing**: Passende plaatsing heeft een positieve relatie met startersresultaat, terwijl een te lage plaatsing een negatieve correlatie heeft.
+
+4. **Onderwijsbeleid**: Analyse van groepsgroottes toont aan dat bijna de helft van de studenten in kleine groepen (<30) zit op crebo/niveau/leerweg, terwijl op team/niveau/leerweg juist 5 van de 6 studenten in grote groepen zitten.
+
+## Vanuit data naar lerende cultuur
+
+In de co-creatie labs hanteren we de 5D-methodiek (van Klaveren & Cornelisz, 2021) om tot duurzame verbetering en innovatie van het onderwijs te komen. Dit model beschrijft een werkwijze met vijf opeenvolgende fasen om te komen tot duurzame onderwijsverbetering: probleemsignalering (Detect), diagnose (Diagnose), ontwikkeling en implementatie van de interventie of beleid (Design), wetenschappelijke evaluatie (Determine), en het duiden van de bevindingen zodat een beargumenteerd besluit kan worden gemaakt over wat de volgende stap zou moeten zijn (Decide).
+
+De 5D-methodiek biedt een structureel kader om data te gebruiken voor het verbeteren van onderwijs. In deze workshop zullen we per domein zien hoe we verschillende fasen van deze methodiek kunnen toepassen.
+
+![](images/clipboard-3367787096.png)
+
+## Studentendienstverlening
+
+Op dit moment zit data over de projecten van SDV niet goed in de data-systemen. Zolang er geen data is, zijn er geen ook geen kern prestatie indicatoren (KPI's). Zonder KPI's is niet mogelijk om problemen kwantiatief te detecteren en de omvang ervan te bepalen. 
+
+Dit valt binnen de eerste fase van het 5D-model: **Detect**. Zonder goede data en indicatoren kunnen we problemen niet adequaat signaleren of de omvang ervan bepalen.
+
+Tegelijkertijd is er natuurlijk wel veel inzicht op basis van ervaringen en verhalen van studenten en medewerkers.
+
+
+**Discussievraag:** Op basis van je ervaringen, welke data-punten zouden relevant voor 14U zijn om bij te houden? En hoe kunnen we ervoor zorgen dat deze data-punten, in een pilot-vorm, worden verzameld?
+
+**Vervolgvraag:** Stel dat de data-punten er zijn. Hoe ga je dit in een pressure-cooker brengen?
+
+## HR
+
+Studierendement is het eerste speerpunt van de strategische koers. Dit lijkt misschien niet HR-gerelateerd, maar schijn bedriegt. De tevredenheid, inzet en gezondheid van medewerkers heeft direct invloed op studentprestaties.
+
+We hebben vier 'thema's' geselecteerd voor onze analyse:
+
+- Ontwikkeling (blauw) - gericht op persoonlijke ontwikkeling
+- Team (groen) - gericht op samenwerking
+- Leidinggevenden (rood) - gericht op aansturing en communicatie
+- Werkdruk (paars) - gericht op balans en werkomstandigheden
+
+**Wat denk je dat het meeste samenhangt met startersresultaat?**
+
+### MWO & startersresultaat
+
+```{r}
+#| label: mwo-startersresultaat
+#| fig.height: 8
+#| fig.cap: "Correlatie tussen MWO-scores en startersresultaat"
+
+teams_selected_file_path <- file.path(config::get("data_analysed_dir"), "teams_selected.rds")
+
+teams_selected <- readRDS(teams_selected_file_path)
+
+# Definieer de MWO variabelen die je wilt gebruiken
+variables_MWO <- c(
+    #"MWO_ik_doe_graag_iets_extra_voor_mboa",
+    "MWO_aandacht_persoonlijke_ontwikkeling",
+    "MWO_mogelijkheid_tot_doorgroeien",
+    "MWO_jaarlijkse_gesprekken_leidinggevende",
+    "MWO_open_communicatie_management",
+    "MWO_leidinggevende_motiveert",
+    "MWO_goede_samenwerking_binnen_team",
+    "MWO_werkdrukbeleving_bespreken_leidinggevende",
+    "MWO_ik_ervaar_een_goede_balans_tussen_werk_en_prive",
+    #"MWO_ik_ben_tevreden_over_de_omstandigheden_waaronder_ik_mijn_werk_doe",
+    "MWO_de_hoeveelheid_werk_die_ik_moet_verzetten_is_haalbaar",
+    "MWO_ik_vind_mijn_werkdruk"
+)
+
+teams_selected_hr <- teams_selected |>
+    select(
+        TEAM_naam,
+        COHORT_startjaar,
+        any_of(variables_MWO),
+        #(matches("verzuim") & matches("pct")),
+        matches("startersresultaat")
+    )
+
+# Definieer clusters voor MWO-variabelen
+mwo_clusters <- list(
+    ontwikkeling = c("aandacht persoonlijke ontwikkeling", "mogelijkheid tot doorgroeien"),
+    team = c("goede samenwerking binnen team"),
+    leidinggevenden = c("jaarlijkse gesprekken leidinggevende", "leidinggevende motiveert",
+                    "werkdrukbeleving bespreken leidinggevende", "open communicatie management"),
+    werkdruk = c("ik ervaar een goede balans tussen werk en prive",
+                 #"ik ben tevreden over de omstandigheden waaronder ik mijn werk doe",
+                 "ik vind mijn werkdruk",
+                 "de hoeveelheid werk die ik moet verzetten is haalbaar")
+)
+
+# Creëer een functie om clusterlabels toe te voegen
+get_cluster <- function(mwo_var, clusters) {
+    for (cluster_name in names(clusters)) {
+        if (mwo_var %in% clusters[[cluster_name]]) {
+            return(cluster_name)
+        }
+    }
+    return("overig")
+}
+
+# Order MWO variabelen zodat ze in clusters staan in de legenda
+create_mwo_order <- function(mwo_types, clusters) {
+    ordered_types <- c()
+    for (cluster_name in names(clusters)) {
+        cluster_vars <- clusters[[cluster_name]]
+        # Voeg variabelen van deze cluster toe in de volgorde waarin ze voorkomen
+        for (var in cluster_vars) {
+            if (var %in% mwo_types) {
+                ordered_types <- c(ordered_types, var)
+            }
+        }
+    }
+    return(ordered_types)
+}
+
+# Data voorbereiden met clusters
+plot_data <- teams_selected_hr |>
+    select(all_of(variables_MWO), TEAM_startersresultaat_1_jaars) |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars/10000) |>
+    pivot_longer(cols = all_of(variables_MWO),
+                 names_to = "type_mwo",
+                 values_to = "score") |>
+    mutate(
+        type_mwo = str_replace_all(type_mwo, "MWO_", ""),
+        type_mwo = str_replace_all(type_mwo, "_", " "),
+        cluster = sapply(type_mwo, get_cluster, clusters = mwo_clusters)
+    ) %>%
+    filter(!is.na(TEAM_startersresultaat_1_jaars),
+           !is.na(score))
+
+# Creëer de juiste volgorde voor de legenda
+mwo_order <- create_mwo_order(unique(plot_data$type_mwo), mwo_clusters)
+plot_data$type_mwo <- factor(plot_data$type_mwo, levels = mwo_order)
+
+# Creëer kleurenpalet per cluster
+color_values <- c(
+    # Persoonlijke ontwikkeling (blauwtinten)
+    "aandacht persoonlijke ontwikkeling" = "#1E88E5",   # Helder blauw
+    "mogelijkheid tot doorgroeien" = "#64B5F6",         # Lichter blauw
+
+    # Team (groentinten)
+    "goede samenwerking binnen team" = "#4CAF50",       # Helder groen
+    #"ik doe graag iets extra voor mboa" = "#4CAF50",    # Lichter groen
+
+    # Leiderschap (roodtinten)
+    "jaarlijkse gesprekken leidinggevende" = "#B71C1C", # Donkerder rood
+    "leidinggevende motiveert" = "#E53935",             # Helder rood
+    "werkdrukbeleving bespreken leidinggevende" = "#880E4F", # Middenrood (donkerder dan voorheen)
+    "open communicatie management" = "#EF9A9A",         # Meer richting bordeaux/paars rood
+
+    # Werkdruk (paarstinten)
+    "ik ervaar een goede balans tussen werk en prive" = "#7B1FA2",            # Donker paars
+    #"ik ben tevreden over de omstandigheden waaronder ik mijn werk doe" = "#9C27B0", # Helder paars
+    "de hoeveelheid werk die ik moet verzetten is haalbaar" = "#E1BEE7",      # Lichter paars
+    "ik vind mijn werkdruk" = "#BA68C8"
+)
+
+```
+
+```{r}
+#| label: mwo-startersresultaat-plot
+#| fig.height: 10
+#| fig.width: 10
+#| fig.cap: "Correlatie tussen MWO-scores en startersresultaat"
+
+# Maak een lijst van grafieken, één voor elk thema
+theme_plots <- list()
+
+# Definieer de thema kleuren
+theme_colors <- c(
+  "ontwikkeling" = "blue",
+  "team" = "green", 
+  "leidinggevenden" = "red",
+  "werkdruk" = "purple"
+)
+
+# Loop door de thema's
+for (theme_name in names(mwo_clusters)) {
+  # Filter de data voor dit thema
+  theme_data <- plot_data %>% 
+    filter(cluster == theme_name)
+  
+  # Bepaal de kleursubset voor dit thema (gebruik de originele color_values)
+  theme_color_values <- color_values[names(color_values) %in% theme_data$type_mwo]
+  
+  # Bepaal positie van de legende voor elk thema
+  if (theme_name == "ontwikkeling") {
+    legend_position <- c(0.6, 0.15)  # Rechtsboven voor persoonlijk
+  } else if (theme_name == "team") {
+    legend_position <- c(0.6, 0.15)  # Rechtsboven voor team
+  } else if (theme_name == "leidinggevenden") {
+    legend_position <- c(0.6, 0.15)  # Linksboven voor leiderschap (veel items)
+  } else {
+    legend_position <- c(0.5, 0.15)  # Rechtsboven voor werkdruk
+  }
+  
+  # Maak de grafiek voor dit thema
+  p <- ggplot(theme_data, aes(x = score, y = TEAM_startersresultaat_1_jaars, color = type_mwo)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
+    ggpubr::stat_cor(aes(label = after_stat(r.label)),
+                     label.x = 4.5,
+                     r.accuracy = 0.01) +
+    scale_x_continuous(
+        limits = c(1, 5),
+        breaks = seq(1, 5, by = 1)
+    ) +
+    scale_y_continuous(
+        limits = c(0.7, 0.9),
+        labels = scales::percent_format(accuracy = 1),
+        breaks = seq(0.7, 0.9, by = 0.05)
+    ) +
+    scale_color_manual(
+        values = theme_color_values,  # Gebruik de juiste subset van kleuren
+        name = paste0("Type MWO - ", str_to_title(theme_name))
+    ) +
+    labs(
+        title = paste0("Thema: ", str_to_title(theme_name)),
+        x = "Score MWO (1-5 schaal)",
+        y = "Startersresultaat (%)"
+    ) +
+    theme_minimal() +
+    theme(
+        legend.position = legend_position,  # Plaats de legende op de juiste positie
+        legend.background = element_rect(fill = "white", color = NA),  # Semi-transparante achtergrond
+        legend.box.background = element_rect(fill = "white", color = NA),
+        legend.margin = margin(6, 6, 6, 6),
+        legend.title = element_blank(),  # Kleinere titel
+        legend.text = element_text(size = 10),  # Kleinere tekst
+        legend.key.size = unit(0.8, "lines"),  # Kleinere symbolen
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold", color = theme_colors[theme_name])
+    )
+  
+  theme_plots[[theme_name]] <- p
+}
+
+# Combineer de grafieken met patchwork
+library(patchwork)
+combined_plot <- (theme_plots$ontwikkeling | theme_plots$team) / 
+                 (theme_plots$leidinggevende | theme_plots$werkdruk) +
+                 plot_annotation(
+                   title = "Relatie tussen specifieke MWO-scores en startersresultaten per team",
+                   subtitle = "Opgesplitst naar thema: Ontwikkeling (blauw), Team (groen), Leidinggevenden (rood), Werkdruk (paars)",
+                   theme = theme(
+                     plot.title = element_text(face = "bold", size = 16),
+                     plot.subtitle = element_text(size = 12, color = "grey40")
+                   )
+                 )
+
+combined_plot
+```
+
+**Kernbevindingen:**
+
+- De sterkste correlaties met startersresultaat zien we bij:
+  - Persoonlijke ontwikkeling (r=0.54 voor "aandacht persoonlijke ontwikkeling")
+  - Leiderschap (r=0.52 voor "jaarlijkse gesprekken leidinggevende")
+  - Team (r=0.40 voor "goede samenwerking binnen team")
+- Werkdruk-gerelateerde factoren hebben de zwakste correlaties (r=0.12-0.23)
+
+Dit valt binnen de 5D-fase **Diagnose**: we identificeren welke HR-factoren het sterkst samenhangen met onderwijsresultaten.
+
+### Types verzuim
+
+**Wat denken jullie dat meer samenhangt met startersresultaat: kort, middellang of lang verzuim?**
+
+Een belangrijk HR aspect is verzuim. Vaak wordt gekeken naar 'totaal verzuim'. Kunnen we een stapje dieper kijken (diagnose in 5D-termen).
+
+Hier is verzuim gedefineerd als:
+- kort (tot 5 werkdagen)
+- middelang (vanaf een week tot 6 weken)
+- lang (langer dan 6 weken)
+
+Ook verzuim dat uiteindelijk lang is, wordt voor eerste week gezien als kort verzuim. Dit is een keuze die gemaakt is, omdat bij lang verzuim niet altijd van tevoren is vast te stellen hoe lang dit gaat duren. Bij lang verzuim is dus ook altijd sprake van middelang en kort verzuim. Toch zien we verschillen..
+
+```{r}
+#| label: verzuim-types-setup
+
+teams_selected_verzuim <- teams_selected |>
+    select(TEAM_naam, COHORT_startjaar, (matches("verzuim") & matches("pct")) | matches("startersresultaat"))
+
+custom_colors <- c("Kort" = "#868686", "Middellang" = "#0073C2", "Lang" = "#EFC000")
+
+```
+
+```{r}
+#| label: verzuim-correlaties
+#| fig.cap: "Correlatie tussen verschillende typen verzuim"
+
+teams_selected_verzuim |>
+    select(matches("verzuim_pct")) |>
+    pivot_longer(cols = c(MEDEWERKER_verzuim_pct_lang, MEDEWERKER_verzuim_pct_middellang),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim_x") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang"
+    ),
+    type_verzuim = factor(type_verzuim, levels = c("Kort", "Middellang", "Lang"))) |>
+    ggpubr::ggscatter(
+        x = "verzuim_x",
+        y = "MEDEWERKER_verzuim_pct_kort",
+        color = "type_verzuim",
+        add = "reg.line",
+        palette = custom_colors
+    ) +
+    stat_cor(aes(color = type_verzuim,
+                 label = after_stat(r.label)), label.x = 0.07) +
+    labs(x = "Verzuim (Lang/Middellang)",
+         y = "Kort verzuim (%)",
+         color = "Type verzuim (%)",
+         title = "Correlatie tussen verschillende typen verzuim",
+         subtitle = "Logischerwijs is correlatie positief")
+
+```
+
+**Kernbevindingen:**
+
+- Er is een sterke correlatie tussen kort verzuim en middellang verzuim (r=0.62)
+- De correlatie tussen kort verzuim en lang verzuim is zwakker (r=0.30)
+- Dit suggereert dat kort en middellang verzuim mogelijk door vergelijkbare factoren worden veroorzaakt
+
+### Verzuim en startersresultaat
+
+Terwijl verzuim onderling dus samenhangt, zien we dat enkel kort verzuim en startersresultaat echt samenhangen (grijze lijn naar beneden).
+
+```{r}
+#| label: verzuim-startersresultaat
+#| fig.cap: "Correlatie tussen verzuimtypes en startersresultaat"
+
+teams_selected_verzuim |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 100) |>
+    select(matches("verzuim_pct"), TEAM_startersresultaat_1_jaars) |>
+    pivot_longer(cols = matches("verzuim_pct"),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_kort" ~ "Kort"
+    ),
+    type_verzuim = factor(type_verzuim, levels = c("Kort", "Middellang", "Lang"))) |>
+    ggpubr::ggscatter(
+        x = "verzuim",
+        y = "TEAM_startersresultaat_1_jaars",
+        color = "type_verzuim",
+        alpha = 0.4,
+        add = "reg.line",
+        palette = custom_colors
+    ) +
+    stat_cor(aes(color = type_verzuim,
+                 label = after_stat(r.label)), label.x = 0.07) +
+    labs(x = "Verzuim (%)",
+         y = "Startersresultaat (%)",
+         color = "Type verzuim",
+         title = "Verzuim & startersresultaat",
+         subtitle = "Alleen kort verzuim toont een negatieve correlatie")
+
+```
+
+**Kernbevindingen:**
+
+- Kort verzuim heeft een negatieve correlatie met startersresultaat (r=-0.28)
+- Middellang en lang verzuim tonen geen significante correlatie met startersresultaat
+- Dit suggereert dat frequente korte afwezigheid mogelijk meer impact heeft op studentresultaten dan langdurige maar minder frequente afwezigheid
+  - Een mogelijke reden is lesuitval. Bij korte afwezigheid is het lastig om direct vervangende docenten te vinden, terwijl bij langdurige afwezigheid er meer tijd is dit te organiseren.
+
+**Discussievragen:**
+
+1. Wat zou de achterliggende reden kunnen zijn dat aandacht voor persoonlijke ontwikkeling en comunicatie met leidinggevenden zo belangrijk zijn voor studiesucces?
+2. Welke HR-beleidsmaatregelen kunnen de persoonlijke ontwikkeling en leiderschap versterken, gezien de sterke correlatie met startersresultaat?
+3. Welke HR-datapunten zouden nog meer een rol kunnen spelen bij het verbeteren van studiesucces?
+
+## Marketing
+
+Marketing zorgt ervoor dat veel studenten naar MBO Amersfoort komen. De vraag is, komen ze ook op de goede plek en maakt dit uit? In deze sectie kijken we naar de relatie tussen passende plaatsing en studieresultaat.
+
+Wat denken jullie: Speelt plaatsing een rol?
+
+1. Nee, plaatsing maakt niet zoveel uit
+2. Ja, bij plaatsing boven niveau is het grootste probleem
+3. Ja, bij plaatsing onder niveau is het grootste problemen
+
+### Passende plaatsing
+
+```{r}
+#| label: plaatsing-correlaties-setup
+
+teams_file_path <- file.path(config::get("data_combined_dir"), "teams_combined_enriched.rds")
+
+teams <- readRDS(teams_file_path)
+
+teams_passende_plaatsing <- teams %>%
+    select(TEAM_startersresultaat_1_jaars,
+           #contains("passend"),
+           TEAM_aantal_eerstejaars,
+           contains("plaatsing"),
+           contains("niveau"),
+           contains("havo"))
+
+teams_passende_plaatsing_corr <- correlate_teams_and_filter(teams_passende_plaatsing,
+                           "TEAM_startersresultaat_1_jaars",
+                           cols = everything(),
+                           filter_type = "none")
+
+plot_teams_correlations(teams_passende_plaatsing_corr,
+                        "TEAM_startersresultaat_1_jaars",
+                        "Correlatie met Startersresultaat")
+
+```
+
+**Kernbevindingen:**
+
+- Passende plaatsing heeft een positieve correlatie met startersresultaat (r=0.25)
+- Te lage plaatsing heeft een sterke negatieve correlatie met startersresultaat (r=-0.32)
+- Dit suggereert dat juiste plaatsing belangrijk is voor studiesucces, maar dat met name onderschatting van het niveau van studenten problematisch is
+
+```{r}
+#| label: plaatsing-visualisatie
+#| fig.cap: "Correlaties tussen verschillende typen plaatsing en startersresultaat"
+
+
+teams_passende_plaatsing |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 10000) |>
+    select(contains("DEELNEMER"),
+           TEAM_aantal_eerstejaars,
+           TEAM_startersresultaat_1_jaars,
+           -DEELNEMER_passend_niveau,
+           -DEELNEMER_havo_vwo_is_gezakt) |>
+    rename_with(~ str_replace_all(., "_", " ")) |>
+    pivot_longer(cols = -c(`TEAM startersresultaat 1 jaars`, `TEAM aantal eerstejaars`),
+                 names_to = "variable",
+                 values_to = "value") |>
+    ggscatter(x = "value",
+              y = "TEAM startersresultaat 1 jaars",
+              size = "TEAM aantal eerstejaars",
+              color = "variable",
+              palette = "jco",
+              alpha = 0.4,
+              add = "reg.line",
+              conf.int = FALSE) +
+    stat_cor(aes(color = variable,
+                 label = after_stat(r.label)),
+             label.x.npc = "left",
+             label.y.npc = "top") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+    labs(x = "Percentage per type plaatsing",
+         y = "Startersresultaat (%)",
+         color = "Type plaatsing",
+         title = "Correlatie van plaatsingstype en studieresultaat",
+         subtitle = "Passende plaatsing is van belang") +
+    theme(legend.position = "right")
+
+```
+
+We zien dat plaatsing boven niveau haast niet voorkomt, maar dat plaatsing onder niveau wel een probleem is.
+
+Hoe kan plaatsing worden verbeterd? Welke interventies zijn kansrijk? Deze vragen vallen binnen de 5D-fase **Design**: het ontwikkelen van interventies om de plaatsing te verbeteren.
+
+**Mogelijke interventies:**
+Op termijn hoopt MBO Amersfoort marketing-activiteiten te kunnen koppelen aan onderwijsresultaten van studenten. Echter, **er kunnen nu ook al verbetering plaatsvinden met 'kleine' data**.
+
+- Kan het niveau van studenten al vroeg in de marketingfunnel worden ingeschat?
+- Hoe zouden aankomende studenten op positieve manier geïnformeerd kunnen worden?
+
+**Discussievragen:**
+
+1. Welke concrete stappen kunnen we nemen om het percentage 'te lage plaatsing' te verminderen?
+2. Hoe kunnen we het intakeproces verbeteren om beter in te schatten op welk niveau een student kan functioneren?
+3. Welke rol kunnen studieloopbaanbegeleiders spelen in het verbeteren van passende plaatsing?
+
+## Onderwijsbeleid
+
+Beleid gaat altijd over het verbeteren van de kwaliteit van het onderwijs. Hoe bepaal je of beleid effectief is? Dit is vooral uitdagend bij kleine groepen, waar statistische analyses minder betrouwbaar kunnen zijn.
+
+De analyse van groepsgroottes helpt ons om te bepalen hoe we effectiviteit van beleid kunnen meten. Dit valt binnen de 5D-fase: **Determine** - evaluatie van interventies.
+
+**Hoeveel verschillende combinaties van crebo, niveau en leerweg heeft MBO Amersfoort?**
+
+1. Minder dan 50
+2. Tussen de 50 en 100
+3. Tussen de 100 en de 150
+4. Meer dan 150
+
+**Hoeveel studenten zitten er gemiddeld in een crebo-niveau-leerweg combinatie?**
+
+### Crebo niveau leerweg
+
+```{r}
+#| label: aantallen-studenten-per-leercombinatie
+#| fig.cap: "Verdeling van studenten op crebo/niveau/leerweg"
+
+counts_students_file_path <- file.path(config::get("data_analysed_dir"), "counts_students.rds")
+
+counts_students <- readRDS(counts_students_file_path)
+
+```
+
+```{r}
+#| label: cumulatieve-grafiek-crebo
+#| fig.cap: "Bijna de helft van de studenten zit in kleine groepen (<30)"
+
+# Bereken de cumulatieve gegevens
+cum_data_crebo_niveau_leerweg <- counts_students %>%
+    filter(COHORT_startjaar == 2023) %>%
+    arrange(n) %>%
+    mutate(
+        students = n,  # Aantal studenten per combinatie
+        combinations = 1,  # Elke rij is één combinatie
+        cum_combinations = cumsum(combinations),
+        cum_students = cumsum(students),
+        perc_combinations = cum_combinations / sum(combinations) * 100,
+        perc_students = cum_students / sum(students) * 100
+    )
+
+# Bereken specifieke gegevens voor de grens van 30
+grens_data_crebo_niveau_leerweg <- cum_data_crebo_niveau_leerweg %>%
+    filter(n <= 30) %>%
+    summarise(
+        total_students = max(cum_students),
+        perc_students = max(perc_students)
+    )
+
+# Maak een informatieve tekst voor de annotatie
+info_text_crebo_niveau_leerweg <- paste0(
+    "Studenten in combinaties kleiner dan 30: \n",
+    formatC(grens_data_crebo_niveau_leerweg$total_students, format="f", big.mark=".", digits=0),
+    " (", round(grens_data_crebo_niveau_leerweg$perc_students, 1), "%)"
+)
+
+ggplot(cum_data_crebo_niveau_leerweg) +
+    geom_line(aes(x = n, y = cum_students), color = "#f49600", size = 1.5) +
+    geom_vline(aes(xintercept = 30), color = "black", linetype = "dashed") +
+    annotate("text", x = 32, y = max(cum_data_crebo_niveau_leerweg$cum_students) * 0.6,
+             label = info_text_crebo_niveau_leerweg,
+             color = "black",
+             fontface = "bold",
+             hjust = 0) +
+    scale_y_continuous(
+        name = "Cumulatief aantal studenten",
+        labels = scales::comma,
+        sec.axis = sec_axis(~ . / max(cum_data_crebo_niveau_leerweg$cum_students) * 100,
+                            name = "Percentage van alle studenten",
+                            labels = function(x) paste0(round(x), "%"))
+    ) +
+    scale_x_continuous(
+        name = "Groepsgrootte (studenten per crebo/niveau/leerweg)",
+        breaks = seq(0, max(cum_data_crebo_niveau_leerweg$n), by = 25)
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+        panel.grid.minor = element_blank(),
+        axis.title.y.left = element_text(color = "#f49600", face = "bold"),
+        axis.title.y.right = element_text(color = "#f49600", face = "bold"),
+        axis.text.y.left = element_text(color = "black"),
+        axis.text.y.right = element_text(color = "black"),
+        plot.title = element_text(face = "bold", size = 16),
+        plot.subtitle = element_text(size = 12, margin = margin(b = 15)),
+        plot.title.position = "plot"
+    ) +
+    labs(
+        title = "Verdeling van Studenten",
+        subtitle = "Bijna de helft zit in kleine groepen (minder dan 30 studenten)"
+    )
+
+```
+
+**Kernbevindingen:**
+
+- 47,1% van de studenten zit in combinaties kleiner dan 30 studenten (op crebo/niveau/leerweg niveau)
+- Dit heeft implicaties voor de betrouwbaarheid van statistische analyses op dit niveau
+- Het stelt uitdagingen voor het evalueren van beleid (Determine-fase)
+
+### Team bc niveau leerweg
+
+```{r}
+#| label: cumulatieve-grafiek-bc
+#| fig.cap: "Op teamniveau zitten de meeste studenten in grote groepen"
+
+cum_data_team_bc_niveau_leerweg <- counts_students %>%
+    filter(COHORT_startjaar == 2023) %>%
+    group_by(COHORT_startjaar, TEAM_naam_kort, OPLEIDING_bc_label_kort, VERBINTENIS_niveau, OPLEIDING_leerweg) %>%
+    summarise(n = sum(n),
+              .groups = "drop") %>%
+    arrange(n) %>%
+    mutate(
+        students = n,  # Aantal studenten per combinatie
+        combinations = 1,  # Elke rij is één combinatie
+        cum_combinations = cumsum(combinations),
+        cum_students = cumsum(students),
+        perc_combinations = cum_combinations / sum(combinations) * 100,
+        perc_students = cum_students / sum(students) * 100
+    )
+
+# Bereken specifieke gegevens voor de grens van 30
+grens_data_team_bc_niveau_leerweg <- cum_data_team_bc_niveau_leerweg %>%
+    filter(n <= 30) %>%
+    summarise(
+        total_students = max(cum_students),
+        perc_students = max(perc_students)
+    )
+
+# Maak een informatieve tekst voor de annotatie
+info_text_team_bc_niveau_leerweg <- paste0(
+    "Studenten in combinaties kleiner dan 30: \n",
+    formatC(grens_data_team_bc_niveau_leerweg$total_students, format="f", big.mark=".", digits=0),
+    " (", round(grens_data_team_bc_niveau_leerweg$perc_students, 1), "%)"
+)
+
+ggplot(cum_data_team_bc_niveau_leerweg) +
+    geom_line(aes(x = n, y = cum_students), color = "#f49600", size = 1.5) +
+    geom_vline(aes(xintercept = 30), color = "black", linetype = "dashed") +
+    annotate("text", x = 32, y = max(cum_data_team_bc_niveau_leerweg$cum_students) * 0.6,
+             label = info_text_team_bc_niveau_leerweg,
+             color = "black",
+             fontface = "bold",
+             hjust = 0) +
+    scale_y_continuous(
+        name = "Cumulatief aantal studenten",
+        labels = scales::comma,
+        sec.axis = sec_axis(~ . / max(cum_data_team_bc_niveau_leerweg$cum_students) * 100,
+                            name = "Percentage van alle studenten",
+                            labels = function(x) paste0(round(x), "%"))
+    ) +
+    scale_x_continuous(
+        name = "Groepsgrootte (studenten per team/niveau/leerweg)",
+        breaks = seq(0, max(cum_data_team_bc_niveau_leerweg$n), by = 25)
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+        panel.grid.minor = element_blank(),
+        axis.title.y.left = element_text(color = "#f49600", face = "bold"),
+        axis.title.y.right = element_text(color = "#f49600", face = "bold"),
+        axis.text.y.left = element_text(color = "black"),
+        axis.text.y.right = element_text(color = "black"),
+        plot.title = element_text(face = "bold", size = 16),
+        plot.subtitle = element_text(size = 12, margin = margin(b = 15)),
+        plot.title.position = "plot"
+    ) +
+    labs(
+        title = "Verdeling van Studenten",
+        subtitle = "1 op 3 studenten zitten nu nog in kleine groepen (<30 studenten)"
+    )
+
+```
+
+- Nog steeds zit 35,9% van de studenten in combinaties kleiner dan 30 studenten (op bc/niveau/leerweg niveau)
+- Dus ook bc is een lastig niveau voor statistische analyses
+- Het stelt uitdagingen voor het evalueren van beleid (Determine-fase)
+
+
+### Team niveau leerweg
+
+```{r}
+#| label: cumulatieve-grafiek-team
+#| fig.cap: "Op teamniveau zitten de meeste studenten in grote groepen"
+
+cum_data_team_niveau_leerweg <- counts_students %>%
+    filter(COHORT_startjaar == 2023) %>%
+    group_by(COHORT_startjaar, TEAM_naam_kort, VERBINTENIS_niveau, OPLEIDING_leerweg) %>%
+    summarise(n = sum(n),
+              .groups = "drop") %>%
+    arrange(n) %>%
+    mutate(
+        students = n,  # Aantal studenten per combinatie
+        combinations = 1,  # Elke rij is één combinatie
+        cum_combinations = cumsum(combinations),
+        cum_students = cumsum(students),
+        perc_combinations = cum_combinations / sum(combinations) * 100,
+        perc_students = cum_students / sum(students) * 100
+    )
+
+# Bereken specifieke gegevens voor de grens van 30
+grens_data_team_niveau_leerweg <- cum_data_team_niveau_leerweg %>%
+    filter(n <= 30) %>%
+    summarise(
+        total_students = max(cum_students),
+        perc_students = max(perc_students)
+    )
+
+# Maak een informatieve tekst voor de annotatie
+info_text_team_niveau_leerweg <- paste0(
+    "Studenten in combinaties kleiner dan 30: \n",
+    formatC(grens_data_team_niveau_leerweg$total_students, format="f", big.mark=".", digits=0),
+    " (", round(grens_data_team_niveau_leerweg$perc_students, 1), "%)"
+)
+
+ggplot(cum_data_team_niveau_leerweg) +
+    geom_line(aes(x = n, y = cum_students), color = "#f49600", size = 1.5) +
+    geom_vline(aes(xintercept = 30), color = "black", linetype = "dashed") +
+    annotate("text", x = 32, y = max(cum_data_team_niveau_leerweg$cum_students) * 0.6,
+             label = info_text_team_niveau_leerweg,
+             color = "black",
+             fontface = "bold",
+             hjust = 0) +
+    scale_y_continuous(
+        name = "Cumulatief aantal studenten",
+        labels = scales::comma,
+        sec.axis = sec_axis(~ . / max(cum_data_team_niveau_leerweg$cum_students) * 100,
+                            name = "Percentage van alle studenten",
+                            labels = function(x) paste0(round(x), "%"))
+    ) +
+    scale_x_continuous(
+        name = "Groepsgrootte (studenten per team/niveau/leerweg)",
+        breaks = seq(0, max(cum_data_team_niveau_leerweg$n), by = 25)
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+        panel.grid.minor = element_blank(),
+        axis.title.y.left = element_text(color = "#f49600", face = "bold"),
+        axis.title.y.right = element_text(color = "#f49600", face = "bold"),
+        axis.text.y.left = element_text(color = "black"),
+        axis.text.y.right = element_text(color = "black"),
+        plot.title = element_text(face = "bold", size = 16),
+        plot.subtitle = element_text(size = 12, margin = margin(b = 15)),
+        plot.title.position = "plot"
+    ) +
+    labs(
+        title = "Verdeling van Studenten",
+        subtitle = "5 van 6 studenten zitten nu in grote groepen (meer dan 30 studenten)"
+    )
+
+```
+
+
+**Kernbevindingen:**
+
+- Op teamniveau zit slechts 16,7% van de studenten in kleine groepen (<30 studenten)
+- Voor beleidsanalyse biedt het teamniveau meer statistische kracht
+- Een andere optie is om beleid te richten en te testen op crebo-niveau-leerweg combinaties die wel groot genoeg zijn. 
+
+
+**Discussievraag:** Onderwijs en studiesucces zijn vaak complex maatwerk, waardoor de processen en data ook snel complex maatwerk worden. Het gevolg is dat vervolgens niets meer kwantitatief geëvalueerd kan worden. **Door aanstaande dalende instroom, wordt dit probleem alleen maar groter.** 
+
+- Oplossingen kunnen zijn om processen te versimpelen (per onderwijsteam vult 1 persoon een bepaald formulier in)
+- Of om maatwerk te beperken of specifiek te structureren. 
+  - Voorbeeld beperken: Minimaal aantal studenten per 'combinatie', daaromheen geen maatwerk.
+  - Voorbeeld beperken: Opleidingsaanbod vergelijken met omliggende instellingen en kleine overlappende 'combinaties' opheffen.
+  - Voorbeeld structureren: brede basisopleidingen met een vast curriculum en een vast aantal keuzemodules.
+ 
+
+## Conclusies en aanbevelingen
+
+In deze workshop hebben we de 5D-methodiek toegepast op verschillende domeinen binnen MBO Amersfoort:
+
+1. **SDV (Detect)**: Er is behoefte aan duidelijke KPI's om problemen te kunnen signaleren.
+
+2. **HR (Diagnose)**:
+
+    - Persoonlijke ontwikkeling en leiderschap tonen de sterkste correlaties met startersresultaat
+    - Kort verzuim heeft een negatieve impact op startersresultaat, terwijl middellang en lang verzuim geen significante correlatie vertonen
+
+3. **Marketing (Design)**:
+
+    - Passende plaatsing correleert positief met startersresultaat
+    - Te lage plaatsing heeft een sterke negatieve correlatie met startersresultaat
+
+4. **Onderwijsbeleid (Determine)**: Op crebo-niveau zit bijna de helft van de studenten in kleine groepen, terwijl op teamniveau 5 van de 6 studenten in grote groepen zitten. Dit heeft implicaties voor hoe we beleid moeten evalueren.
+
+**Volgende stappen:**
+
+- Ontwikkelen van KPI's voor Studentdiensteverlening (detect)
+- Onderzoeken welke HR-beleidsmaatregelen de persoonlijke ontwikkeling en leiderschap van studenten kunnen versterken (diagnose)
+- Verbeteren van het plaatsingsproces om onderschatting van studenten te voorkomen (design)
+- Evaluatie van beleid niveau dat groot genoeg is voor statistische analyses (determine)
+- Met behulp van pressure cookers kan vervolgens management effectief beslissingen nemen (decide).
+
+De 5D-methodiek biedt een structurele aanpak om data-gedreven te werken aan onderwijsverbetering. Door systematisch te werken met de fasen Detect, Diagnose, Design, Determine en Decide kunnen we duurzame verbeteringen in het onderwijs realiseren.

@@ -1,0 +1,530 @@
+---
+    title: "Exploratie voor prognose"
+    subtitle: "5 D via data"
+    author: "Corneel den Hartogh"
+    affiliation: "CEDA - Npuls"
+    date: "`r format(Sys.time(), '%d %B %Y')`"
+    format: 
+      html:
+        toc: true
+        toc-title: Inhoudsopgave
+        code-fold: true
+        code-summary: "Laat code zien"
+      pdf:
+        toc: true
+        toc-title: Inhoudsopgave
+        #number-sections: true
+        #colorlinks: true
+        echo: false
+        #code-fold: true
+        #code-summary: "Laat code zien"
+    execute:
+      cache: true
+      freeze: auto
+      include: true
+      warning: false
+
+---
+
+
+```{r}
+#| label: setup
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+
+```{r}
+
+enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
+                                                   "enrollments_combined_enriched.rds"))
+
+enrollments_combined_enriched_file_path <- file.path(config::get("data_combined_dir"), "enrollments_combined_enriched_filtered.rds")
+    enrollments_combined_enriched_filtered <- readRDS(enrollments_combined_enriched_file_path)
+
+```
+
+```{r}
+
+# Assuming sport_students is your dataframe
+# First create the shortened names as specified
+
+enrollments_combined_enriched <- enrollments_combined_enriched %>%
+  # Create shortened names
+  mutate(
+    TEAM_naam_kort = case_when(
+      str_detect(TEAM_naam, "Beveiliging/Toezicht en Veiligheid") ~ "Beveiliging",
+      str_detect(TEAM_naam, "Kappersschool Amersfoort") ~ "Kapperschool",
+      str_detect(TEAM_naam, "Commercie en Evenementen") ~ "Commercie/Events",
+      str_detect(TEAM_naam, "Hotelschool Amersfoort") ~ "Hotelschool",
+      str_detect(TEAM_naam, "School voor Schoonheidsspecialisten") ~ "Schoonheid spec.",
+      str_detect(TEAM_naam, "School voor Toerisme & Management") ~ "Toerisme & Mgt",
+      str_detect(TEAM_naam, "Sportacademie Amersfoort") ~ "Sportacademie",
+      str_detect(TEAM_naam, "Financiële Beroepen") ~ "Fin. Beroepen",
+      str_detect(TEAM_naam, "MEI") ~ "MEI (Techniek)",
+      .default = TEAM_naam
+    ),
+    OPLEIDING_crebo = as.numeric(gsub("[^0-9]", "", OPLEIDING_code)),
+    # Handle potential NA values in creating shortened names
+    OPLEIDING_naam_kort = case_when(
+      is.na(OPLEIDING_naam) ~ "Onbekend",
+      is.na(OPLEIDING_crebo) ~ word(OPLEIDING_naam, 1),
+      TRUE ~ paste0(word(OPLEIDING_naam, 1), " (", OPLEIDING_crebo, ")")
+    ),
+    OPLEIDING_bc_label_kort = case_when(
+      is.na(OPLEIDING_bc_label) ~ "Onbekend",
+      is.na(OPLEIDING_bc_code) ~ word(OPLEIDING_bc_label, 3),
+      TRUE ~ paste0(word(OPLEIDING_bc_label, 3), " (", OPLEIDING_bc_code, ")")
+    )
+  )
+
+```
+
+
+```{r}
+
+# Function to categorize reasons for leaving
+categorize_reasons <- function(reason) {
+  case_when(
+    # Persoonlijk, of tenminste niet instelling-gerelateerd (Personal reasons)
+    reason %in% c(
+      "Besluit Student zie documenten",
+      "Huisvesting/voorzieningen",
+      "Persoonlijk functioneren",
+      "Persoonlijke omstandigheden",
+      "Persoonsgebonden",
+      "Te veel nevenactiviteiten",
+      "Verhuizing/reistijd",
+      "Niet verschenen",
+      "No Show",
+      "Verwijderd",
+      "Besluit Intake vlg Stamkaart",
+      "Financi\xeble situatie", 
+      "Ontslag of POK be\xebindigd"
+    ) ~ "Persoonlijk",
+    
+    # Werk (Work-related)
+    reason %in% c(
+      "Heeft arbeidsovereenkomst",
+      "Liever (fulltime) werken"
+    ) ~ "Werk",
+    
+    # Onderwijs (Education-related)
+    reason %in% c(
+      "Onderwijs/didactiek",
+      "Onvoldoende begeleiding",
+      "Leerproblemen/onvoldoende capaciteit",
+      "Onvoldoende taal/rekenen"
+    ) ~ "Onderwijs",
+    
+    # Organisatie (Organizational)
+    reason %in% c(
+      "Geen Certificaat",
+      "Ambtshalve", # BSA?
+      "Geen (erkend) leerbedrijf",
+      "Schoolorganisatie",
+      "Houding medewerkers",
+      "Sociale/fysieke veiligheid",
+      "Administratieve  fout"
+    ) ~ "Organisatie",
+    
+    # Marketing (Expectations vs reality)
+    reason %in% c(
+      "Werk of stage past niet",
+      "Belangstelling andere opleiding/beroep",
+      "Verkeerd beroepsbeeld",
+      "Verkeerd opleidingsbeeld"
+    ) ~ "Marketing",
+    
+    reason %in% c(
+      "Keuzedeel toevoegen",
+      "DOORstroom: Organisatorisch",
+      "DOORstroom: Examenstudent",
+      "DOORstroom: Profiel => Uitstroomcrebo",
+      "DOORstroom:Verlenger/Vertrager"
+    ) ~ "Administratief",
+    
+    # Succes (Successful completion/progression)
+    reason %in% c(
+      "Certificaat",
+      "Diploma",
+      "Tweede diploma (in kalenderjaar)",
+      "Zonder diploma, wel succesvol"
+    ) ~ "Succes",
+    
+    is.na(reason) ~ "Nog steeds ingeschreven",
+    # Everything else goes to "Overig" (Other)
+    TRUE ~ "Overig"
+  )
+}
+
+```
+
+## Ambtshalve uitschrijvingen
+```{r}
+
+enrollments_combined_enriched_ambt <- enrollments_combined_enriched %>%
+    filter(VERBINTENIS_reden_uitschrijving == "Ambtshalve") %>%
+    mutate(totale_duur_dagen = as.numeric(
+        difftime(
+            VERBINTENIS_einddatum,
+            VERBINTENIS_begindatum
+        ),
+        units = "days"
+    )) %>%
+    mutate(maand_uitschrijving = month(VERBINTENIS_einddatum))
+
+tabyl(enrollments_combined_enriched_ambt$maand_uitschrijving)
+tabyl(enrollments_combined_enriched_ambt$totale_duur_dagen) %>% arrange(desc(n)) %>% head(10)
+
+```
+
+## Redenen uitschrijving categorie
+
+```{r}
+
+enrollments_combined_enriched %>% filter(is.na(VERBINTENIS_reden_uitschrijving)) %>% tabyl(VERBINTENIS_status)
+
+enrollments_combined_enriched <- enrollments_combined_enriched %>%
+  mutate(
+    VERBINTENIS_reden_uitschrijving_categorie = categorize_reasons(VERBINTENIS_reden_uitschrijving)
+  )
+
+```
+
+
+    
+```{r}
+enrollments_combined_enriched %>%
+    filter(
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes",
+        VERBINTENIS_reden_uitschrijving_categorie != "Administratief"
+    ) %>%
+    mutate(uitstroom_cohort = if_else(
+        month(VERBINTENIS_einddatum) >= 8,
+        year(VERBINTENIS_einddatum),
+        year(VERBINTENIS_einddatum) - 1
+    )) %>%
+    filter(uitstroom_cohort >= 2018, uitstroom_cohort <= 2023) %>%
+    count(uitstroom_cohort, VERBINTENIS_reden_uitschrijving_categorie) %>%
+    group_by(uitstroom_cohort) %>%
+    mutate(pct = n / sum(n)) %>%
+    ggline(
+        x = "uitstroom_cohort",
+        y = "pct",
+        color = "VERBINTENIS_reden_uitschrijving_categorie",
+        palette = "Dark2"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(x = "Schooljaar uitstroom", y = "Aandeel uitval reden", color = "Oorzaak uitstroom") +
+    theme_minimal()
+```
+
+
+
+```{r}
+enrollments_combined_enriched %>%
+    filter(
+        COHORT_startjaar >= 2020,
+        !is.na(VERBINTENIS_reden_uitschrijving_categorie),
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes"
+    ) %>%
+    mutate(DEELNEMER_plaatsing = factor(DEELNEMER_plaatsing, 
+                                        levels = c("Te hoog", "Passend", "Te laag"))) %>%
+    ggplot(aes(y = DEELNEMER_plaatsing, fill = VERBINTENIS_reden_uitschrijving_categorie)) +
+    geom_bar() +
+    labs(y = "Passende plaatsing", x = "Aantal studenten", fill = "Reden uitschrijving") +
+    theme_minimal() +
+    theme(legend.position = "right")
+```
+
+
+```{r}
+enrollments_combined_enriched %>%
+    filter(
+        COHORT_startjaar >= 2020,
+        !is.na(VERBINTENIS_reden_uitschrijving_categorie),
+        VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
+        VERBINTENIS_reden_uitschrijving_categorie != "Succes"
+    ) %>%
+    mutate(DEELNEMER_plaatsing = factor(DEELNEMER_plaatsing, 
+                                        levels = c("Te hoog", "Passend", "Te laag"))) %>%
+    ggplot(aes(y = DEELNEMER_plaatsing, fill = VERBINTENIS_reden_uitschrijving_categorie)) +
+    geom_bar(position = "fill") +
+    scale_x_continuous(labels = scales::percent) +
+    labs(y = "Passende plaatsing", x = "Aantal studenten", fill = "Reden uitschrijving") +
+    theme_minimal() +
+    theme(legend.position = "right")
+```
+
+
+##
+
+```{r}
+enrollments_combined_enriched_doorstroom <- enrollments_combined_enriched %>%
+    filter(VERBINTENIS_reden_uitschrijving %in% c(
+      "DOORstroom: Organisatorisch",
+      "DOORstroom: Examenstudent",
+      "DOORstroom: Profiel => Uitstroomcrebo",
+      "DOORstroom:Verlenger/Vertrager",
+      "Tweede diploma (in kalenderjaar)",
+      "Zonder diploma, wel succesvol"
+    )) |>
+    mutate(
+        totale_duur_dagen = as.numeric(difftime(VERBINTENIS_einddatum, 
+                                           VERBINTENIS_begindatum_eerst, 
+                                           units = "days")))
+
+tabyl(enrollments_combined_enriched_doorstroom$VERBINTENIS_reden_uitschrijving)
+tabyl(enrollments_combined_enriched_doorstroom$TEAM_school)
+
+enrollments_combined_enriched_doorstroom %>% 
+    group_by(VERBINTENIS_reden_uitschrijving) %>%
+    summarise(duur = mean(totale_duur_dagen, na.rm = TRUE))
+
+```
+
+
+    
+```{r}
+tabyl(enrollments_combined_enriched$VERBINTENIS_reden_uitschrijving_categorie) %>% arrange(desc(n))
+
+```
+
+
+Sport is lekker strak
+Hotelschool 2 bc-niveau, rest overig
+Zien bc 205 is goed en groot genoeg
+
+## Routes
+```{r}
+
+sport_students <- enrollments_combined_enriched |>
+    filter(TEAM_naam == "Sportacademie Amersfoort",
+           DEELNEMER_ID %in% enrollments_combined_enriched_filtered$DEELNEMER_ID)
+           
+```
+
+
+
+```{r}
+# Function to collapse values showing only changes and adding timestamps
+collapse_with_changes <- function(values, dates) {
+  # Handle empty or all-NA values
+  if (length(values) == 0 || all(is.na(values))) {
+    return(NA_character_)
+  }
+  
+  # Convert values to character and replace NAs with "Onbekend"
+  values_char <- as.character(values)
+  values_char[is.na(values_char)] <- "Onbekend"
+  
+  if (length(values_char) == 1) {
+    return(values_char[1])
+  }
+  
+  result <- values_char[1]
+  prev_value <- values_char[1]
+  
+  for (i in 2:length(values_char)) {
+    if (!identical(values_char[i], prev_value)) {
+      # Format the date as yyyy-mm-dd
+      date_str <- format(as.Date(dates[i]), "%Y-%m-%d")
+      result <- paste0(result, " → ", values_char[i], " (", date_str, ")")
+      prev_value <- values_char[i]
+    }
+  }
+  
+  return(result)
+}
+
+```
+
+## Summary
+
+```{r}
+
+sport_students %>%
+  arrange(DEELNEMER_ID, VERBINTENIS_begindatum) %>%
+  group_by(DEELNEMER_ID) %>%
+    filter(VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven")
+
+```
+
+
+## Adminstratief
+
+Liefst bijna 700 inschrijvingen (40%) hebben 'administratief' einde (en zijn dus eigenlijk geen echte uitval of succes).
+
+Adminstratief is een goede indicatie hiervoor, alhoewel niet perfect.
+
+```{r}
+sport_students_merged <- sport_students %>%
+    arrange(DEELNEMER_ID, VERBINTENIS_begindatum) %>%
+    group_by(DEELNEMER_ID) %>%
+    mutate(
+        next_enrollment_start = lead(VERBINTENIS_begindatum),
+        next_enrollment_team = lead(TEAM_naam_kort),
+        next_enrollment_opleiding = lead(OPLEIDING_naam_kort),
+        next_enrollment_bc = lead(OPLEIDING_bc_label_kort),
+        next_enrollment_niveau = lead(VERBINTENIS_niveau),
+        next_enrollment_leerweg = lead(OPLEIDING_leerweg),
+        merge_with_next = VERBINTENIS_reden_uitschrijving_categorie == "Administratief" &
+            !is.na(next_enrollment_start) &
+            next_enrollment_start <= VERBINTENIS_einddatum + days(30)
+    ) %>%
+    #filter(!merge_with_next) %>%
+    ungroup()
+
+## Team, leerweg, bc stays the same
+test <- sport_students_merged %>% 
+    filter(merge_with_next == TRUE) %>%
+    mutate(team_same = TEAM_naam_kort == next_enrollment_team,
+           opleiding_same = OPLEIDING_naam_kort == next_enrollment_opleiding,
+           bc_same = OPLEIDING_bc_label_kort == next_enrollment_bc,
+           niveau_same = VERBINTENIS_niveau == next_enrollment_niveau,
+           leerweg_same = OPLEIDING_leerweg == next_enrollment_leerweg)
+
+## Minder dan 1%
+test2 <- sport_students %>%
+    filter(VERBINTENIS_reden_uitschrijving_categorie == "Administratief",
+           !(VERBINTENIS_ID %in% test$VERBINTENIS_ID))
+
+sport_niet_administratief <- sport_students_merged %>%
+    filter(merge_with_next == FALSE) %>%
+        mutate(team_same = TEAM_naam_kort == next_enrollment_team,
+           opleiding_same = OPLEIDING_naam_kort == next_enrollment_opleiding,
+           bc_same = OPLEIDING_bc_label_kort == next_enrollment_bc,
+           niveau_same = VERBINTENIS_niveau == next_enrollment_niveau,
+           leerweg_same = OPLEIDING_leerweg == next_enrollment_leerweg)
+
+tabyl(sport_niet_administratief$team_same)
+tabyl(sport_niet_administratief$opleiding_same)
+tabyl(sport_niet_administratief$bc_same)
+tabyl(sport_niet_administratief$niveau_same)
+tabyl(sport_niet_administratief$leerweg_same)
+
+sport_niet_administratief_meer_verbintenissen <- sport_niet_administratief %>% group_by(DEELNEMER_ID) %>% add_tally() %>% filter(n > 1)
+
+tabyl(sport_niet_administratief_meer_verbintenissen$team_same)
+tabyl(sport_niet_administratief_meer_verbintenissen$opleiding_same)
+tabyl(sport_niet_administratief_meer_verbintenissen$bc_same)
+tabyl(sport_niet_administratief_meer_verbintenissen$niveau_same)
+tabyl(sport_niet_administratief_meer_verbintenissen$leerweg_same)
+
+sport_niet_administratief_meer_verbintenissen_same <- sport_niet_administratief_meer_verbintenissen %>%
+    filter(bc_same == TRUE) %>%
+    select(DEELNEMER_ID,
+           OPLEIDING_naam_kort,
+           next_enrollment_opleiding,
+           OPLEIDING_bc_label_kort,
+           next_enrollment_bc,
+           VERBINTENIS_reden_uitschrijving_categorie,
+           VERBINTENIS_reden_uitschrijving,
+           everything())
+
+```
+
+
+
+```{r}
+
+# Now consolidate to one row per student with route information
+student_routes_summary <- sport_students %>%
+  arrange(DEELNEMER_ID, VERBINTENIS_begindatum) %>%
+  group_by(DEELNEMER_ID) %>%
+  summarise(
+    # Time information
+    eerste_inschrijving = min(VERBINTENIS_begindatum, na.rm = TRUE),
+    laatste_uitschrijving = max(VERBINTENIS_einddatum, na.rm = TRUE),
+    aantal_inschrijvingen = n(),
+    totale_duur_dagen = as.numeric(difftime(max(VERBINTENIS_einddatum, na.rm = TRUE), 
+                                           min(VERBINTENIS_begindatum, na.rm = TRUE), 
+                                           units = "days")),
+    
+    # Demographic info (constant per student)
+    geslacht = first(DEELNEMER_geslacht),
+    geboortejaarmaand = first(DEELNEMER_geboorte_jaarmaand),
+    postcode = first(DEELNEMER_postcode4),
+    
+    # Educational pathway information
+    team_route = collapse_with_changes(TEAM_naam_kort, VERBINTENIS_begindatum),
+    opleiding_route = collapse_with_changes(OPLEIDING_naam_kort, VERBINTENIS_begindatum),
+    bc_route = collapse_with_changes(OPLEIDING_bc_label_kort, VERBINTENIS_begindatum),
+    niveau_route = collapse_with_changes(VERBINTENIS_niveau, VERBINTENIS_begindatum),
+    leerweg_route = collapse_with_changes(OPLEIDING_leerweg, VERBINTENIS_begindatum),
+
+    redenen_uitschrijving = collapse_with_changes(VERBINTENIS_reden_uitschrijving, VERBINTENIS_einddatum),
+        redenen_uitschrijving_categorie = collapse_with_changes(VERBINTENIS_reden_uitschrijving_categorie, VERBINTENIS_einddatum),
+        
+    # Last known status
+    laatste_status = last(VERBINTENIS_status),
+    laatste_team = last(TEAM_naam_kort),
+    laatste_opleiding = last(OPLEIDING_naam_kort),
+    laatste_niveau = last(VERBINTENIS_niveau),
+    laatste_reden_uitschrijving = last(VERBINTENIS_reden_uitschrijving),
+    laatste_reden_uitschrijving_categorie = last(VERBINTENIS_reden_uitschrijving_categorie),
+    
+    # Count how many changes occurred
+    aantal_team_wijzigingen = length(unique(TEAM_naam_kort)) - 1,
+    aantal_opleiding_wijzigingen = length(unique(OPLEIDING_naam_kort)) - 1,
+    aantal_niveau_wijzigingen = length(unique(VERBINTENIS_niveau)) - 1
+  ) %>%
+  # Handle potential NA values in duration calculation
+  mutate(
+    totale_duur_dagen = ifelse(is.na(totale_duur_dagen), 0, totale_duur_dagen),
+    laatste_uitschrijving = ifelse(is.na(laatste_uitschrijving), "Nog ingeschreven", 
+                                  as.character(laatste_uitschrijving))
+  )
+```
+
+
+```{r}
+student_routes_summary %>%
+    count(redenen_uitschrijving_categorie) %>%
+    arrange(desc(n)) %>%
+    slice_head(n = 20)
+
+```
+
+```{r}
+student_routes_summary %>%
+    filter(totale_duur_dagen > 800) %>%
+    tabyl(laatste_reden_uitschrijving_categorie)
+
+
+
+```
+
+
+```{r}
+# Add a success indicator (completing their most recent program)
+student_routes_summary <- student_routes_summary %>%
+  mutate(
+    succesvol_afgerond = ifelse(laatste_status == "Gediplomeerd", TRUE, FALSE)
+  )
+
+# Preview the new dataframe
+head(student_routes_summary)
+
+# Count different types of routes
+route_analysis <- student_routes_summary %>%
+  group_by(aantal_inschrijvingen) %>%
+  summarise(
+    aantal_studenten = n(),
+    gemiddelde_duur_dagen = mean(totale_duur_dagen, na.rm = TRUE),
+    percentage_succesvol = mean(succesvol_afgerond) * 100
+  )
+
+```

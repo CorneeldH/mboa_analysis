@@ -1,0 +1,135 @@
+---
+title: "Team startersresultaat visualisatie"
+---
+
+## Inladen teams
+
+
+```{r}
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+```{r}
+
+
+teams_selected_file_path <- file.path(config::get("data_analysed_dir"), "teams_selected.rds")
+
+teams_selected <- readRDS(teams_selected_file_path)
+
+teams_selected <- teams_selected |> 
+    group_by(TEAM_naam, TEAM_naam_afk) |>
+    mutate(
+        # First create a group number
+        team_number = cur_group_id(),
+        # Then create labels using the group number
+        team_label = paste("Team", LETTERS[team_number]),
+        TEAM_aantal_eerstejaars = mean(TEAM_aantal_eerstejaars, na.rm = TRUE)) %>%
+    ungroup()
+
+```
+
+
+```{r}
+
+teams_selected <- teams_selected |>
+  mutate(TEAM_naam_kort = case_when(
+    str_detect(TEAM_naam, "Beveiliging/Toezicht en Veiligheid") ~ "Beveiliging",
+    str_detect(TEAM_naam, "Kappersschool Amersfoort") ~ "Kapperschool",
+    str_detect(TEAM_naam, "Commercie en Evenementen") ~ "Commercie/Events",
+    str_detect(TEAM_naam, "Hotelschool Amersfoort") ~ "Hotelschool",
+    str_detect(TEAM_naam, "School voor Schoonheidsspecialisten") ~ "Schoonheid spec.",
+    str_detect(TEAM_naam, "School voor Toerisme & Management") ~ "Toerisme & Mgt",
+    str_detect(TEAM_naam, "Sportacademie Amersfoort") ~ "Sportacademie",
+    str_detect(TEAM_naam, "Financiële Beroepen") ~ "Fin. Beroepen",
+    str_detect(TEAM_naam, "MEI") ~ "MEI (Techniek)",
+    .default = TEAM_naam
+  ))
+
+```
+
+
+## Starterresultaat team grafiek
+
+```{r}
+#| label: teams_startersresultaat_trend
+teams_selected |>
+    filter(COHORT_startjaar != 2019) |>
+    ggplot(aes(x = COHORT_naam, y = TEAM_startersresultaat_1_jaars / 100, group = TEAM_naam)) +
+    geom_line(color = "#f49600") +
+    geom_point(color = "#f49600") +
+    geom_text(
+        data = . %>%
+            filter(
+                #TEAM_naam_kort %in% "Economie 2" &
+                    COHORT_naam %in% c("2020/2021", "2023/2024")
+            ),
+             
+        aes(
+            label = scales::percent(TEAM_startersresultaat_1_jaars / 10000, accuracy = 1),
+             vjust = -0.5, show.legend = FALSE
+        )
+    ) +
+    facet_wrap(~ TEAM_naam_kort) +
+    theme(#axis.text.x = element_text(angle = 45, hjust = 1),
+          #panel.grid.minor = element_blank(),
+                  text = element_text(size = 12, family = "sans"),
+        axis.text = element_text(size = 11, color = "grey"),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(),
+        axis.ticks = element_blank(),
+        strip.background = element_rect(fill = "#F8F9FA"),  # Light grey background
+        strip.text = element_text(size = 12 #face = "bold"
+                                  ),
+        plot.background = element_rect(fill = "white")) +
+    labs(x = "Cohort", y = "Startersresultaat (%)")
+```
+
+## Startersresultaat team grafiek anoniem
+
+Opgenomen in presentatie MT 28 januari
+
+```{r}
+#| label: teams_startersresultaat_trend_anoniem
+teams_selected |>
+    filter(COHORT_startjaar != 2019) |>
+    ggplot(aes(x = COHORT_naam, y = TEAM_startersresultaat_1_jaars / 100, group = team_label)) +
+    geom_line(color = "#f49600") +
+    geom_point(color = "#f49600") +
+    geom_text(
+        data = . %>%
+            filter(
+                #TEAM_naam_kort %in% "Economie 2" &
+                    COHORT_naam %in% c("2020/2021", "2023/2024")
+            ),
+             
+        aes(
+            label = scales::percent(TEAM_startersresultaat_1_jaars / 10000, accuracy = 1),
+             vjust = -0.5, show.legend = FALSE
+        )
+    ) +
+    facet_wrap(~ team_label) +
+    theme(#axis.text.x = element_text(angle = 45, hjust = 1),
+          #panel.grid.minor = element_blank(),
+                  text = element_text(size = 12, family = "sans"),
+        axis.text = element_text(size = 11, color = "grey"),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(),
+        axis.ticks = element_blank(),
+        strip.background = element_rect(fill = "#F8F9FA"),  # Light grey background
+        strip.text = element_text(size = 12 #face = "bold"
+                                  ),
+        plot.background = element_rect(fill = "white")) +
+    labs(x = "Cohort", y = "Startersresultaat (%)")
+```
+

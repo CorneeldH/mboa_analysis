@@ -1,0 +1,365 @@
+---
+title: "MWO"
+---
+
+Achtergrond voor 4 maart.
+
+## Inladen teams
+
+
+```{r}
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+```{r}
+
+
+teams_selected_file_path <- file.path(config::get("data_analysed_dir"), "teams_selected.rds")
+
+file.exists(teams_selected_file_path)
+
+teams_selected <- readRDS(teams_selected_file_path)
+
+```
+
+## Goede samenwerking check
+
+```{r}
+
+variables_MWO <- c(
+    "MWO_ik_doe_graag_iets_extra_voor_mboa",
+    "MWO_aandacht_persoonlijke_ontwikkeling",
+    "MWO_mogelijkheid_tot_doorgroeien",
+    "MWO_jaarlijkse_gesprekken_leidinggevende",
+    "MWO_open_communicatie_management",
+    "MWO_leidinggevende_motiveert",
+    "MWO_goede_samenwerking_binnen_team",
+    "MWO_werkdrukbeleving_bespreken_leidinggevende",
+    "MWO_ik_ervaar_een_goede_balans_tussen_werk_en_prive",
+    #"MWO_ik_ben_tevreden_over_de_omstandigheden_waaronder_ik_mijn_werk_doe",
+    "MWO_de_hoeveelheid_werk_die_ik_moet_verzetten_is_haalbaar",
+    "MWO_ik_vind_mijn_werkdruk"
+)
+
+teams_selected_mwo <- teams_selected |>
+    select(TEAM_naam, COHORT_startjaar, matches("MWO"))
+
+teams_mwo_correlation <- correlate_teams_and_filter(teams_selected_mwo, "MWO_goede_samenwerking_binnen_team", everything(), filter_type = "none")
+
+teams_mwo_correlation
+
+```
+
+## Verzuim
+
+```{r}
+
+teams_correlation_employee_absence_other <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", matches("verzuim"), filter_type = "none")
+
+```
+
+```{r}
+plot_teams_correlations(teams_correlation_employee_absence_other, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+
+```
+
+```{r}
+
+teams_selected_verzuim <- teams_selected |>
+    select(TEAM_naam, COHORT_startjaar, (matches("verzuim") & !matches("pct")) | matches("startersresultaat")) |>
+    mutate(MEDEWERKER_verzuim_totaal = MEDEWERKER_verzuim_kort + MEDEWERKER_verzuim_lang + MEDEWERKER_verzuim_middellang)
+
+
+
+```
+
+```{r}
+
+teams_correlation_employee_absence_filter <- correlate_teams_and_filter(teams_selected_verzuim, "MEDEWERKER_verzuim_kort", matches("_"), filter_type = "none")
+
+```
+
+```{r}
+plot_teams_correlations(teams_correlation_employee_absence_filter, "MEDEWERKER_verzuim_kort", "Hoge correlatie met Kort verzuim")
+
+
+```
+
+```{r}
+teams_correlation_employee_result_absence <- correlate_teams_and_filter(teams_selected_verzuim, "TEAM_startersresultaat_1_jaars", matches("_"), filter_type = "none", exclude_terms = c())
+
+plot_teams_correlations(teams_correlation_employee_result_absence, "TEAM_startersresultaat_1_jaars", "Hoge correlatie met startersresultaat")
+
+
+
+```
+
+
+```{r}
+
+teams_selected_verzuim <- teams_selected |>
+    select(TEAM_naam, COHORT_startjaar, (matches("verzuim") & matches("pct")) | matches("startersresultaat"))
+
+
+teams_selected_verzuim |>
+    pivot_longer(cols = matches("verzuim"),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim") |>
+    ggplot(aes(x = verzuim, y = TEAM_startersresultaat_1_jaars, color = type_verzuim)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    scale_color_viridis_d() +
+    theme_minimal() +
+    labs(x = "Verzuim", y = "Startersresultaat", color = "Type verzuim")
+
+
+teams_selected_verzuim |>
+    pivot_longer(cols = matches("verzuim"),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim") |>
+    ggplot(aes(x = TEAM_startersresultaat_1_jaars, y = verzuim, color = type_verzuim)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    scale_color_viridis_d() +
+    theme_minimal() +
+    labs(x = "Startersresultaat", y = "Verzuim", color = "Type verzuim")
+
+
+teams_selected_verzuim |>
+  select(matches("verzuim_pct")) |>
+  pivot_longer(cols = c(MEDEWERKER_verzuim_pct_lang, MEDEWERKER_verzuim_pct_middellang),
+               names_to = "type_verzuim",
+               values_to = "verzuim_x") |>
+  ggplot(aes(x = verzuim_x, y = MEDEWERKER_verzuim_pct_kort, color = type_verzuim)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_color_viridis_d(labels = c("Lang", "Middellang")) +
+  theme_minimal() +
+  labs(x = "Verzuim (Lang/Middellang)", 
+       y = "Kort verzuim", 
+       color = "Type verzuim")
+
+teams_selected_verzuim |>
+    select(matches("verzuim_pct")) |>
+    pivot_longer(cols = c(MEDEWERKER_verzuim_pct_lang, MEDEWERKER_verzuim_pct_middellang),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim_x") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang"
+    )) |>
+    ggpubr::ggscatter(
+        x = "verzuim_x",
+        y = "MEDEWERKER_verzuim_pct_kort",
+        color = "type_verzuim",
+        add = "reg.line",
+        palette = "jco"
+    ) +
+    stat_cor(aes(color = type_verzuim), label.x = 0.07) +
+    labs(x = "Verzuim (Lang/Middellang)", 
+         y = "Kort verzuim (%)", 
+         color = "Type verzuim (%)")
+
+
+teams_selected_verzuim |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 100) |>
+    select(matches("verzuim_pct"), TEAM_startersresultaat_1_jaars) |>
+    pivot_longer(cols = matches("verzuim_pct"),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_kort" ~ "Kort"
+    )) |>
+    ggpubr::ggscatter(
+        x = "verzuim",
+        y = "TEAM_startersresultaat_1_jaars",
+        color = "type_verzuim",
+        add = "reg.line",
+        palette = "jco"
+    ) +
+    stat_cor(aes(color = type_verzuim), label.x = 0.07) +
+    labs(x = "Verzuim (%)", 
+         y = "Startersresultaat (%)", 
+         color = "Type verzuim")
+```
+
+
+```{r}
+custom_colors <- c("Kort" = "#868686", "Middellang" = "#0073C2", "Lang" = "#EFC000")
+
+teams_selected_verzuim |>
+    select(matches("verzuim_pct")) |>
+    pivot_longer(cols = c(MEDEWERKER_verzuim_pct_lang, MEDEWERKER_verzuim_pct_middellang),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim_x") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang"
+    ),
+    type_verzuim = factor(type_verzuim, levels = c("Kort", "Middellang", "Lang"))) |>
+    ggpubr::ggscatter(
+        x = "verzuim_x",
+        y = "MEDEWERKER_verzuim_pct_kort",
+        color = "type_verzuim",
+        add = "reg.line",
+        palette = custom_colors
+    ) +
+    stat_cor(aes(color = type_verzuim), label.x = 0.07) +
+    labs(x = "Verzuim (Lang/Middellang)", 
+         y = "Kort verzuim (%)", 
+         color = "Type verzuim (%)")
+
+teams_selected_verzuim |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 100) |>
+    select(matches("verzuim_pct"), TEAM_startersresultaat_1_jaars) |>
+    pivot_longer(cols = matches("verzuim_pct"),
+                 names_to = "type_verzuim",
+                 values_to = "verzuim") |>
+    mutate(type_verzuim = case_when(
+        type_verzuim == "MEDEWERKER_verzuim_pct_lang" ~ "Lang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_middellang" ~ "Middellang",
+        type_verzuim == "MEDEWERKER_verzuim_pct_kort" ~ "Kort"
+    ),
+    type_verzuim = factor(type_verzuim, levels = c("Kort", "Middellang", "Lang"))) |>
+    ggpubr::ggscatter(
+        x = "verzuim",
+        y = "TEAM_startersresultaat_1_jaars",
+        color = "type_verzuim",
+        add = "reg.line",
+        palette = custom_colors
+    ) +
+    stat_cor(aes(color = type_verzuim), label.x = 0.07) +
+    labs(x = "Verzuim (%)", 
+         y = "Startersresultaat (%)", 
+         color = "Type verzuim")
+```
+
+
+
+```{r}
+
+teams_correlation_employee_absence_filter_2020 <- correlate_teams_and_filter(teams_selected_verzuim %>% filter(COHORT_startjaar == 2020), "MEDEWERKER_verzuim_kort", matches("_"), filter_type = "none")
+
+```
+
+```{r}
+plot_teams_correlations(teams_correlation_employee_absence_filter_2020, "MEDEWERKER_verzuim_kort", "Hoge correlatie met Kort verzuim")
+
+
+```
+
+```{r}
+teams_correlation_employee_absence_filter_2021 <- correlate_teams_and_filter(teams_selected_verzuim %>% filter(COHORT_startjaar == 2021), "MEDEWERKER_verzuim_kort", matches("_"), filter_type = "none")
+
+plot_teams_correlations(teams_correlation_employee_absence_filter_2021, "MEDEWERKER_verzuim_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+```{r}
+teams_correlation_employee_absence_filter_2022 <- correlate_teams_and_filter(teams_selected_verzuim %>% filter(COHORT_startjaar == 2022), "MEDEWERKER_verzuim_kort", matches("_"), filter_type = "none")
+
+plot_teams_correlations(teams_correlation_employee_absence_filter_2022, "MEDEWERKER_verzuim_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+```{r}
+teams_correlation_employee_absence_filter_2023 <- correlate_teams_and_filter(teams_selected_verzuim %>% filter(COHORT_startjaar == 2023), "MEDEWERKER_verzuim_kort", matches("_"), filter_type = "none")
+
+plot_teams_correlations(teams_correlation_employee_absence_filter_2023, "MEDEWERKER_verzuim_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+
+
+```{r}
+teams_correlation_employee_absence_MWO <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", matches("MWO"), filter_type = "outside")
+
+
+```
+
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MWO, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+```{r}
+teams_correlation_employee_absence_MWO_2022 <- correlate_teams_and_filter(
+    teams_selected %>% filter(COHORT_startjaar == 2022),
+    "MEDEWERKER_verzuim_pct_kort",
+    matches("MWO"),
+    filter_type = "none"
+) |>
+    mutate(order = row_number())
+
+```
+
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MWO_2022, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+
+```{r}
+teams_correlation_employee_absence_MWO_2020 <- 
+    correlate_teams_and_filter(teams_selected %>% 
+                                   filter(COHORT_startjaar == 2020),
+                               "MEDEWERKER_verzuim_pct_kort", 
+                               matches("MWO"), 
+                               filter_type = "none") |>
+    mutate(order = row_number())
+
+```
+
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MWO_2020, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+
+```{r}
+teams_MWO_correlation_both_years <- full_join(teams_correlation_employee_absence_MWO_2020, teams_correlation_employee_absence_MWO_2022, by = "term", suffix = c("_2020", "_2022")) |>
+    mutate(verschil = (MEDEWERKER_verzuim_pct_kort_2022 - MEDEWERKER_verzuim_pct_kort_2020),
+           verschil_order = order_2020 - order_2022,
+           totaal_order = order_2020 + order_2022,
+           mean = rowMeans(across(contains("MEDEWERKER_verzuim_pct_kort"))))
+
+teams_MWO_cor_slecht <- teams_MWO_correlation_both_years |>
+    filter(totaal_order > 80,
+           MEDEWERKER_verzuim_pct_kort_2020 > 0.18,
+           MEDEWERKER_verzuim_pct_kort_2022 > 0.18)
+
+teams_MWO_cor_goed <- teams_MWO_correlation_both_years |>
+    filter(totaal_order < 20,
+           MEDEWERKER_verzuim_pct_kort_2020 < -0.15,
+           MEDEWERKER_verzuim_pct_kort_2022 < -0.15)
+
+```
+
+
+
+```{r}
+
+MWO_Verzuim_goed <- as.character(teams_MWO_cor_goed$term) |> str_replace_all(" ", "_")
+MWO_Verzuim_slecht <- as.character(teams_MWO_cor_slecht$term) |> str_replace_all(" ", "_")
+
+
+test <- teams_selected |>
+    correlate_teams_and_filter("MEDEWERKER_verzuim_pct_kort", any_of(c(MWO_Verzuim_goed, MWO_Verzuim_slecht)), filter_type = "none")
+
+plot_teams_correlations(test, "MEDEWERKER_verzuim_pct_kort", "Correlatie met Kort verzuim")
+
+```

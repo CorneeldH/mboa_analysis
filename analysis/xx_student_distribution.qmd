@@ -1,0 +1,64 @@
+---
+title: "Studentverdeling over crebo/bc/niveau/leerweg combinaties"
+---
+
+## Spreiding studenten
+Zie ook de shiny_apps
+
+
+```{r}
+
+enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
+                                                   "enrollments_combined_enriched.rds"))
+
+counts_students <- enrollments_combined_enriched |>
+    filter(COHORT_startjaar >= config::get("first_year") + 1,
+           COHORT_startjaar <= config::get("last_year"),
+           COHORT_start_datum + months(2) >= VERBINTENIS_begindatum,
+           COHORT_start_datum - months(10) < VERBINTENIS_begindatum,
+           VERBINTENIS_actief_op_1_okt_peildatum == TRUE,
+           VERBINTENIS_bekostigd == "Ja",
+           VERBINTENIS_intensiteit == "Voltijd") |>
+    mutate(TEAM_naam_kort = case_when(
+        str_detect(TEAM_naam, "Beveiliging/Toezicht en Veiligheid") ~ "Beveiliging",
+        str_detect(TEAM_naam, "Kappersschool Amersfoort") ~ "Kapperschool",
+        str_detect(TEAM_naam, "Commercie en Evenementen") ~ "Commercie/Events",
+        str_detect(TEAM_naam, "Hotelschool Amersfoort") ~ "Hotelschool",
+        str_detect(TEAM_naam, "School voor Schoonheidsspecialisten") ~ "Schoonheid spec.",
+        str_detect(TEAM_naam, "School voor Toerisme & Management") ~ "Toerisme & Mgt",
+        str_detect(TEAM_naam, "Sportacademie Amersfoort") ~ "Sportacademie",
+        str_detect(TEAM_naam, "Financiële Beroepen") ~ "Fin. Beroepen",
+        str_detect(TEAM_naam, "MEI") ~ "MEI (Techniek)",
+        .default = TEAM_naam
+    ),
+    OPLEIDING_crebo = parse_number(OPLEIDING_code),
+    OPLEIDING_naam_kort = paste0(
+        word(OPLEIDING_naam, 1),
+        " (",
+        OPLEIDING_crebo,
+        ")"
+    ),
+    OPLEIDING_bc_label_kort = paste0(
+        word(OPLEIDING_bc_label, 3),  # Using word 3 as per your code
+        " (",
+        OPLEIDING_bc_code,
+        ")"
+    )) |>
+    count(COHORT_startjaar,
+          TEAM_naam_kort,
+          VERBINTENIS_niveau,
+          OPLEIDING_leerweg,
+          OPLEIDING_naam_kort,
+          OPLEIDING_bc_label_kort,
+          name = "n")
+
+```
+
+
+
+```{r}
+saveRDS(counts_students,
+        file.path(config::get("data_analysed_dir"),
+                  "counts_students.rds"))
+```
+

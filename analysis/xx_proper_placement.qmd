@@ -1,0 +1,94 @@
+---
+title: "marketing"
+---
+
+
+
+```{r}
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+```{r}
+#| include: false
+#| freeze: false
+#| cache: false
+
+teams_file_path <- file.path(config::get("data_combined_dir"), "teams_combined_enriched.rds")
+
+teams <- readRDS(teams_file_path)
+
+```
+
+We selecteren enkel kolommen die niet te vaak NA zijn en die meer dan 1 unieke waarde bevatten.
+
+```{r}
+#| include: false
+
+teams_selected <- teams |>
+    select_cols_for_correlation()
+
+```
+
+```{r}
+
+teams_passende_plaatsing <- teams %>%
+    select(TEAM_startersresultaat_1_jaars,
+           #contains("passend"),
+           TEAM_aantal_eerstejaars,
+           contains("plaatsing"),
+           contains("niveau"),
+           contains("havo"))
+
+```
+
+```{r}
+correlate_teams_and_filter(teams_passende_plaatsing,
+                           "TEAM_startersresultaat_1_jaars",
+                           cols = everything(),
+                           filter_type = "none")
+                           
+
+```
+
+
+```{r}
+
+
+teams_passende_plaatsing |>
+    mutate(TEAM_startersresultaat_1_jaars = TEAM_startersresultaat_1_jaars / 10000) |>
+    select(contains("DEELNEMER"), 
+           TEAM_aantal_eerstejaars,
+           TEAM_startersresultaat_1_jaars,
+           -DEELNEMER_passend_niveau,
+           -DEELNEMER_havo_vwo_is_gezakt) |>
+    rename_with(~ str_replace_all(., "_", " ")) |>
+    pivot_longer(cols = -c(`TEAM startersresultaat 1 jaars`, `TEAM aantal eerstejaars`), 
+                 names_to = "variable", 
+                 values_to = "value") |>
+    ggscatter(x = "value", 
+              y = "TEAM startersresultaat 1 jaars",
+              size = "TEAM aantal eerstejaars",
+              color = "variable",
+              palette = "jco",
+              alpha = 0.4,
+              add = "reg.line",
+              conf.int = FALSE) +
+    stat_cor(aes(color = variable),
+             label.x.npc = "left",
+             label.y.npc = "top") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+    labs(x = "Percentage per type plaatsing", 
+         y = "Startersresultaat (%)",
+         color = "Type plaatsing",
+         title = "Correlatie tussen plaatsing en Startersresultaat") +
+    theme(legend.position = "right")
+
+
+```
+
