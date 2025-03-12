@@ -11,6 +11,7 @@ default:
   #data_transformed_dir: "data/transformed"
   data_combined_dir: "data/combined"
   data_analysed_dir: "data/analysed"
+  data_test_dir: "data/test"
   first_year: 2019
   last_year: 2023
 
@@ -147,15 +148,17 @@ default:
     name: "employees_contract_extra_fte_2019"
     filename: "Aanvulling FTE uit Looncomponent 2019-10-01 .csv"
 
-# TODO
-
   employee_absences:
     name: "employee_absences"
     filename: "Verzuim medewerkers.csv"
 
+  # students_prior_education:
+  #   name: "students_prior_education"
+  #   filename: "Vooropleiding studenten.csv"
+
   students_prior_education:
     name: "students_prior_education"
-    filename: "Vooropleiding studenten.csv"
+    filename: "Vooropleiding.csv"
 
   teams_results_retention_start:
     name: "teams_results_retention_start"
@@ -259,7 +262,7 @@ default:
 
   codebook_employee_satisfaction_mapping:
     name: "codebook_employee_satisfaction_mapping"
-    filename: "mto_vragen_gedeeltelijke_mapping.csv"
+    filename: "MTO_vragen_gedeeltelijke_mapping.csv"
 
 
 

@@ -43,6 +43,12 @@ packages_cran <- c(
 
     "cli",            # Create command line interfaces
     "ggplot2" ,       # Create plots
+    "ggpubr",         # Create publication-ready plots
+    "ggalluvial",     # Create alluvial plots
+    "shiny",          # Create shiny apps
+    "DT",             # Create display tables
+    "forcats",       # Work with factors
+
     #"LaF",            # Read data files without encoding (like ASCII)
     #"dataReporter",   # Create a data audit report
     # "rlang",          # Enable complex operations
