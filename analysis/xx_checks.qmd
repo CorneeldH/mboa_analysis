@@ -10,7 +10,7 @@ Hier runnen we code om bepalen of de data eruit ziet zoals we verwachten dat dez
 
 crebo_test <- ingest_crebo_to_organisation_mapping() |>
     #filter(OPLEIDING_crebo == OPLEIDING_crebo_correctie) |>
-    get_dupes(OPLEIDING_crebo_correctie) %>% 
+    get_dupes(OPLEIDING_crebo_correctie) |> 
     select(-dupe_count, - OPLEIDING_cluster, -OPLEIDING_school)
 
 # A tibble: 8 × 4                                                                                                                                              
@@ -35,9 +35,9 @@ students_satisfaction <- bind_rows(
     ingest_students_satisfaction_2023()
 ) 
 
-students_satisfaction %>% filter(CREBO %in% crebo_test$OPLEIDING_crebo) %>% count(CREBO, label01, label02) 
+students_satisfaction |> filter(CREBO %in% crebo_test$OPLEIDING_crebo) |> count(CREBO, label01, label02) 
 
-# > students_satisfaction %>% filter(CREBO %in% crebo_test$OPLEIDING_crebo) %>% count(CREBO, label01, label02) 
+# > students_satisfaction |> filter(CREBO %in% crebo_test$OPLEIDING_crebo) |> count(CREBO, label01, label02) 
 # # A tibble: 6 × 4
 #   CREBO label01                           label02                                n
 #   <int> <chr>                             <chr>                              <int>
@@ -49,8 +49,6 @@ students_satisfaction %>% filter(CREBO %in% crebo_test$OPLEIDING_crebo) %>% coun
 # 6 25780 School voor Gezondheidszorg       MZ                                    20
 
 ```
-
-
 
 ## Controle studenttevredenheid
 
@@ -119,7 +117,6 @@ ggplot(enrollments_combined_enriched_filtered_2, aes(x = VERBINTENIS_begindatum,
 
 ## Niet meerdere deelnemers per cohort jaar
 
-
 ```{r}
 
 enrollments_combined_enriched_filtered_file_path <- 
@@ -132,7 +129,6 @@ enrollments_dupes <- enrollments_combined_enriched_filtered |>
 
 ```
 
-
 ```{r}
 
 teams_combined_enriched_file_path <- file.path(config::get("data_combined_dir"),
@@ -140,23 +136,22 @@ teams_combined_enriched_file_path <- file.path(config::get("data_combined_dir"),
 
 teams_combined_enriched <- readRDS(teams_combined_enriched_file_path)
 
-test3 <- teams_combined_enriched %>% 
-    filter(COHORT_startjaar > 2019) %>%
+test3 <- teams_combined_enriched |> 
+    filter(COHORT_startjaar > 2019) |>
     select(COHORT_startjaar,
            TEAM_naam,
            TEAM_aantal_eerstejaars,
-           TEAM_studenten_aantal) %>% 
+           TEAM_studenten_aantal) |> 
     filter(!is.na(TEAM_aantal_eerstejaars))
 
 sum(test3$TEAM_aantal_eerstejaars)
 sum(test3$TEAM_studenten_aantal)
 
-test4 <- test3 %>%
+test4 <- test3 |>
     filter(TEAM_aantal_eerstejaars < TEAM_studenten_aantal)
 
 
 ```
-
 
 ## BPV
 
@@ -165,8 +160,8 @@ test4 <- test3 %>%
 enrollments_combined_enriched_filtered <- readRDS(file.path(config::get("data_combined_dir"),
                                                    "enrollments_combined_enriched_filtered.rds"))
 
-test6 <- enrollments_combined_enriched_filtered %>%
-    group_by(OPLEIDING_leerweg) %>%
+test6 <- enrollments_combined_enriched_filtered |>
+    group_by(OPLEIDING_leerweg) |>
     summarise(BPV_pct = sum(is.na(BPV_ID)) / n())
 
 ```
@@ -177,7 +172,7 @@ teams_file_path <- file.path(config::get("data_combined_dir"), "teams_combined_e
 
 teams <- readRDS(teams_file_path)
 
-test_bpv <- teams %>% select(
+test_bpv <- teams |> select(
     COHORT_naam,
     TEAM_naam,
     TEAM_school,
@@ -186,12 +181,12 @@ test_bpv <- teams %>% select(
     BPV_is_definitief_voor_1_okt_BOL,
         OPLEIDING_leerweg_BOL,
     OPLEIDING_leerweg_BBL
-) %>%
+) |>
     mutate(verhouding1 = BPV_is_definitief_voor_1_okt_BOL / BPV_is_definitief_voor_1_okt,
            verhouding2 = BPV_is_definitief_voor_1_okt_opgevuld / BPV_is_definitief_voor_1_okt,
            verhouding3 = BPV_is_definitief_voor_1_okt_BOL / BPV_is_definitief_voor_1_okt_opgevuld)
 
-test_bpv_nieuw <- teams_enrollments %>% select(
+test_bpv_nieuw <- teams_enrollments |> select(
     COHORT_naam,
     TEAM_naam,
     TEAM_school,
@@ -201,7 +196,7 @@ test_bpv_nieuw <- teams_enrollments %>% select(
     BPV_is_definitief_voor_1_okt_BOL_opgevuld,
     OPLEIDING_leerweg_BOL,
     OPLEIDING_leerweg_BBL
-) %>%
+) |>
     mutate(bol_reg = BPV_is_definitief_voor_1_okt_BOL / BPV_is_definitief_voor_1_okt,
            opgevuld_reg = BPV_is_definitief_voor_1_okt_opgevuld / BPV_is_definitief_voor_1_okt,
            bol_opgevuld = BPV_is_definitief_voor_1_okt_BOL / BPV_is_definitief_voor_1_okt_opgevuld
@@ -304,20 +299,20 @@ correlation_plots
 ```
 
 Based on the context and data structure shown, I'll help modify the correlation plots to filter on values with high correlation. Here's the modified code:
-    
+
 ```{r}
 # First define a correlation threshold
 cor_threshold <- 0.5
 
 # Function to filter correlations and create plot for each theme
 create_filtered_correlation_plot <- function(data, title, cor_threshold) {
-    correlations <- data %>%
-        correlate() %>%
-        shave() %>%
-        as_tibble(rownames = "var1") %>%
-        pivot_longer(-var1, names_to = "var2", values_to = "correlation") %>%
+    correlations <- data |>
+        correlate() |>
+        shave() |>
+        as_tibble(rownames = "var1") |>
+        pivot_longer(-var1, names_to = "var2", values_to = "correlation") |>
         filter(abs(correlation) >= cor_threshold, 
-               var1 < var2) %>%  # Keep only one triangle of the correlation matrix
+               var1 < var2) |>  # Keep only one triangle of the correlation matrix
         arrange(desc(abs(correlation)))
     
     if(nrow(correlations) == 0) return(NULL)
@@ -354,16 +349,16 @@ students_satisfaction_file_path <- file.path(config::get("data_prepared_dir"),
 
 students_satisfaction <- readRDS(students_satisfaction_file_path)
 
-JOB_variabelen <- teams_correlation_result %>%
-    filter(str_detect(term, "JOB")) %>%
-    pull(term) %>% 
+JOB_variabelen <- teams_correlation_result |>
+    filter(str_detect(term, "JOB")) |>
+    pull(term) |> 
     str_replace_all(" ", "_")
 
-test <- students_satisfaction %>% 
-    select(JOB_variabelen) %>%
-    correlate() %>%
-    rearrange() %>%
-    #shave() %>%
+test <- students_satisfaction |> 
+    select(JOB_variabelen) |>
+    correlate() |>
+    rearrange() |>
+    #shave() |>
     rplot(print_cor = TRUE)
 
 
@@ -371,8 +366,8 @@ test <- students_satisfaction %>%
 
 ```{r}
 
-job_teams_2021 <- teams_selected %>%
-    filter(COHORT_naam == "2021/2022") %>%
+job_teams_2021 <- teams_selected |>
+    filter(COHORT_naam == "2021/2022") |>
     select(where(is.numeric)) |>
     select(contains("JOB"), TEAM_startersresultaat_1_jaars) |>
     correlate() |>
@@ -387,8 +382,8 @@ job_teams_2021 <- teams_selected %>%
     order = row_number()
     )
 
-job_teams_2023 <- teams_selected %>%
-    filter(COHORT_naam == "2023/2024") %>%
+job_teams_2023 <- teams_selected |>
+    filter(COHORT_naam == "2023/2024") |>
     select(where(is.numeric)) |>
     select(contains("JOB"), TEAM_startersresultaat_1_jaars) |>
     correlate() |>
@@ -407,7 +402,6 @@ job_teams_2023 <- teams_selected %>%
 
 ```
 
-
 ```{r}
 #| label: job_correlation_over_years_filter
 
@@ -422,11 +416,10 @@ JOB_2_jaar_gefilterd <- JOB_2_jaar |>
            TEAM_startersresultaat_1_jaars_2021 > 0.10,
            TEAM_startersresultaat_1_jaars_2023 > 0.10)
 
-JOB_2_jaar_gefilterd %>% pull(term)
+JOB_2_jaar_gefilterd |> pull(term)
 
 
 ```
-
 
 ## Examenplan
 
@@ -505,7 +498,6 @@ enrollments_exam_plan_long |>
   )
 
 ```
-
 
 ```{r}
 
@@ -592,29 +584,28 @@ teams_exam_plan <- teams |> select(
 
 ```
 
-
 ## Teams correlatie per jaar
 
 ```{r}
 
 analyze_correlations_by_cohort <- function(data, cohort_year) {
   # Filter data for specific cohort year
-  cohort_data <- data %>%
+  cohort_data <- data |>
     filter(COHORT_startjaar == cohort_year)
   
   # Perform correlation analysis
-  correlations <- cohort_data %>%
-    select(where(is.numeric)) %>%
-    correlate() %>%
-    select(term, TEAM_startersresultaat_1_jaars) %>%
-    filter(term != "TEAM_startersresultaat_1_jaars") %>%
+  correlations <- cohort_data |>
+    select(where(is.numeric)) |>
+    correlate() |>
+    select(term, TEAM_startersresultaat_1_jaars) |>
+    filter(term != "TEAM_startersresultaat_1_jaars") |>
     filter(#TEAM_startersresultaat_1_jaars > -0.25 & 
            #TEAM_startersresultaat_1_jaars < 0.25,
            TEAM_startersresultaat_1_jaars < -0.25 | 
-           TEAM_startersresultaat_1_jaars > 0.25) %>%
+           TEAM_startersresultaat_1_jaars > 0.25) |>
     filter(term != "MEDEWERKER_verzuim_kort",
-           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") %>%
-    arrange(TEAM_startersresultaat_1_jaars) %>%
+           term != "VERBINTENIS_is_passend_onderwijs_gevuld_opgevuld") |>
+    arrange(TEAM_startersresultaat_1_jaars) |>
     mutate(
       term = str_replace_all(term, "_", " "),
       term = factor(term, levels = term)
@@ -656,18 +647,17 @@ plots <- map(cohort_years, ~analyze_correlations_by_cohort(teams_selected, .x))
 
 ```
 
-
 ```{r}
 
 students_satisfaction_file_path <- file.path(config::get("data_prepared_dir"), "students_satisfaction.rds")
 students_satisfaction <- readRDS(students_satisfaction_file_path)
 glimpse(students_satisfaction)
 
-test <- students_satisfaction %>% count(SCHOOLJAAR_startjaar, leerweg, niveau)
-test2 <- students_satisfaction %>% count(SCHOOLJAAR_startjaar, leerweg, niveau, label01, label02)
-test3 <- students_satisfaction %>% count(SCHOOLJAAR_startjaar, niveau)
-test4 <- students_satisfaction %>% count(SCHOOLJAAR_startjaar)
-test5 <- students_satisfaction %>% filter(is.na(niveau))
+test <- students_satisfaction |> count(SCHOOLJAAR_startjaar, leerweg, niveau)
+test2 <- students_satisfaction |> count(SCHOOLJAAR_startjaar, leerweg, niveau, label01, label02)
+test3 <- students_satisfaction |> count(SCHOOLJAAR_startjaar, niveau)
+test4 <- students_satisfaction |> count(SCHOOLJAAR_startjaar)
+test5 <- students_satisfaction |> filter(is.na(niveau))
 
 ```
 
@@ -746,7 +736,6 @@ job_2020 |>
 
 ```
 
-
 ```{r}
 
 
@@ -795,13 +784,13 @@ test_inner <- inner_join(test_code_job, test_code_enrollments, by = c("opleiding
 
 test_anti <- anti_join(test_code_job, test_code_enrollments, by = c("opleiding_code_cijfers" = "OPLEIDING_code_cijfers"))
 
-test_job_missende_opleidingen <- students_satisfaction_2022_2 %>%
-    filter(!opleiding_code_cijfers %in% enrollments_combined_enriched_filtered2$OPLEIDING_code_cijfers) %>%
+test_job_missende_opleidingen <- students_satisfaction_2022_2 |>
+    filter(!opleiding_code_cijfers %in% enrollments_combined_enriched_filtered2$OPLEIDING_code_cijfers) |>
     tabyl(opleiding)
 
-test_job_2020 <- students_satisfaction_2020 %>% tabyl(school_team)
+test_job_2020 <- students_satisfaction_2020 |> tabyl(school_team)
 
-test_overall_team <- enrollments_combined_enriched_filtered %>% tabyl(TEAM_naam)
+test_overall_team <- enrollments_combined_enriched_filtered |> tabyl(TEAM_naam)
 
 test_inner_team <- inner_join(test_job_2020, test_overall_team, by = c("school_team" = "TEAM_naam"))
 
@@ -813,35 +802,33 @@ test_overall_code <- tabyl(enrollments_combined_enriched_filtered$OPLEIDING_code
 
 ```
 
-## MTO
+## MWO
 
 Erg weinig medewerkers per team, vaak minder dan 30 per jaar. Ook maar voor 2 jaar beschikbaar.
 
 ```{r}
 
-test_mto_jaar_cluster <- employees_satisfaction2 %>% 
-    tabyl(TEAM_cluster, MTO_schooljaar_startjaar)
-test_mto_jaar_team <- employees_satisfaction2 %>% 
-    filter(!is.na(TEAM_cluster)) %>% 
-    tabyl(TEAM_kostenplaats_naam, MTO_schooljaar_startjaar)
+test_MWO_jaar_cluster <- employees_satisfaction2 |> 
+    tabyl(TEAM_cluster, MWO_schooljaar_startjaar)
+test_MWO_jaar_team <- employees_satisfaction2 |> 
+    filter(!is.na(TEAM_cluster)) |> 
+    tabyl(TEAM_kostenplaats_naam, MWO_schooljaar_startjaar)
 
 
 ```
 
-
-
 ```{r}
 
-MTO_variabelen <- teams_correlation_result %>%
-    filter(str_detect(term, "MTO")) %>%
-    pull(term) %>% 
+MWO_variabelen <- teams_correlation_result |>
+    filter(str_detect(term, "MWO")) |>
+    pull(term) |> 
     str_replace_all(" ", "_")
 
-test <- employees_satisfaction %>% 
-    select(MTO_variabelen) %>%
-    correlate() %>%
-    rearrange() %>%
-    #shave() %>%
+test <- employees_satisfaction |> 
+    select(MWO_variabelen) |>
+    correlate() |>
+    rearrange() |>
+    #shave() |>
     rplot(print_cor = TRUE)
 
 test
@@ -850,10 +837,10 @@ test
 
 ```{r}
 
-teams_2020 <- teams_selected %>%
-    filter(COHORT_naam == "2020/2021") %>%
+teams_2020 <- teams_selected |>
+    filter(COHORT_naam == "2020/2021") |>
     select(where(is.numeric)) |>
-    select(contains("MTO"), TEAM_startersresultaat_1_jaars) |>
+    select(contains("MWO"), TEAM_startersresultaat_1_jaars) |>
     correlate() |>
     select(term, TEAM_startersresultaat_1_jaars) |>
   filter(term != "TEAM_startersresultaat_1_jaars") |>
@@ -868,12 +855,11 @@ teams_2020 <- teams_selected %>%
 
 ```
 
-
-``` {r}
-teams_2022 <- teams_selected %>%
-    filter(COHORT_naam == "2022/2023") %>%
+```{r}
+teams_2022 <- teams_selected |>
+    filter(COHORT_naam == "2022/2023") |>
     select(where(is.numeric)) |>
-    select(contains("MTO"), TEAM_startersresultaat_1_jaars) |>
+    select(contains("MWO"), TEAM_startersresultaat_1_jaars) |>
     correlate() |>
     select(term, TEAM_startersresultaat_1_jaars) |>
   filter(term != "TEAM_startersresultaat_1_jaars") |>
@@ -891,13 +877,13 @@ teams_2022 <- teams_selected %>%
 ```
 
 ```{r}
-#| label: mto_correlation_over_years_filter
+#| label: MWO_correlation_over_years_filter
 
-MTO_2_jaar <- full_join(teams_2020, teams_2022, by = "term", suffix = c("_2020", "_2022")) |>
+MWO_2_jaar <- full_join(teams_2020, teams_2022, by = "term", suffix = c("_2020", "_2022")) |>
     mutate(verschil = (TEAM_startersresultaat_1_jaars_2022 - TEAM_startersresultaat_1_jaars_2020),
            mean = rowMeans(across(contains("TEAM_startersresultaat_1_jaars"))))
 
-MTO_2_jaar_gefilterd <- MTO_2_jaar |>
+MWO_2_jaar_gefilterd <- MWO_2_jaar |>
     filter(abs(verschil) < abs(mean),
            abs(verschil) < abs(TEAM_startersresultaat_1_jaars_2022),
            abs(verschil) < abs(TEAM_startersresultaat_1_jaars_2020),
@@ -909,9 +895,9 @@ MTO_2_jaar_gefilterd <- MTO_2_jaar |>
 
 ```{r}
 
-test <- intersect(names(employees_satisfaction_2020), names(employees_satisfaction_2022)) %>% as_tibble_col()
-test_2020 <- setdiff(names(employees_satisfaction_2020), names(employees_satisfaction_2022)) %>% as_tibble_col()
-test_2022 <- setdiff(names(employees_satisfaction_2022), names(employees_satisfaction_2020)) %>% as_tibble_col()
+test <- intersect(names(employees_satisfaction_2020), names(employees_satisfaction_2022)) |> as_tibble_col()
+test_2020 <- setdiff(names(employees_satisfaction_2020), names(employees_satisfaction_2022)) |> as_tibble_col()
+test_2022 <- setdiff(names(employees_satisfaction_2022), names(employees_satisfaction_2020)) |> as_tibble_col()
 ```
 
 ## Kort verzuim
@@ -926,7 +912,7 @@ teams_selected <- readRDS(teams_selected_file_path)
 
 ```{r}
 
-teams_correlation_employee_absence_other <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", !matches("JOB|MTO"), filter_type = "outside")
+teams_correlation_employee_absence_other <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", !matches("JOB|MWO"), filter_type = "outside")
 
 ```
 
@@ -939,39 +925,371 @@ plot_teams_correlations(teams_correlation_employee_absence_other, "MEDEWERKER_ve
 We zien dat d
 
 ```{r}
-teams_correlation_employee_absence_MTO <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", matches("MTO"), filter_type = "outside")
+teams_correlation_employee_absence_MWO <- correlate_teams_and_filter(teams_selected, "MEDEWERKER_verzuim_pct_kort", matches("MWO"), filter_type = "outside")
+
+
+```
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MWO, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+```{r}
+teams_correlation_employee_absence_MWO_2022 <- correlate_teams_and_filter(teams_selected |> filter(COHORT_startjaar == 2022), "MEDEWERKER_verzuim_pct_kort", matches("MWO"), filter_type = "outside")
+
+```
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MWO_2022, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+```{r}
+teams_correlation_employee_absence_MWO_2020 <- correlate_teams_and_filter(teams_selected |> filter(COHORT_startjaar == 2020), "MEDEWERKER_verzuim_pct_kort", matches("MWO"), filter_type = "outside")
+
+```
+
+```{r}
+
+plot_teams_correlations(teams_correlation_employee_absence_MWO_2020, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+
+```
+
+## Vooropleiding
+
+
+```{r}
+
+student_prior_education_yearly <- ingest_students_prior_education()
+
+test4 <- student_prior_education_yearly |>
+    mutate(
+        DEELNEMER_vooropleiding_einddatum = as.Date(DEELNEMER_vooropleiding_einddatum, format = "%d-%m-%Y")
+    ) |>
+    filter(DEELNEMER_vooropleiding_hoogst_gediplomeerde == 1 |
+               DEELNEMER_vooropleiding_hoogst_genoten == 1 & DEELNEMER_vooropleiding_einddatum < as.Date("2025-01-01"))
+
+
+test5 <- student_prior_education_yearly %>%
+    mutate(
+        DEELNEMER_vooropleiding_einddatum = as.Date(DEELNEMER_vooropleiding_einddatum, format = "%d-%m-%Y")
+    ) %>%
+    filter(DEELNEMER_vooropleiding_einddatum < as.Date("2015-01-01")) %>%
+    count(DEELNEMER_vooropleiding_vooropleiding,
+          #DEELNEMER_vooropleiding_soort_naam,
+          DEELNEMER_vooropleiding_vooropleidings_categorie,
+          #DEELNEMER_vooropleiding_hoogst_gediplomeerde,
+          DEELNEMER_vooropleiding_diploma_behaald) %>%
+    #filter(str_detect(DEELNEMER_vooropleiding_vooropleidings_categorie, "MBO")) %>%
+    mutate(DEELNEMER_passend_niveau = case_when(
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO_BB" ~ 2,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO_KB" ~ 3,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO_GL" ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO_TL" ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBOTL" ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "HAVO" ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "MBO-1" ~ 2,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "MBO-2" ~ 3,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "MBO-3" ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "MBO-4" ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie %in% c("Basisonderwijs", "Basisvorming") &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "[Hh]avo|HAVO|[Vv]wo|VWO") ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie %in% c("Basisonderwijs", "Basisvorming") &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "MBO Niveau 2|Niet te achterhalen|Nog onbekend") ~ 2,
+        DEELNEMER_vooropleiding_vooropleidings_categorie %in% c("Basisonderwijs", "Basisvorming") ~ 1,
+        is.na(DEELNEMER_vooropleiding_vooropleidings_categorie) ~ 2,
+        DEELNEMER_vooropleiding_vooropleidings_categorie %in% c("Geen", "VSO", "VO") ~ 1,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO" &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "[Kk]ader") ~ 3,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO" &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "[Gg]emengd") ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO" &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "[Tt]heo") ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO" &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "[Bb]asis") ~ 2,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO" &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "4") ~ 4,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "VMBO" ~ 3,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "MBO12" &
+            str_detect(DEELNEMER_vooropleiding_vooropleiding, "1") ~ 2,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "MBO12" ~ 3,
+        DEELNEMER_vooropleiding_vooropleidings_categorie == "MBO34" ~ 4,
+        .default = 4
+    ))
+
+
+
+```
+
+Weinig verschil na nieuwe update, zoals Erik Bood al voorspelde.
+
+```{r}
+
+students_prior_education_old_file_path <- file.path(config::get("data_test_dir"), "students_prior_education_old.rds")
+
+students_prior_education_old <- readRDS(students_prior_education_old_file_path)
+
+student_years_prior_education_old_file_path <- file.path(config::get("data_test_dir"), "student_years_prior_education_old.rds")
+
+student_years_prior_education_old <- readRDS(student_years_prior_education_old_file_path)
+
+student_years_prior_education_expanded_old_file_path <- file.path(config::get("data_test_dir"), "student_years_prior_education_expanded_old.rds")
+
+student_years_prior_education_expanded_old <- readRDS(student_years_prior_education_expanded_old_file_path)
+
+
+```
+
+```{r}
+
+students_prior_education <- ingest_students_prior_education()
+
+student_years_prior_education_expanded <- students_prior_education |>
+    transform_prior_education_to_student_year() 
+
+student_years_prior_education <- student_years_prior_education_expanded |>
+    transform_prior_education_vo_and_highest_degree()
+
+
+
+```
+
+```{r}
+
+anti_final <- student_years_prior_education |>
+    anti_join(student_years_prior_education_old)
+
+anti_final_old <- student_years_prior_education_old |>
+    anti_join(student_years_prior_education)
+
+anti_join_both <- full_join(anti_final, anti_final_old, by = c("DEELNEMER_ID", "COHORT_naam"), suffix = c("_new", "_old"))
+
+anti_join_bind <- bind_rows(anti_final |> mutate(source = "new") |> select(source, everything()), 
+                            anti_final_old |> mutate(source = "old") |> select(source, everything())) |>
+    arrange(DEELNEMER_ID, COHORT_naam)
+
+
+```
+
+## Verbintenis begindatum
+
+```{r}
+
+enrollments_basics_file_path <- file.path(config::get("data_prepared_dir"), "enrollments_basics.rds")
+
+enrollments_basics <- readRDS(enrollments_basics_file_path)
+
+test <- enrollments_basics |>
+    mutate(VERBINTENIS_begindatum_verschil = VERBINTENIS_begindatum_eerst != VERBINTENIS_begindatum,
+           VERBINTENIS_einddatum_verschil = VERBINTENIS_einddatum_laatst != VERBINTENIS_einddatum,
+           VERBINTENIS_actief_op_1_okt_peildatum_verschil = VERBINTENIS_actief_op_1_okt_peildatum_laatst != VERBINTENIS_actief_op_1_okt_peildatum)
+    
+test2 <- test |>
+    count(VERBINTENIS_begindatum_verschil,
+          VERBINTENIS_einddatum_verschil,
+          VERBINTENIS_actief_op_1_okt_peildatum_verschil)
+
+test3 <- test |>
+    #filter(COHORT_ID == 40) |>
+    select(DEELNEMER_ID, 
+           COHORT_ID, 
+           VERBINTENIS_begindatum_verschil,
+           VERBINTENIS_begindatum,
+           VERBINTENIS_begindatum_eerst,
+           VERBINTENIS_einddatum,
+           VERBINTENIS_einddatum_laatst,
+           everything())
+    
+test5 <- enrollments_basics |>
+    group_by(DEELNEMER_ID) |>
+    mutate(test = min(VERBINTENIS_volgnummer) != max(VERBINTENIS_volgnummer)) |>
+    ungroup() |>
+    filter(test == TRUE)
+
+```
+
+Nu doen we het na 02_combined zodat we kunnen groeperen op bc codes
+
+```{r}
+
+enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
+                                                   "enrollments_combined_enriched.rds"))
+
+
+test_combined <- enrollments_combined_enriched |>
+    mutate(VERBINTENIS_begindatum_verschil = VERBINTENIS_begindatum_eerst != VERBINTENIS_begindatum,
+           VERBINTENIS_einddatum_verschil = VERBINTENIS_einddatum_laatst != VERBINTENIS_einddatum,
+           VERBINTENIS_actief_op_1_okt_peildatum_verschil = VERBINTENIS_actief_op_1_okt_peildatum_laatst != VERBINTENIS_actief_op_1_okt_peildatum)
+    
+test_combined2 <- test_combined |>
+    count(VERBINTENIS_begindatum_verschil,
+          VERBINTENIS_einddatum_verschil,
+          VERBINTENIS_actief_op_1_okt_peildatum_verschil)
+
+test_combined3 <- test_combined |>
+    #filter(COHORT_ID == 40) |>
+    select(DEELNEMER_ID, 
+           OPLEIDING_bc_code,
+           OPLEIDING_bc_label,
+           COHORT_ID, 
+           VERBINTENIS_actief_op_1_okt_peildatum_verschil,
+           VERBINTENIS_actief_op_1_okt_peildatum_laatst,
+           VERBINTENIS_begindatum_verschil,
+           VERBINTENIS_einddatum_verschil,
+           VERBINTENIS_actief_op_1_okt_peildatum_verschil,
+           VERBINTENIS_begindatum,
+           VERBINTENIS_begindatum_eerst,
+           VERBINTENIS_einddatum,
+           VERBINTENIS_einddatum_laatst,
+           everything()) |>
+    arrange(DEELNEMER_ID, OPLEIDING_bc_code)
+    
+test_combined5 <- enrollments_basics |>
+    group_by(DEELNEMER_ID) |>
+    mutate(test = min(VERBINTENIS_volgnummer) != max(VERBINTENIS_volgnummer)) |>
+    ungroup() |>
+    filter(test == TRUE)
+
+test_begin_datum <- test_combined |>
+    count(COHORT_ID, COHORT_naam, VERBINTENIS_begindatum_eerst)
+
+```
+
+## Filter verbintenissen
+
+```{r}
+
+enrollments_combined_filtered <- enrollments_combined_enriched |>
+        filter(COHORT_startjaar >= config::get("first_year") + 1, # Later on we want to calculate growth per year
+               COHORT_startjaar <= config::get("last_year"),
+               #month(VERBINTENIS_begindatum) == 8,
+               COHORT_start_datum + months(2) >= VERBINTENIS_begindatum,
+               COHORT_start_datum - months(10) < VERBINTENIS_begindatum,
+               VERBINTENIS_actief_op_1_okt_peildatum == TRUE,
+               VERBINTENIS_bekostigd == "Ja",
+               VERBINTENIS_intensiteit == "Voltijd",
+               VERBINTENIS_niveau %in% c("2", "3", "4")) |>
+        select(-VERBINTENIS_intensiteit)
+
+enrollments_combined_filtered_2 <- enrollments_combined_enriched |>
+        filter(VERBINTENIS_begindatum_eerst >= as.Date("2020-08-01"),
+               VERBINTENIS_begindatum_eerst < as.Date("2024-07-01"),
+               COHORT_startjaar >= config::get("first_year") + 1, # Later on we want to calculate growth per year
+               COHORT_startjaar <= config::get("last_year"),
+               #month(VERBINTENIS_begindatum) == 8,
+               #COHORT_start_datum + months(2) >= VERBINTENIS_begindatum_eerst,
+               #COHORT_start_datum - months(10) < VERBINTENIS_begindatum_eerst,
+               VERBINTENIS_actief_op_1_okt_peildatum_laatst == TRUE,
+               VERBINTENIS_bekostigd == "Ja",
+               VERBINTENIS_intensiteit == "Voltijd",
+               VERBINTENIS_niveau %in% c("2", "3", "4")) |>
+        select(-VERBINTENIS_intensiteit) |>
+    arrange(DEELNEMER_ID, OPLEIDING_bc_code, VERBINTENIS_begindatum) |>
+    distinct(DEELNEMER_ID, OPLEIDING_bc_code, .keep_all = TRUE) |>
+    mutate(COHORT_startjaar = if_else(month(VERBINTENIS_begindatum_eerst) %in% c(8, 9, 10, 11, 12),
+                                year(VERBINTENIS_begindatum_eerst),
+                                year(VERBINTENIS_begindatum_eerst) - 1))
+
+
+```
+
+## Teams
+
+Ik heb aantal verschillen berekent. Ik kom niet dichterbij het aantal studenten in de 'noemer' startersresultaat van Delphi.
+
+```{r}
+
+teams_file_path <- file.path(config::get("data_combined_dir"), "teams_combined_enriched.rds")
+
+teams <- readRDS(teams_file_path)
+
+test_teams <- teams |>
+    mutate(TEAM_verschil_aantal = TEAM_studenten_aantal - TEAM_aantal_eerstejaars) |>
+    filter(COHORT_naam != "2019/2020") |>
+    select(TEAM_naam, COHORT_startjaar, TEAM_verschil_aantal, TEAM_studenten_aantal, TEAM_aantal_eerstejaars)
+
+teams_enrollments <- enrollments_combined_filtered |>
+    count(TEAM_naam, COHORT_naam)
+
+teams_enrollments_2 <- enrollments_combined_filtered_2 |>
+    count(TEAM_naam, COHORT_startjaar)
+
+test_teams_2 <- test_teams |> full_join(teams_enrollments_2, by = c("TEAM_naam", "COHORT_startjaar")) |>
+    rename(TEAM_studenten_aantal_2 = n) |>
+    mutate(TEAM_verschil_aantal_2 = TEAM_studenten_aantal_2 - TEAM_aantal_eerstejaars) |>
+    select(
+        TEAM_naam,
+        COHORT_startjaar,
+        TEAM_verschil_aantal,
+        TEAM_verschil_aantal_2,
+        TEAM_studenten_aantal,
+        TEAM_studenten_aantal_2,
+        TEAM_aantal_eerstejaars
+    )
+
+
+```
+
+## Jaar- en diploma-resultaat test
+
+Jaar en dipoma resultaat.
+
+-   Jaar resultaat: https://www.informatie-encyclopedie.nl/indicator/ed395a2e-d2b7-42d1-b726-b1d091ca73f4
+
+    -   <https://www.informatie-encyclopedie.nl/populatie/05cf1d63-f77a-4187-90fa-a0a11eb539af>
+
+-   Diplomaresultaat: https://www.informatie-encyclopedie.nl/indicator/27693a2c-23ad-4d12-871b-10edecc4e6a4
+
+    -   Populatie: https://www.informatie-encyclopedie.nl/populatie/a01b2b0f-c574-4f62-9bfb-064b0406f8ca
+
+![](images/clipboard-110045707.png)
+
+Links is definitie populatie Diplomaresultaat en rechts jaarresultaat. Links staat dat zij-instromers niet in populatie zitten, rechts staat dat er ook studenten bij zitten die na 1 oktober zijn ingeschreven. Als ik vervolgens kijk welke opleidingen veel en weinig na-inschrijvingen hebben, dan lijkt dat best overeen te komen met welke opleidingen veel en weinig verschillen hebben tussen diploma en jaar noemer
+
+```{r}
+
+teams_aantallen <- teams |>
+    filter(COHORT_naam != "2019/2020") |>
+    select(TEAM_naam,
+           COHORT_naam,
+           TEAM_aantal_verlaters_diploma,
+           TEAM_aantal_verlaters_jaar) |>
+    mutate(Aantal_verschil = TEAM_aantal_verlaters_diploma - TEAM_aantal_verlaters_jaar)
+
+```
+
+```{r}
+
+noemer_test <- enrollments_combined_enriched |>
+    filter(COHORT_startjaar >= 2020,
+           COHORT_startjaar <= 2023) |>
+    filter(VERBINTENIS_niveau > 1) |>
+    count(TEAM_naam, COHORT_naam, VERBINTENIS_actief_op_1_okt_peildatum) |>
+        complete(
+        TEAM_naam, 
+        COHORT_naam,
+        VERBINTENIS_actief_op_1_okt_peildatum = c(TRUE, FALSE, NA),
+        fill = list(n = 0)
+    ) |>
+    filter(VERBINTENIS_actief_op_1_okt_peildatum %in% c(FALSE))
 
 
 ```
 
 
-```{r}
-
-plot_teams_correlations(teams_correlation_employee_absence_MTO, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
-
-```
-
-```{r}
-teams_correlation_employee_absence_MTO_2022 <- correlate_teams_and_filter(teams_selected %>% filter(COHORT_startjaar == 2022), "MEDEWERKER_verzuim_pct_kort", matches("MTO"), filter_type = "outside")
-
-```
-
+## Sport en bewegen
 
 ```{r}
 
-plot_teams_correlations(teams_correlation_employee_absence_MTO_2022, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+test <- enrollments_combined_filtered |>
+    filter(TEAM_naam_afk == "AELT") |>
+    count(OPLEIDING_naam, OPLEIDING_bc_label)
 
-```
-
-
-```{r}
-teams_correlation_employee_absence_MTO_2020 <- correlate_teams_and_filter(teams_selected %>% filter(COHORT_startjaar == 2020), "MEDEWERKER_verzuim_pct_kort", matches("MTO"), filter_type = "outside")
-
-```
-
-
-```{r}
-
-plot_teams_correlations(teams_correlation_employee_absence_MTO_2020, "MEDEWERKER_verzuim_pct_kort", "Hoge correlatie met Kort verzuim")
+test2 <- enrollments_combined_filtered |>
+    filter(TEAM_naam_afk == "ATRC") |>
+    count(TEAM_naam, OPLEIDING_naam, OPLEIDING_bc_label)
 
 ```
