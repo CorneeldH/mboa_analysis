@@ -7,7 +7,7 @@
 correlate_teams_and_filter(
   df,
   target_var,
-  cols = !matches("JOB|MTO"),
+  cols = !matches("JOB|MWO"),
   filter_type = c("none", "between", "outside"),
   correlation_limits = c(-0.3, 0.3),
   exclude_terms = c("MEDEWERKER_verzuim_kort", "MEDEWERKER_verzuim_kort_opgevuld",
