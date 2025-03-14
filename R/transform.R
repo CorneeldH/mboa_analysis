@@ -249,13 +249,26 @@ summarise_special_needs <- function(special_needs) {
 #' @importFrom dplyr group_by summarize rename mutate across starts_with
 #'
 #' @export
-summarise_observations_to_weekly_attendance <- function(attendance_observations) {
+summarise_observations_to_weekly_attendance <- function(attendance_observations, first_n_weeks = 14) {
 
     enrollment_weeks_attendance <- attendance_observations |>
         mutate(
             SCHOOLJAAR_naam = get_school_year(Datum),
-            VERBINTENIS_verzuim_week_nummer = paste0("week_", sprintf("%02d", isoweek(Datum)))
+            # Create a school week number starting from August 1st
+            school_start_date = as.Date(paste0(substr(SCHOOLJAAR_naam, 1, 4), "-08-01")),
+            school_start_week = isoweek(school_start_date),
+            week_number = isoweek(Datum),
+            # Calculate adjusted week number relative to school year start
+            adjusted_week = ifelse(
+                week_number >= school_start_week,
+                week_number - school_start_week + 1,
+                week_number + (52 - school_start_week) + 1
+            ),
+            # Create formatted week number for column names
+            VERBINTENIS_verzuim_week_nummer = paste0("week_", sprintf("%02d", adjusted_week))
         ) |>
+        # Only include the first n weeks of the school year
+        filter(adjusted_week <= first_n_weeks) |>
         group_by(VERBINTENIS_ID, SCHOOLJAAR_naam, VERBINTENIS_verzuim_week_nummer) |>
         summarise(
             # Binary indicators for Te laat and Uitgestuurd
@@ -703,7 +716,29 @@ transform_prior_education_vo_and_highest_degree <- function(student_prior_educat
         slice_max(DEELNEMER_vooropleiding_einddatum, n = 1) |>
         slice_tail(n = 1) |>
         ungroup() |>
-        select(-DEELNEMER_vooropleiding_einddatum)
+        select(-DEELNEMER_vooropleiding_einddatum) |>
+        mutate(DEELNEMER_vooropleiding_categorie = case_when(
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO_BB" ~ "VMBO_Basis",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" & str_detect(DEELNEMER_vooropleiding_hoogst, "[Bb]asis") ~ "VMBO_Basis",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO_KB" ~ "VMBO_Kader",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" & str_detect(DEELNEMER_vooropleiding_hoogst, "[Kk]ader") ~ "VMBO_Kader",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("VMBO_GL") ~ "VMBO_Gemengd",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" & str_detect(DEELNEMER_vooropleiding_hoogst, "[Gg]emengd") ~ "VMBO_Gemengd",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("VMBO_TL", "VMBOTL") ~ "VMBO_Theoretisch",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" & str_detect(DEELNEMER_vooropleiding_hoogst, "[Tt]heo") ~ "VMBO_Theoretisch",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("HAVO") ~ "HAVO",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("MBO-1") ~ "MBO1",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO12" & str_detect(DEELNEMER_vooropleiding_hoogst, "1") ~ "MBO1",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO12" ~ "MBO2",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "MBO-2" ~ "MBO2",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("MBO-3", "MBO-4", "MBO34") ~ "MBO34",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO" ~ "MBO34",
+            DEELNEMER_vooropleiding_hoogst == "Praktijkonderwijs" ~ "Praktijk",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("Basisonderwijs", "Basisvorming") & str_detect(DEELNEMER_vooropleiding_hoogst, "MBO Niveau 2|Niet te achterhalen|Nog onbekend") ~ "Basis",
+            DEELNEMER_vooropleiding_hoogste_diploma_soort %in% c("Basisonderwijs", "Basisvorming", "Geen", "VSO", "VO") ~ "Basis",
+            is.na(DEELNEMER_vooropleiding_hoogste_diploma_soort) ~ "Onbekend",
+            .default = "Overig"
+        ))
 
     start_kwalificatie <- student_prior_education_yearly_expanded |>
         group_by(DEELNEMER_ID, COHORT_naam) |>

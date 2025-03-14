@@ -209,10 +209,19 @@ attendance_observations_enriched <- attendance_observations |>
 ## Remove for freeing up memory
 rm(attendance_observations)
 
+## Yearly attendance data
 enrollment_years_attendance <- attendance_observations_enriched |>
     summarise_observations_to_yearly_attendance()
 
-print("Waarnemingen data succesvol ingeladen en getransformeerd naar schooljaar.")
+## Weekly attendance data - first 14 weeks of each school year
+enrollment_weeks_attendance <- attendance_observations_enriched |>
+    summarise_observations_to_weekly_attendance()
+
+## Transform weekly data to enrollment level with pivoted weeks
+enrollments_years_attendance_weekly <- enrollment_weeks_attendance |>
+    transform_attendance_weekly_to_enrollments()
+
+print("Waarnemingen data succesvol ingeladen en getransformeerd naar schooljaar en per week.")
 
 ```
 

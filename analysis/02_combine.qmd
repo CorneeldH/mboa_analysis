@@ -118,6 +118,9 @@ enrollments_combined  <- enrollments_extra_id_joins |>
           relationship = "many-to-one") |>
     left_join_load("enrollment_years_attendance",
               by = join_by(VERBINTENIS_ID, COHORT_naam == SCHOOLJAAR_naam),
+              relationship = "one-to-one") |>
+    left_join_load("enrollments_years_attendance_weekly",
+              by = join_by(VERBINTENIS_ID, COHORT_naam == SCHOOLJAAR_naam),
               relationship = "one-to-one")
 
 save_combined(enrollments_combined)
