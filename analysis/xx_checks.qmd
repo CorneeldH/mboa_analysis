@@ -1280,6 +1280,26 @@ noemer_test <- enrollments_combined_enriched |>
 ```
 
 
+
+## Ambtshalve uitschrijvingen
+```{r}
+
+enrollments_combined_enriched_ambt <- enrollments_combined_enriched %>%
+    filter(VERBINTENIS_reden_uitschrijving == "Ambtshalve") %>%
+    mutate(totale_duur_dagen = as.numeric(
+        difftime(
+            VERBINTENIS_einddatum,
+            VERBINTENIS_begindatum
+        ),
+        units = "days"
+    )) %>%
+    mutate(maand_uitschrijving = month(VERBINTENIS_einddatum))
+
+tabyl(enrollments_combined_enriched_ambt$maand_uitschrijving)
+tabyl(enrollments_combined_enriched_ambt$totale_duur_dagen) %>% arrange(desc(n)) %>% head(10)
+
+```
+
 ## Sport en bewegen
 
 ```{r}
@@ -1293,3 +1313,15 @@ test2 <- enrollments_combined_filtered |>
     count(TEAM_naam, OPLEIDING_naam, OPLEIDING_bc_label)
 
 ```
+
+## 
+
+
+```{r}
+
+
+
+
+
+```
+

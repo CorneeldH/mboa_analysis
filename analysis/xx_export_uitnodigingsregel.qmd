@@ -1,0 +1,272 @@
+---
+    title: "Export Uitnodigingsregel"
+---
+
+
+```{r}
+#| label: setup
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+load_all()
+
+```
+
+
+
+```{r}
+
+enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
+                                                   "enrollments_combined_enriched.rds"))
+
+```
+
+
+```{r}
+
+# Function to categorize reasons for leaving
+categorize_reasons <- function(reason) {
+    case_when(
+        # Persoonlijk, of tenminste niet instelling-gerelateerd (Personal reasons)
+        reason %in% c(
+            "Verhuizing/reistijd",
+            "Financi\xeble situatie",
+            "Niet verschenen",
+            "Verwijderd",
+            "Detentie"
+        ) ~ "Persoonsgebonden buiten invloed MBOA",
+        
+        reason %in% c(
+            "Persoonlijk functioneren",
+            "Persoonlijke omstandigheden",
+            "Leerproblemen/onvoldoende capaciteit",
+            "Onvoldoende taal/rekenen"
+            
+        ) ~ "Persoonsgebonden binnen invloed MBOA",
+        
+        # Werk (Work-related)
+        reason %in% c(
+            "Geen (erkend) leerbedrijf",
+            "Ontslag of POK be\xebindigd",
+            "Liever (fulltime) werken",
+            "Werk of stage past niet",
+            "Heeft arbeidsovereenkomst"
+        ) ~ "Arbeidsmarkt",
+        
+        # Organisatie (Organizational)
+        reason %in% c(
+            "Schoolorganisatie",
+            "Sociale/fysieke veiligheid",
+            "Huisvesting/voorzieningen",
+            "Onderwijs/didactiek",
+            "Onvoldoende begeleiding"
+        ) ~ "Instellingsgeboden",
+        
+        # Marketing (Expectations vs reality)
+        reason %in% c(
+            "Belangstelling andere opleiding/beroep",
+            "Verkeerd beroepsbeeld",
+            "Verkeerd opleidingsbeeld"
+        ) ~ "Studie en beroepskeuze",
+        
+        reason %in% c(
+            "No Show", 
+            "Ambtshalve"
+        ) ~ "Ambsthalve & No Show",
+        
+        reason %in% c(
+            "Keuzedeel toevoegen",
+            "DOORstroom: Organisatorisch",
+            "DOORstroom: Examenstudent",
+            "DOORstroom: Profiel => Uitstroomcrebo",
+            "DOORstroom:Verlenger/Vertrager"
+        ) ~ "Administratief",
+        
+        # Succes (Successful completion/progression)
+        reason %in% c(
+            "Certificaat",
+            "Diploma",
+            "Tweede diploma (in kalenderjaar)",
+            "Zonder diploma, wel succesvol"
+        ) ~ "Succes",
+        
+        is.na(reason) ~ "Nog steeds ingeschreven",
+        # Everything else goes to "Overig" (Other)
+        #  "Houding medewerkers",
+        # "Administratieve  fout"
+        #     "Persoonsgebonden",
+        # "Besluit Student zie documenten",
+        # "Te veel nevenactiviteiten",
+        # "Besluit Intake vlg Stamkaart",
+        TRUE ~ "Overig"
+    )
+}
+
+```
+
+```{r}
+
+enrollments_combined_enriched <- enrollments_combined_enriched %>%
+  mutate(
+    VERBINTENIS_reden_uitschrijving_categorie = categorize_reasons(VERBINTENIS_reden_uitschrijving)
+  )
+
+```
+
+```{r}
+
+enrollments_combined_enriched <- enrollments_combined_enriched %>%
+  # Create shortened names
+  mutate(
+    TEAM_naam_kort = case_when(
+      str_detect(TEAM_naam, "Beveiliging/Toezicht en Veiligheid") ~ "Beveiliging",
+      str_detect(TEAM_naam, "Kappersschool Amersfoort") ~ "Kapperschool",
+      str_detect(TEAM_naam, "Commercie en Evenementen") ~ "Commercie/Events",
+      str_detect(TEAM_naam, "Hotelschool Amersfoort") ~ "Hotelschool",
+      str_detect(TEAM_naam, "School voor Schoonheidsspecialisten") ~ "Schoonheid spec.",
+      str_detect(TEAM_naam, "School voor Toerisme & Management") ~ "Toerisme & Mgt",
+      str_detect(TEAM_naam, "Sportacademie Amersfoort") ~ "Sportacademie",
+      str_detect(TEAM_naam, "Financiële Beroepen") ~ "Fin. Beroepen",
+      str_detect(TEAM_naam, "MEI") ~ "MEI (Techniek)",
+      .default = TEAM_naam
+    ),
+    OPLEIDING_crebo = as.numeric(gsub("[^0-9]", "", OPLEIDING_code)),
+    # Handle potential NA values in creating shortened names
+    OPLEIDING_naam_kort = case_when(
+      is.na(OPLEIDING_naam) ~ "Onbekend",
+      is.na(OPLEIDING_crebo) ~ word(OPLEIDING_naam, 1),
+      TRUE ~ paste0(word(OPLEIDING_naam, 1), " (", OPLEIDING_crebo, ")")
+    ),
+    OPLEIDING_bc_label_kort = case_when(
+      is.na(OPLEIDING_bc_label) ~ "Onbekend",
+      is.na(OPLEIDING_bc_code) ~ word(OPLEIDING_bc_label, 3),
+      TRUE ~ paste0(word(OPLEIDING_bc_label, 3), " (", OPLEIDING_bc_code, ")")
+    )
+  )
+
+```
+
+
+
+```{r}
+
+# Group by student and BC code, then aggregate
+enrollments_combined_enriched <- enrollments_combined_enriched |>
+    # Sort by student ID and start date to get chronological order
+    arrange(DEELNEMER_ID, VERBINTENIS_begindatum) |>
+    # Group by student and BC code
+    group_by(DEELNEMER_ID, OPLEIDING_bc_label_kort) |>
+    mutate(
+        # Basic counts and details
+        aantal_inschrijvingen = n(),
+        DEELNEMER_BC_begindatum_eerst = min(VERBINTENIS_begindatum, na.rm = TRUE),
+        DEELNEMER_BC_einddatum_laatst = if_else(
+            is.na(max(VERBINTENIS_einddatum)),
+            max(as.Date(VERBINTENIS_geplande_einddatum, format = "%d-%m-%Y")),
+            max(VERBINTENIS_einddatum)
+        ),
+        
+        # Total duration in days across all enrollments with this BC code
+        DEELNEMER_BC_inschrijvingsduur = as.numeric(difftime(DEELNEMER_BC_einddatum_laatst, 
+                                                    DEELNEMER_BC_begindatum_eerst, 
+                                                    units = "days")),
+        
+        # Latest exit reason
+        laatste_uitstroomreden = last(VERBINTENIS_reden_uitschrijving),
+        laatste_uitstroomreden_categorie = last(VERBINTENIS_reden_uitschrijving_categorie),
+        
+        # Success indicators
+        DEELNEMER_BC_uitval = !(DEELNEMER_BC_inschrijvingsduur > 365 | laatste_uitstroomreden_categorie == "Succes")
+    ) %>%
+    ungroup()
+
+```
+
+```{r}
+
+
+enrollments_filtered <- enrollments_combined_enriched |>
+    filter(
+        DEELNEMER_BC_begindatum_eerst >= as.Date("2021-08-01", format = "%Y-%m-%d"),
+        DEELNEMER_BC_begindatum_eerst <= as.Date("2023-08-31", format = "%Y-%m-%d"),
+        month(VERBINTENIS_begindatum) == 8,
+        VERBINTENIS_bekostigd == "Ja",
+        VERBINTENIS_intensiteit == "Voltijd",
+        OPLEIDING_leerweg == "BOL"
+    ) |>
+    select(-VERBINTENIS_intensiteit, -VERBINTENIS_bekostigd)
+
+```
+
+```{r}
+
+## TODO DEELNEMER_postcode4, LOCATIE_naam
+
+enrollments_filtered_select <- enrollments_filtered |>
+    mutate(DEELNEMER_leeftijd = DEELNEMER_BC_begindatum_eerst - DEELNEMER_geboorte_jaarmaand, 
+           DEELNEMER_leeftijd = as.numeric(DEELNEMER_leeftijd, units = "days") / 365.25) |>
+    select(DEELNEMER_ID,
+           DEELNEMER_leeftijd,
+           DEELNEMER_BC_uitval,
+           DEELNEMER_geslacht,
+           DEELNEMER_BC_begindatum_eerst,
+           TEAM_naam_kort,
+           AANMELDING_begin_dagen_tot_start,
+           AANMELDING_afgerond_dagen_tot_start,
+           OPLEIDING_naam_kort,
+           OPLEIDING_bc_label_kort,
+           DEELNEMER_havo_vwo_is_gezakt,
+           VERBINTENIS_niveau,
+           AANMELDING_laatst_gewijzigd_datum,
+           DEELNEMER_BC_begindatum_eerst,
+           DEELNEMER_BC_einddatum_laatst,
+           DEELNEMER_BC_inschrijvingsduur,
+           matches("VERBINTENIS_waarneming_pct_ongeoorloofd_week"),
+           matches("VERBINTENIS_waarneming_pct_geoorloofd_week"),
+           DEELNEMER_vooropleiding_categorie,
+           DEELNEMER_passend_niveau,
+           DEELNEMER_plaatsing,
+           DEELNEMER_havo_vwo_is_gezakt,
+           start_kwalificatie
+           ) |>
+  mutate(across(where(is.logical), as.numeric))
+
+```
+
+```{r}
+#| label: export_uitnodigingsregel
+
+data_train <- enrollments_filtered_select %>%
+    filter(
+        DEELNEMER_BC_begindatum_eerst < as.Date("2023-08-01", format = "%Y-%m-%d"))
+
+data_pred <- enrollments_filtered_select %>%
+    filter(
+        DEELNEMER_BC_begindatum_eerst >= as.Date("2023-08-01", format = "%Y-%m-%d"))
+
+data_train_sport_4 <- enrollments_filtered_select %>%
+    filter(TEAM_naam_kort == "Sportacademie",
+           DEELNEMER_BC_begindatum_eerst < as.Date("2023-08-01", format = "%Y-%m-%d"),
+           VERBINTENIS_niveau == 4)
+
+data_pred_sport_4 <- enrollments_filtered_select %>%
+    filter(TEAM_naam_kort == "Sportacademie",
+           DEELNEMER_BC_begindatum_eerst >= as.Date("2023-08-01", format = "%Y-%m-%d"),
+           VERBINTENIS_niveau == 4)
+
+write_csv(data_train, file.path(config::get("data_analysed_dir"), "uitnodigingsregel_train.csv"))
+
+write_csv(data_pred, file.path(config::get("data_analysed_dir"), "uitnodigingsregel_pred.csv"))
+
+write_csv(data_train_sport_4, file.path(config::get("data_analysed_dir"), "uitnodigingsregel_train_sport_4.csv"))
+
+write_csv(data_pred_sport_4, file.path(config::get("data_analysed_dir"), "uitnodigingsregel_pred_sport_4.csv"))
+
+```
+

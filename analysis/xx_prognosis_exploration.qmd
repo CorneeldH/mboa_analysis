@@ -87,6 +87,35 @@ enrollments_combined_enriched <- enrollments_combined_enriched %>%
     )
   )
 
+enrollments_combined_enriched_filtered <- enrollments_combined_enriched_filtered %>%
+  # Create shortened names
+  mutate(
+    TEAM_naam_kort = case_when(
+      str_detect(TEAM_naam, "Beveiliging/Toezicht en Veiligheid") ~ "Beveiliging",
+      str_detect(TEAM_naam, "Kappersschool Amersfoort") ~ "Kapperschool",
+      str_detect(TEAM_naam, "Commercie en Evenementen") ~ "Commercie/Events",
+      str_detect(TEAM_naam, "Hotelschool Amersfoort") ~ "Hotelschool",
+      str_detect(TEAM_naam, "School voor Schoonheidsspecialisten") ~ "Schoonheid spec.",
+      str_detect(TEAM_naam, "School voor Toerisme & Management") ~ "Toerisme & Mgt",
+      str_detect(TEAM_naam, "Sportacademie Amersfoort") ~ "Sportacademie",
+      str_detect(TEAM_naam, "Financiële Beroepen") ~ "Fin. Beroepen",
+      str_detect(TEAM_naam, "MEI") ~ "MEI (Techniek)",
+      .default = TEAM_naam
+    ),
+    OPLEIDING_crebo = as.numeric(gsub("[^0-9]", "", OPLEIDING_code)),
+    # Handle potential NA values in creating shortened names
+    OPLEIDING_naam_kort = case_when(
+      is.na(OPLEIDING_naam) ~ "Onbekend",
+      is.na(OPLEIDING_crebo) ~ word(OPLEIDING_naam, 1),
+      TRUE ~ paste0(word(OPLEIDING_naam, 1), " (", OPLEIDING_crebo, ")")
+    ),
+    OPLEIDING_bc_label_kort = case_when(
+      is.na(OPLEIDING_bc_label) ~ "Onbekend",
+      is.na(OPLEIDING_bc_code) ~ word(OPLEIDING_bc_label, 3),
+      TRUE ~ paste0(word(OPLEIDING_bc_label, 3), " (", OPLEIDING_bc_code, ")")
+    )
+  )
+
 ```
 
 
@@ -169,24 +198,6 @@ categorize_reasons <- function(reason) {
 
 ```
 
-## Ambtshalve uitschrijvingen
-```{r}
-
-enrollments_combined_enriched_ambt <- enrollments_combined_enriched %>%
-    filter(VERBINTENIS_reden_uitschrijving == "Ambtshalve") %>%
-    mutate(totale_duur_dagen = as.numeric(
-        difftime(
-            VERBINTENIS_einddatum,
-            VERBINTENIS_begindatum
-        ),
-        units = "days"
-    )) %>%
-    mutate(maand_uitschrijving = month(VERBINTENIS_einddatum))
-
-tabyl(enrollments_combined_enriched_ambt$maand_uitschrijving)
-tabyl(enrollments_combined_enriched_ambt$totale_duur_dagen) %>% arrange(desc(n)) %>% head(10)
-
-```
 
 ## Redenen uitschrijving categorie
 
@@ -199,11 +210,17 @@ enrollments_combined_enriched <- enrollments_combined_enriched %>%
     VERBINTENIS_reden_uitschrijving_categorie = categorize_reasons(VERBINTENIS_reden_uitschrijving)
   )
 
+enrollments_combined_enriched_filtered <- enrollments_combined_enriched_filtered %>%
+  mutate(
+    VERBINTENIS_reden_uitschrijving_categorie = categorize_reasons(VERBINTENIS_reden_uitschrijving)
+  )
+
 ```
 
-
+## Visueel plot
     
 ```{r}
+#| label: reason-dropout-category-without-admin-plot
 enrollments_combined_enriched %>%
     filter(
         VERBINTENIS_reden_uitschrijving_categorie != "Nog steeds ingeschreven",
@@ -308,13 +325,79 @@ Hotelschool 2 bc-niveau, rest overig
 Zien bc 205 is goed en groot genoeg
 
 ## Routes
+
 ```{r}
 
 sport_students <- enrollments_combined_enriched |>
     filter(TEAM_naam == "Sportacademie Amersfoort",
            DEELNEMER_ID %in% enrollments_combined_enriched_filtered$DEELNEMER_ID)
            
+sport_students_admin <- sport_students |>
+    filter(VERBINTENIS_reden_uitschrijving_categorie == "Administratief")
+
 ```
+
+```{r}
+
+sport_students_filtered <- enrollments_combined_enriched_filtered |>
+    filter(TEAM_naam == "Sportacademie Amersfoort")
+
+sport_students_eerste_verbintenis <- sport_students_filtered |>
+    filter(DEELNEMER_ID %in% sport_students_admin$DEELNEMER_ID,
+           VERBINTENIS_begindatum_eerst == VERBINTENIS_begindatum) |>
+    mutate(VERBINTENIS_duur = as.numeric(difftime(VERBINTENIS_einddatum, 
+                                                  VERBINTENIS_begindatum, 
+                                                  units = "days")))
+## Minimaal 120 dagen
+tabyl(sport_students_eerste_verbintenis$VERBINTENIS_duur)
+
+```
+
+```{r}
+
+enrollments_combined_enriched_admin <- enrollments_combined_enriched |>
+    filter(VERBINTENIS_reden_uitschrijving_categorie == "Administratief")
+
+enrollments_combined_enriched_filtered_admin <- 
+    enrollments_combined_enriched_filtered |>
+    filter(DEELNEMER_ID %in% enrollments_combined_enriched_admin$DEELNEMER_ID,
+           VERBINTENIS_begindatum_eerst == VERBINTENIS_begindatum) |>
+    mutate(VERBINTENIS_duur = as.numeric(difftime(VERBINTENIS_einddatum, 
+                                                  VERBINTENIS_begindatum, 
+                                                  units = "days")))
+
+tabyl(enrollments_combined_enriched_filtered_admin$VERBINTENIS_duur)
+
+```
+
+## Eerste groep studenten
+
+Onder de 100 dagen (14 weken) zijn maar heel weinig studenten (minder dan 2.2%). Hierin zitten ook nog studenten die een andere opleiding zijn gaan doen, dus ik den dat we goed zitten.
+
+```{r}
+ggplot(enrollments_combined_enriched_filtered_admin, aes(x = VERBINTENIS_duur)) +
+    geom_histogram(binwidth = 30,
+                   fill = "steelblue",
+                   color = "white") +
+    geom_vline(xintercept = 100,
+               color = "red",
+               linetype = "dashed") +
+    labs(x = "Duur verbintenis (dagen)", y = "Aantal verbintenissen") +
+    theme_minimal()
+```
+Based on your request and the context, here's how to calculate the percentage of enrollment durations less than 100 days:
+
+```{r}
+enrollments_combined_enriched_filtered_admin %>%
+    summarise(
+        total_count = n(),
+        less_than_100 = sum(VERBINTENIS_duur < 100, na.rm = TRUE),
+        percentage = round(less_than_100 / total_count * 100, 1)
+    )
+``` 
+
+
+
 
 
 
@@ -487,6 +570,7 @@ student_routes_summary <- sport_students %>%
     laatste_uitschrijving = ifelse(is.na(laatste_uitschrijving), "Nog ingeschreven", 
                                   as.character(laatste_uitschrijving))
   )
+
 ```
 
 

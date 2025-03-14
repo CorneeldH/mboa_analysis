@@ -62,3 +62,30 @@ saveRDS(counts_students,
                   "counts_students.rds"))
 ```
 
+
+```{4}
+
+enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
+                                                   "enrollments_combined_enriched.rds"))
+
+```
+
+```{r}
+
+test <- enrollments_combined_enriched |>
+    filter(VERBINTENIS_begindatum < as.Date("2023-11-01"),
+           is.na(VERBINTENIS_einddatum) | VERBINTENIS_einddatum >= as.Date("2023-08-01")) |>
+    group_by(DEELNEMER_ID) |>
+    slice_head(n = 1) |>
+    ungroup()
+
+test3 <- test %>% 
+    filter(is.na(VERBINTENIS_groep_type_omschrijving.x)) %>%
+    tabyl(VERBINTENIS_groep_naam.x)
+       
+tabyl(test$VERBINTENIS_groep_type_omschrijving.x)
+
+test2 <- enrollments_combined_enriched %>%
+
+
+```
