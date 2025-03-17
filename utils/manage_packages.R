@@ -49,6 +49,21 @@ packages_cran <- c(
     "DT",             # Create display tables
     "forcats",       # Work with factors
 
+    "vip",            # Variable importance plots
+
+    # models
+    "ranger",
+    # tidymodels
+    "rsample",        # Create resamples
+    "parsnip",        # Create models
+    "recipes",        # Prepare data for modeling # check, step, fixed
+    "workflows",      # Create model workflows
+    "tune",           # Tune models
+    "yardstick",      # Evaluate models, # spec
+    "broom",          # Tidy model outputs
+    #"dials",          # Create tuning parameters
+
+
     #"LaF",            # Read data files without encoding (like ASCII)
     #"dataReporter",   # Create a data audit report
     # "rlang",          # Enable complex operations

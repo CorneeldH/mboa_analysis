@@ -37,6 +37,7 @@ data_sport_4 <- readRDS(file.path(config::get("data_analysed_dir"),
 
 # Edit the data
 data_sport_4_geprepareerd <- data_sport_4 |>
+    select(-matches("week")) |>
     # Imputate all numeric variables with the mean
     mutate(across(where(is.numeric), ~ ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))) |>
     # Convert character variables to factor
@@ -244,6 +245,7 @@ rf_res |>
                              "Configuratie"))
 
 ```
+
 ```{r}
 #| label: fig-rf-results
 #| fig-cap: "Model performance random forest"
