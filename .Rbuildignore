@@ -23,3 +23,7 @@
 
 # File types (using proper regex)
 \.(rds|quarto)$
+
+^CLAUDE.md
+^analysis$
+^shiny_apps$
