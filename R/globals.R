@@ -1,6 +1,11 @@
 
 utils::globalVariables(
     c(
+        # Model variables
+        ".estimate", ".metric", "Importance", "Variable", "avg_importance", 
+        "baseline", "group", "pct", "reorder", "tune", "ylim", "geom_vline",
+        "%+%",
+        
         # From add_grouped_enrollment_dates
         "OPLEIDING_bc_code",
 

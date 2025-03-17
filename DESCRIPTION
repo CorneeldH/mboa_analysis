@@ -21,6 +21,15 @@ Imports:
     cli,
     corrr,
     tidyselect,
-    ggplot2
+    ggplot2,
+    forcats,
+    parsnip,
+    recipes,
+    rsample,
+    tune,
+    vip,
+    workflows,
+    yardstick,
+    scales
 Suggests:
     testthat (>= 3.0.0)
