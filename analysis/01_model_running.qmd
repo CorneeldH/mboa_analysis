@@ -1,0 +1,216 @@
+---
+title: "Model Training and Evaluation"
+author: "MBOA Analysis Team"
+date: last-modified
+---
+
+```{r}
+#| label: setup
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+# Load all functions from the R package
+load_all()
+
+```
+
+## Introduction
+
+This document trains predictive models for student dropout across different educational programs and levels. The process includes:
+
+1. Loading prepared datasets from the previous step
+2. Training models for each program-level combination
+3. Evaluating model performance
+4. Saving trained models and metrics
+
+## Loading Prepared Data Information
+
+We first load the summary of prepared datasets created in the previous document.
+
+```{r}
+#| label: load-dataset-info
+
+# Load dataset summary
+dataset_summary_path <- file.path(config::get("modelled_dir"), "prepared", "dataset_summary.rds")
+
+if(file.exists(dataset_summary_path)) {
+  dataset_summary <- readRDS(dataset_summary_path)
+  
+  # Show dataset summary
+  cat("Found", nrow(dataset_summary), "prepared datasets\n")
+  print(knitr::kable(dataset_summary))
+  
+  # Filter for datasets with sufficient data
+  valid_datasets <- dataset_summary |>
+      ## TODO hard-coded, should be in config
+    filter(train_rows >= 50, test_rows >= 20) |>
+    pull(id)
+  
+  cat("\nSelected", length(valid_datasets), "datasets with sufficient data for modeling\n")
+} else {
+  # If summary not found, look for RDS files directly
+  prepared_files <- list.files(
+    file.path(config::get("modelled_dir"), "prepared"), 
+    pattern = ".rds$", 
+    full.names = FALSE
+  )
+  
+  # Filter out the summary file itself
+  prepared_files <- prepared_files[prepared_files != "dataset_summary.rds"]
+  
+  cat("Found", length(prepared_files), "prepared dataset files directly\n")
+  valid_datasets <- gsub(".rds$", "", prepared_files)
+}
+```
+
+## Model Training Function
+
+We'll define a helper function to train models for each dataset.
+
+```{r}
+#| label: define-training-function
+
+train_model_for_dataset <- function(dataset_id, model_type = "random_forest") {
+  cat("\nTraining model for:", dataset_id, "\n")
+  
+  # Load prepared data
+  data_path <- file.path(config::get("modelled_dir"), "prepared", paste0(dataset_id, "_cohort2023.rds"))
+  
+  if(!file.exists(data_path)) {
+    cat("  ERROR: Data file not found:", data_path, "\n")
+    return(NULL)
+  }
+  
+  # Load the data
+  prepared_data <- readRDS(data_path)
+  
+  # Check if data has sufficient rows
+  ## TODO again hard-coded values
+  if(nrow(prepared_data$train) < 50 || nrow(prepared_data$test) < 20) {
+    cat("  SKIPPING: Insufficient data (train:", nrow(prepared_data$train), 
+        ", test:", nrow(prepared_data$test), ")\n")
+    return(NULL)
+  }
+  
+  # Check class balance
+  class_counts <- table(prepared_data$train$DEELNEMER_BC_uitval)
+  min_class_count <- min(class_counts)
+  
+  ## TODO hard-coded values, should be in config
+  if(min_class_count < 5) {
+    cat("  SKIPPING: Insufficient samples in minority class (", 
+        names(class_counts)[which.min(class_counts)], ":", min_class_count, ")\n")
+    return(NULL)
+  }
+  
+  # Run the model
+  tryCatch({
+    model_results <- run_model(
+      data_list = prepared_data,
+      model_type = model_type,
+      grid_size = 20,
+      n_folds = 5,
+      save = TRUE
+    )
+    
+    cat("  SUCCESS: Model trained successfully\n")
+    
+    # Return results
+    return(model_results)
+    
+  }, error = function(e) {
+    cat("  ERROR: Model training failed:", e$message, "\n")
+    return(NULL)
+  })
+}
+```
+
+## Training Individual Program-Level Models
+
+Now we'll train models for each individual program-level combination.
+
+```{r}
+#| label: train-program-level-models
+
+# Initialize results list
+model_results_list <- list()
+
+# Train models for each valid dataset (excluding the all-programs model)
+individual_datasets <- valid_datasets[valid_datasets != all_programs_id]
+
+## TODO for testing, limit to first two datasets, should be in config
+individual_datasets <- individual_datasets[1:2]
+
+for(dataset_id in individual_datasets) {
+  # Train model for this dataset
+  model_result <- train_model_for_dataset(dataset_id)
+  
+  # Store result if successful
+  if(!is.null(model_result)) {
+    model_results_list[[dataset_id]] <- model_result
+  }
+}
+
+# Summarize results
+cat("\nSuccessfully trained", length(model_results_list), "individual models\n")
+```
+
+## Model Performance Summary
+
+Let's create a summary of model performance across all trained models.
+
+```{r}
+#| label: model-performance-summary
+
+# Create a performance summary dataframe
+performance_summary <- data.frame()
+
+# Add all-programs model if available
+if(exists("all_model") && !is.null(all_model)) {
+  all_metrics <- all_model$metrics |>
+    mutate(dataset_id = all_programs_id)
+  
+  performance_summary <- bind_rows(performance_summary, all_metrics)
+}
+
+# Add individual model metrics
+for(dataset_id in names(model_results_list)) {
+  if(!is.null(model_results_list[[dataset_id]]$metrics)) {
+    metrics <- model_results_list[[dataset_id]]$metrics |>
+      mutate(dataset_id = dataset_id)
+    
+    performance_summary <- bind_rows(performance_summary, metrics)
+  }
+}
+
+# Format and display the summary
+if(nrow(performance_summary) > 0) {
+  # Reformat the summary for display
+  performance_display <- performance_summary |>
+    select(dataset_id, .metric, .estimate) |>
+    pivot_wider(
+      names_from = .metric,
+      values_from = .estimate
+    ) |>
+    arrange(desc(roc_auc))
+  
+  # Save performance summary
+  saveRDS(performance_summary, 
+          file.path(config::get("modelled_dir"), "run", "metrics", "performance_summary.rds"))
+  
+  # Display summary
+  cat("\nModel Performance Summary (sorted by ROC AUC):\n")
+  print(knitr::kable(performance_display, digits = 4))
+} else {
+  cat("\nNo model performance metrics available.\n")
+}
+```
+
+## Next Steps
+
+The trained models and their performance metrics are now saved in the `data/modelled/run` directory. In the next document, we'll interpret these models to understand the most important factors influencing student dropout.

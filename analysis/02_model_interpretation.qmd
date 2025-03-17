@@ -1,0 +1,351 @@
+---
+title: "Model Interpretation"
+author: "MBOA Analysis Team"
+date: last-modified
+---
+
+```{r}
+#| label: setup
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+# Load all functions from the R package
+load_all()
+
+```
+
+## Introduction
+
+This document interprets the predictive models for student dropout that were trained in the previous document. We'll analyze:
+
+1. Variable importance across different models
+2. Model performance comparison
+3. Key factors influencing student dropout
+4. Program-specific insights
+
+## Loading Model Results
+
+First, we'll load the trained models and their performance metrics.
+
+```{r}
+#| label: load-model-results
+
+# Get list of model files
+models_dir <- file.path(config::get("modelled_dir"), "run", "models")
+metrics_dir <- file.path(config::get("modelled_dir"), "run", "metrics")
+
+model_files <- list.files(models_dir, pattern = ".rds$", full.names = TRUE)
+metrics_files <- list.files(metrics_dir, pattern = ".rds$", full.names = TRUE)
+
+# Load performance summary if available
+performance_summary_path <- file.path(metrics_dir, "performance_summary.rds")
+if(file.exists(performance_summary_path)) {
+  performance_summary <- readRDS(performance_summary_path)
+  
+  # Create a display version of the summary
+  performance_display <- performance_summary |>
+    select(dataset_id, .metric, .estimate) |>
+    pivot_wider(
+      names_from = .metric,
+      values_from = .estimate
+    ) |>
+    arrange(desc(roc_auc))
+  
+  cat("Loaded performance summary for", n_distinct(performance_summary$dataset_id), "models\n")
+  print(knitr::kable(performance_display, digits = 4))
+} else {
+  cat("Performance summary not found. Loading individual metrics files...\n")
+  
+  # Load individual metrics files
+  performance_summary <- data.frame()
+  
+  for(metrics_file in metrics_files) {
+    # Skip the summary file itself
+    if(basename(metrics_file) == "performance_summary.rds") {
+      next
+    }
+    
+    # Load metrics
+    metrics <- readRDS(metrics_file)
+    
+    # Extract dataset ID from filename
+    dataset_id <- gsub("_metrics.rds$", "", basename(metrics_file))
+    
+    # Add to summary
+    if(!is.null(metrics$metrics)) {
+      metrics_df <- metrics$metrics |>
+        mutate(dataset_id = dataset_id)
+      
+      performance_summary <- bind_rows(performance_summary, metrics_df)
+    }
+  }
+  
+  if(nrow(performance_summary) > 0) {
+    # Create a display version of the summary
+    performance_display <- performance_summary |>
+      select(dataset_id, .metric, .estimate) |>
+      pivot_wider(
+        names_from = .metric,
+        values_from = .estimate
+      ) |>
+      arrange(desc(roc_auc))
+    
+    cat("Loaded metrics for", n_distinct(performance_summary$dataset_id), "models\n")
+    print(knitr::kable(performance_display, digits = 4))
+  } else {
+    cat("No model metrics found.\n")
+  }
+}
+```
+
+## Interpreting Selected Models
+
+We'll interpret the top-performing models to understand important factors.
+
+```{r}
+#| label: interpret-models
+
+# Initialize results list
+interpretation_results <- list()
+
+# Select top models to interpret
+if(exists("performance_display") && nrow(performance_display) > 0) {
+  # Select top 5 models or all if fewer
+  top_models <- head(performance_display$dataset_id, min(5, nrow(performance_display)))
+  
+  for(model_id in top_models) {
+    cat("\nInterpreting model:", model_id, "\n")
+    
+    # Load model file
+    model_path <- file.path(models_dir, paste0(model_id, "_model.rds"))
+    
+    if(file.exists(model_path)) {
+      # Load the model
+      model <- readRDS(model_path)
+      
+      # Get metrics
+      model_metrics <- performance_summary |>
+        filter(dataset_id == model_id)
+      
+      # Create model results structure expected by interpret_model function
+      model_results <- list(
+        final_model = model$.workflow[[1]],  # Extract the actual workflow from the last_fit object
+        metrics = model_metrics,
+        filter_info = list(
+          program = gsub("_level.*$", "", model_id),
+          level = gsub("^.*_level([0-9]+).*$", "\\1", model_id)
+        )
+      )
+      
+      # Run interpretation
+      tryCatch({
+        interpretation <- interpret_model(
+          model_results = model_results,
+          n_vars = 15,
+          save = TRUE
+        )
+        
+        # Store in results list
+        interpretation_results[[model_id]] <- interpretation
+        
+        # Display variable importance
+        if(!is.null(interpretation$variable_importance) && nrow(interpretation$variable_importance) > 0) {
+          cat("  Top important variables:\n")
+          print(knitr::kable(head(interpretation$variable_importance, 10)))
+        } else {
+          cat("  No variable importance available.\n")
+        }
+        
+      }, error = function(e) {
+        cat("  ERROR interpreting model:", e$message, "\n")
+      })
+    } else {
+      cat("  Model file not found:", model_path, "\n")
+    }
+  }
+  
+  # Save all interpretation results
+  if(length(interpretation_results) > 0) {
+    saveRDS(interpretation_results, 
+            file.path(config::get("modelled_dir"), "interpreted", "all_interpretations.rds"))
+    
+    cat("\nSaved interpretations for", length(interpretation_results), "models\n")
+  }
+} else {
+  cat("No models available for interpretation.\n")
+}
+```
+
+## Variable Importance Across Models
+
+We'll compare variable importance across different models to identify consistent patterns.
+
+```{r}
+#| label: compare-importance
+
+if(length(interpretation_results) >= 2) {
+  # Compare importance across models
+  importance_comparison <- compare_group_importance(
+    interpretation_list = interpretation_results,
+    n_vars = 15,
+    save = TRUE
+  )
+  
+  # Display comparison
+  if(!is.null(importance_comparison) && nrow(importance_comparison) > 0) {
+    cat("\nVariable importance comparison across models:\n")
+    print(knitr::kable(importance_comparison, digits = 4))
+    
+    # Create a long format for visualization
+    importance_long <- importance_comparison |>
+      pivot_longer(
+        cols = -Variable,
+        names_to = "model",
+        values_to = "importance"
+      ) |>
+      mutate(
+        Variable = forcats::fct_reorder(Variable, importance, .fun = mean, na.rm = TRUE),
+        importance = replace_na(importance, 0)
+      )
+    
+    # Plot comparison
+    p <- ggplot(importance_long, aes(x = Variable, y = importance, fill = model)) +
+      geom_col(position = "dodge") +
+      coord_flip() +
+      labs(
+        title = "Variable Importance Comparison Across Models",
+        x = NULL,
+        y = "Importance"
+      ) +
+      theme_minimal() +
+      theme(legend.position = "bottom")
+    
+    print(p)
+    
+    # Save plot
+    ggsave(
+      file.path(config::get("modelled_dir"), "interpreted", "visualizations", "importance_comparison.png"),
+      p,
+      width = 10,
+      height = 8
+    )
+  } else {
+    cat("\nNo variable importance comparison available.\n")
+  }
+} else {
+  cat("\nNeed at least 2 models for comparison. Skipping.\n")
+}
+```
+
+## Model Performance Comparison
+
+Let's compare performance metrics across different models.
+
+```{r}
+#| label: compare-performance
+
+if(exists("performance_display") && nrow(performance_display) > 0) {
+  # Calculate baseline accuracy for each model
+  baseline_accuracies <- data.frame()
+  
+  for(model_id in performance_display$dataset_id) {
+    # Try to load the original data
+    data_path <- file.path(config::get("modelled_dir"), "prepared", paste0(model_id, ".rds"))
+    
+    if(file.exists(data_path)) {
+      # Load the data
+      prepared_data <- readRDS(data_path)
+      
+      if(!is.null(prepared_data$test) && nrow(prepared_data$test) > 0) {
+        # Calculate baseline accuracy
+        class_counts <- table(prepared_data$test$DEELNEMER_BC_uitval)
+        baseline_acc <- max(class_counts) / sum(class_counts)
+        
+        baseline_accuracies <- rbind(
+          baseline_accuracies,
+          data.frame(
+            dataset_id = model_id,
+            baseline_accuracy = baseline_acc,
+            majority_class = names(class_counts)[which.max(class_counts)]
+          )
+        )
+      }
+    }
+  }
+  
+  # Join with performance data
+  if(nrow(baseline_accuracies) > 0) {
+    performance_with_baseline <- performance_display |>
+      left_join(baseline_accuracies, by = "dataset_id") |>
+      mutate(
+        accuracy_gain = accuracy - baseline_accuracy,
+        relative_improvement = (accuracy / baseline_accuracy) - 1
+      )
+    
+    # Display performance with baseline
+    cat("\nModel performance compared to baseline:\n")
+    print(knitr::kable(
+      performance_with_baseline |> 
+        select(dataset_id, accuracy, baseline_accuracy, accuracy_gain, relative_improvement, roc_auc) |>
+        arrange(desc(accuracy_gain)),
+      digits = 4
+    ))
+    
+    # Plot performance comparison
+    p <- ggplot(performance_with_baseline, aes(x = reorder(dataset_id, accuracy_gain))) +
+      geom_col(aes(y = baseline_accuracy), fill = "grey80") +
+      geom_col(aes(y = accuracy), fill = "steelblue", alpha = 0.7) +
+      geom_text(aes(y = accuracy, label = scales::percent(accuracy, accuracy = 0.1)), 
+                hjust = -0.2) +
+      coord_flip() +
+      labs(
+        title = "Model Accuracy vs. Baseline",
+        x = NULL,
+        y = "Accuracy"
+      ) +
+      theme_minimal() +
+      ylim(0, max(1, max(performance_with_baseline$accuracy) * 1.2))
+    
+    print(p)
+    
+    # Save plot
+    ggsave(
+      file.path(config::get("modelled_dir"), "interpreted", "visualizations", "accuracy_comparison.png"),
+      p,
+      width = 10,
+      height = 8
+    )
+  }
+}
+```
+
+## Key Insights and Recommendations
+
+Based on our model interpretations, we can identify several key factors that influence student dropout.
+
+```{r}
+#| label: key-insights
+
+# Identify top variables across all models
+if(exists("importance_comparison") && !is.null(importance_comparison) && nrow(importance_comparison) > 0) {
+  # Calculate average importance across models
+  top_vars <- importance_comparison |>
+    rowwise() |>
+    mutate(mean_importance = mean(c_across(-Variable), na.rm = TRUE)) |>
+    ungroup() |>
+    arrange(desc(mean_importance)) |>
+    head(10)
+  
+  cat("\nTop 10 variables influencing student dropout across all models:\n")
+  print(knitr::kable(select(top_vars, Variable, mean_importance), digits = 4))
+}
+```
+
+## Next Steps
+
+The model interpretations and visualizations are now saved in the `data/modelled/interpreted` directory. In the next document, we'll create a summary dashboard of our findings.

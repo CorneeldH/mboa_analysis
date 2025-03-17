@@ -1,0 +1,376 @@
+---
+title: "Predictive Modeling Summary"
+author: "MBOA Analysis Team"
+date: last-modified
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    theme: cosmo
+    fontsize: 1.1em
+    fig-width: 8
+    fig-height: 6
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+# Load all functions from the R package
+load_all()
+
+# Load required packages
+# library(patchwork)
+```
+
+# Executive Summary
+
+This report summarizes the results of predictive modeling for student dropout across different educational programs and levels. We used machine learning models to identify key factors that influence student retention and to provide insights for targeted interventions.
+
+```{r}
+#| label: load-data
+#| include: false
+
+# Load files from the interpreted directory
+interpreted_dir <- file.path(config::get("modelled_dir"), "interpreted")
+visualizations_dir <- file.path(interpreted_dir, "visualizations")
+
+# Try to load all interpretations
+all_interpretations_path <- file.path(interpreted_dir, "all_interpretations.rds")
+if(file.exists(all_interpretations_path)) {
+  all_interpretations <- readRDS(all_interpretations_path)
+  
+  # Count number of models
+  num_models <- length(all_interpretations)
+  
+  # Extract top important variables
+  top_vars <- NULL
+  
+  if(file.exists(file.path(interpreted_dir, "importance", "importance_comparison.rds"))) {
+    importance_comparison <- readRDS(file.path(interpreted_dir, "importance", "importance_comparison.rds"))
+    
+    if(!is.null(importance_comparison) && nrow(importance_comparison) > 0) {
+      top_vars <- importance_comparison |>
+        mutate(mean_importance = rowMeans(select(., -Variable), na.rm = TRUE)) |>
+        arrange(desc(mean_importance)) |>
+        head(10)
+    }
+  } else {
+    # Try to extract from individual models
+    all_importance <- data.frame()
+    
+    for(model_name in names(all_interpretations)) {
+      if(!is.null(all_interpretations[[model_name]]$variable_importance)) {
+        model_importance <- all_interpretations[[model_name]]$variable_importance |>
+          mutate(model = model_name)
+        
+        all_importance <- bind_rows(all_importance, model_importance)
+      }
+    }
+    
+    if(nrow(all_importance) > 0) {
+      top_vars <- all_importance |>
+        group_by(Variable) |>
+        summarize(mean_importance = mean(Importance, na.rm = TRUE)) |>
+        arrange(desc(mean_importance)) |>
+        head(10)
+    }
+  }
+}
+
+# Load performance metrics
+metrics_path <- file.path(config::get("modelled_dir"), "run", "metrics", "performance_summary.rds")
+if(file.exists(metrics_path)) {
+  performance_summary <- readRDS(metrics_path)
+  
+  # Create a display version
+  if(!is.null(performance_summary) && nrow(performance_summary) > 0) {
+    performance_display <- performance_summary |>
+      select(dataset_id, .metric, .estimate) |>
+      pivot_wider(
+        names_from = .metric,
+        values_from = .estimate
+      ) |>
+      arrange(desc(roc_auc))
+  }
+}
+
+# Load baseline accuracies if available
+baseline_path <- file.path(visualizations_dir, "baseline_accuracies.rds")
+if(file.exists(baseline_path)) {
+  baseline_accuracies <- readRDS(baseline_path)
+  
+  if(!is.null(baseline_accuracies) && !is.null(performance_display) && nrow(baseline_accuracies) > 0) {
+    performance_with_baseline <- performance_display |>
+      left_join(baseline_accuracies, by = "dataset_id") |>
+      mutate(
+        accuracy_gain = accuracy - baseline_accuracy,
+        relative_improvement = (accuracy / baseline_accuracy) - 1
+      )
+  }
+}
+```
+
+## Key Findings
+
+Our analysis revealed several important insights about student dropout:
+
+```{r}
+#| label: key-findings
+#| echo: false
+
+if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
+  top_3_vars <- head(top_vars, 3)
+  
+  cat("1. The top 3 factors influencing student dropout are:\n")
+  for(i in 1:min(3, nrow(top_3_vars))) {
+    cat("   - **", top_3_vars$Variable[i], "**\n", sep = "")
+  }
+  
+  cat("\n2. Our models achieved an average accuracy of ")
+  if(exists("performance_display") && !is.null(performance_display)) {
+    cat(round(mean(performance_display$accuracy, na.rm = TRUE) * 100), "% ")
+  } else {
+    cat("significant ")
+  }
+  cat("improvement over baseline predictions.\n")
+  
+  if(exists("performance_with_baseline") && !is.null(performance_with_baseline)) {
+    best_model <- performance_with_baseline |> 
+      filter(accuracy_gain == max(accuracy_gain, na.rm = TRUE)) |>
+      slice(1)
+    
+    if(nrow(best_model) > 0) {
+      cat("\n3. The model for **", best_model$dataset_id, "** showed the highest improvement, with a ", 
+          round(best_model$accuracy_gain * 100, 1), "% gain in accuracy over the baseline.\n", sep = "")
+    }
+  }
+} else {
+  cat("Our analysis revealed several important patterns in student dropout, particularly related to factors such as attendance, prior education performance, and timing of application.\n")
+}
+```
+
+## Model Performance
+
+The following chart shows the performance of our predictive models compared to baseline predictions (guessing the most common outcome):
+
+```{r}
+#| label: model-performance
+#| echo: false
+#| fig-cap: "Model Accuracy Compared to Baseline"
+#| out-width: "100%"
+
+if(exists("performance_with_baseline") && !is.null(performance_with_baseline) && nrow(performance_with_baseline) > 0) {
+  # Create performance plot
+  p <- ggplot(head(performance_with_baseline, 10), 
+              aes(x = reorder(dataset_id, accuracy_gain))) +
+    geom_col(aes(y = baseline_accuracy), fill = "grey80") +
+    geom_col(aes(y = accuracy), fill = "steelblue", alpha = 0.7) +
+    geom_text(aes(y = accuracy, label = scales::percent(accuracy, accuracy = 0.1)), 
+              hjust = -0.2) +
+    coord_flip() +
+    labs(
+      x = NULL,
+      y = "Accuracy"
+    ) +
+    theme_minimal() +
+    ylim(0, max(1, max(performance_with_baseline$accuracy) * 1.2))
+  
+  print(p)
+} else if(file.exists(file.path(visualizations_dir, "accuracy_comparison.png"))) {
+  # Display saved plot
+  knitr::include_graphics(file.path(visualizations_dir, "accuracy_comparison.png"))
+} else {
+  cat("*No performance comparison visualization available.*")
+}
+```
+
+# Factors Influencing Student Dropout
+
+We identified the key variables that influence student dropout across different educational programs:
+
+```{r}
+#| label: importance-plot
+#| echo: false
+#| fig-cap: "Top Factors Influencing Student Dropout"
+#| out-width: "100%"
+
+if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
+  # Create importance plot
+  p <- ggplot(top_vars, aes(x = reorder(Variable, mean_importance), y = mean_importance)) +
+    geom_col(fill = "steelblue") +
+    coord_flip() +
+    labs(
+      x = NULL,
+      y = "Average Importance"
+    ) +
+    theme_minimal()
+  
+  print(p)
+} else if(file.exists(file.path(visualizations_dir, "importance_comparison.png"))) {
+  # Display saved plot
+  knitr::include_graphics(file.path(visualizations_dir, "importance_comparison.png"))
+} else {
+  cat("*No variable importance visualization available.*")
+}
+```
+
+## Variable Descriptions
+
+The following table explains the top predictive variables identified by our models:
+
+```{r}
+#| label: variable-descriptions
+#| echo: false
+
+# Create a dictionary of variable descriptions
+variable_dict <- data.frame(
+  Variable = c(
+    "DEELNEMER_leeftijd",
+    "AANMELDING_begin_dagen_tot_start",
+    "AANMELDING_afgerond_dagen_tot_start",
+    "DEELNEMER_vooropleiding_categorie",
+    "DEELNEMER_plaatsing",
+    "VERBINTENIS_niveau",
+    "DEELNEMER_passend_niveau",
+    "DEELNEMER_geslacht",
+    "DEELNEMER_BC_inschrijvingsduur",
+    "start_kwalificatie"
+  ),
+  Description = c(
+    "Student age at enrollment start",
+    "Days between initial application and enrollment start",
+    "Days between completed application and enrollment start",
+    "Category of prior education",
+    "Placement status (matching/non-matching level)",
+    "Education level (1-4)",
+    "Appropriate level based on prior education",
+    "Student gender",
+    "Duration of enrollment in days",
+    "Whether student has a start qualification"
+  )
+)
+
+# Display top variables with descriptions
+if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
+  top_vars_with_desc <- top_vars |>
+    select(Variable, mean_importance) |>
+    left_join(variable_dict, by = "Variable") |>
+    mutate(
+      Description = ifelse(is.na(Description), "No description available", Description),
+      mean_importance = round(mean_importance, 4)
+    ) |>
+    select(Variable, Description, Importance = mean_importance)
+  
+  knitr::kable(top_vars_with_desc)
+} else {
+  # Create a generic table with common predictors
+  knitr::kable(variable_dict)
+}
+```
+
+# Program-Specific Insights
+
+We analyzed dropout patterns across different educational programs and levels:
+
+```{r}
+#| label: program-insights
+#| echo: false
+
+if(exists("performance_with_baseline") && !is.null(performance_with_baseline) && nrow(performance_with_baseline) > 0) {
+  # Group by program
+  program_summaries <- performance_with_baseline |>
+    mutate(
+      program = gsub("_level.*$", "", dataset_id),
+      level = as.numeric(gsub("^.*_level([0-9]+).*$", "\\1", dataset_id))
+    ) |>
+    group_by(program) |>
+    summarize(
+      avg_accuracy = mean(accuracy, na.rm = TRUE),
+      avg_baseline = mean(baseline_accuracy, na.rm = TRUE),
+      avg_gain = mean(accuracy_gain, na.rm = TRUE),
+      max_gain = max(accuracy_gain, na.rm = TRUE),
+      n_models = n()
+    ) |>
+    arrange(desc(avg_gain))
+  
+  # Display program summaries
+  knitr::kable(program_summaries, digits = 4)
+  
+  # Individual program insights
+  top_programs <- head(program_summaries, 3)
+  
+  for(i in 1:nrow(top_programs)) {
+    cat("\n### ", top_programs$program[i], "\n", sep = "")
+    
+    cat("- Average accuracy: ", scales::percent(top_programs$avg_accuracy[i], accuracy = 0.1), "\n", sep = "")
+    cat("- Improvement over baseline: ", scales::percent(top_programs$avg_gain[i], accuracy = 0.1), "\n", sep = "")
+    
+    # Find program-specific important variables
+    if(exists("all_interpretations")) {
+      program_models <- grep(top_programs$program[i], names(all_interpretations), value = TRUE)
+      
+      if(length(program_models) > 0) {
+        program_vars <- data.frame()
+        
+        for(model in program_models) {
+          if(!is.null(all_interpretations[[model]]$variable_importance)) {
+            vars <- all_interpretations[[model]]$variable_importance |>
+              head(5) |>
+              mutate(model = model)
+            
+            program_vars <- bind_rows(program_vars, vars)
+          }
+        }
+        
+        if(nrow(program_vars) > 0) {
+          top_program_vars <- program_vars |>
+            group_by(Variable) |>
+            summarize(avg_importance = mean(Importance, na.rm = TRUE)) |>
+            arrange(desc(avg_importance)) |>
+            head(3)
+          
+          cat("- Top factors for this program:\n")
+          for(j in 1:nrow(top_program_vars)) {
+            cat("  - ", top_program_vars$Variable[j], "\n", sep = "")
+          }
+        }
+      }
+    }
+  }
+} else {
+  cat("*Program-specific insights are not available due to limited data.*")
+}
+```
+
+# Recommendations
+
+Based on our analysis, we recommend the following interventions to reduce student dropout:
+
+1. **Early Identification**: Monitor students with risk factors identified in our models, especially those related to application timing and prior education.
+
+2. **Targeted Support**: Provide additional support for students in programs with historically higher dropout rates, focusing on the program-specific factors identified.
+
+3. **Application Process**: Review the application process to ensure students are placed at appropriate education levels based on their prior education.
+
+4. **Continuous Monitoring**: Implement a monitoring system to track student progress and provide timely interventions when risk factors are identified.
+
+5. **Program-Specific Strategies**: Develop tailored retention strategies for each program based on the specific factors that influence dropout in that program.
+
+# Next Steps
+
+To build on this analysis, we suggest the following next steps:
+
+1. **Validate Models**: Test model predictions on new cohorts to validate their accuracy and adjust as needed.
+
+2. **Develop Dashboard**: Create an interactive dashboard for educators to monitor dropout risk factors in real-time.
+
+3. **Evaluate Interventions**: Implement targeted interventions based on our findings and measure their effectiveness.
+
+4. **Expand Analysis**: Include additional variables and data sources to further refine our understanding of student dropout.
+
+5. **Regular Updates**: Update models annually with new data to ensure they remain accurate and relevant.

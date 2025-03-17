@@ -1,0 +1,590 @@
+---
+title: "Model Data Preparation"
+author: "MBOA Analysis Team"
+date: last-modified
+---
+
+```{r}
+#| label: setup
+#| cache: false
+#| output: false
+#| include: false
+#| freeze: false
+
+source("utils/dev_functions.R")
+source("utils/manage_packages.R")
+
+# Load all functions from the R package
+load_all()
+
+```
+
+## Introduction
+
+This document prepares data for predictive modeling of student dropout across different educational programs and levels. The data preparation process includes:
+
+1. Loading the necessary datasets
+2. Filtering and preprocessing data
+3. Splitting data into training and test sets
+4. Saving prepared data in an organized structure
+
+## Loading Data
+
+We first load the combined and enriched enrollment data from our data pipeline.
+
+```{r}
+#| label: load-data
+
+# Load the data
+enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
+                                                 "enrollments_combined_enriched.rds"))
+
+enrollments_combined_enriched <- enrollments_combined_enriched %>%
+  # Create shortened names
+  mutate(
+    TEAM_naam_kort = case_when(
+      str_detect(TEAM_naam, "Beveiliging/Toezicht en Veiligheid") ~ "Beveiliging",
+      str_detect(TEAM_naam, "Kappersschool Amersfoort") ~ "Kapperschool",
+      str_detect(TEAM_naam, "Commercie en Evenementen") ~ "Commercie/Events",
+      str_detect(TEAM_naam, "Hotelschool Amersfoort") ~ "Hotelschool",
+      str_detect(TEAM_naam, "School voor Schoonheidsspecialisten") ~ "Schoonheid spec.",
+      str_detect(TEAM_naam, "School voor Toerisme & Management") ~ "Toerisme & Mgt",
+      str_detect(TEAM_naam, "Sportacademie Amersfoort") ~ "Sportacademie",
+      str_detect(TEAM_naam, "Financiële Beroepen") ~ "Fin. Beroepen",
+      str_detect(TEAM_naam, "MEI") ~ "MEI (Techniek)",
+      .default = TEAM_naam
+    ),
+    OPLEIDING_crebo = as.numeric(gsub("[^0-9]", "", OPLEIDING_code)),
+    # Handle potential NA values in creating shortened names
+    OPLEIDING_naam_kort = case_when(
+      is.na(OPLEIDING_naam) ~ "Onbekend",
+      is.na(OPLEIDING_crebo) ~ word(OPLEIDING_naam, 1),
+      TRUE ~ paste0(word(OPLEIDING_naam, 1), " (", OPLEIDING_crebo, ")")
+    ),
+    OPLEIDING_bc_label_kort = case_when(
+      is.na(OPLEIDING_bc_label) ~ "Onbekend",
+      is.na(OPLEIDING_bc_code) ~ word(OPLEIDING_bc_label, 3),
+      TRUE ~ paste0(word(OPLEIDING_bc_label, 3), " (", OPLEIDING_bc_code, ")")
+    )
+  )
+
+# Function to categorize reasons for leaving
+categorize_reasons <- function(reason) {
+  case_when(
+      # Persoonlijk, of tenminste niet instelling-gerelateerd (Personal reasons)
+      reason %in% c(
+          "Verhuizing/reistijd",
+          "Financi\xeble situatie",
+          "Niet verschenen",
+          "Verwijderd",
+          "Detentie"
+      ) ~ "Persoonsgebonden buiten invloed MBOA",
+      
+      reason %in% c(
+          "Persoonlijk functioneren",
+          "Persoonlijke omstandigheden",
+          "Leerproblemen/onvoldoende capaciteit",
+          "Onvoldoende taal/rekenen"
+          
+      ) ~ "Persoonsgebonden binnen invloed MBOA",
+      
+      # Werk (Work-related)
+      reason %in% c(
+          "Geen (erkend) leerbedrijf",
+          "Ontslag of POK be\xebindigd",
+          "Liever (fulltime) werken",
+          "Werk of stage past niet",
+          "Heeft arbeidsovereenkomst"
+      ) ~ "Arbeidsmarkt",
+      
+      # Organisatie (Organizational)
+      reason %in% c(
+          "Schoolorganisatie",
+          "Sociale/fysieke veiligheid",
+          "Huisvesting/voorzieningen",
+          "Onderwijs/didactiek",
+          "Onvoldoende begeleiding"
+      ) ~ "Instellingsgeboden",
+      
+      # Marketing (Expectations vs reality)
+      reason %in% c(
+          "Belangstelling andere opleiding/beroep",
+          "Verkeerd beroepsbeeld",
+          "Verkeerd opleidingsbeeld"
+      ) ~ "Studie en beroepskeuze",
+      
+      reason %in% c(
+          "No Show", 
+          "Ambtshalve"
+      ) ~ "Ambsthalve & No Show",
+      
+      reason %in% c(
+          "Keuzedeel toevoegen",
+          "DOORstroom: Organisatorisch",
+          "DOORstroom: Examenstudent",
+          "DOORstroom: Profiel => Uitstroomcrebo",
+          "DOORstroom:Verlenger/Vertrager"
+      ) ~ "Administratief",
+      
+      # Succes (Successful completion/progression)
+      reason %in% c(
+          "Certificaat",
+          "Diploma",
+          "Tweede diploma (in kalenderjaar)",
+          "Zonder diploma, wel succesvol"
+      ) ~ "Succes",
+      
+      is.na(reason) ~ "Nog steeds ingeschreven",
+      # Everything else goes to "Overig" (Other)
+      #  "Houding medewerkers",
+      # "Administratieve  fout"
+      #     "Persoonsgebonden",
+      # "Besluit Student zie documenten",
+      # "Te veel nevenactiviteiten",
+      # "Besluit Intake vlg Stamkaart",
+      TRUE ~ "Overig"
+  )
+}
+
+# Add categorized reasons
+enrollments_combined_enriched <- enrollments_combined_enriched |>
+  mutate(
+    VERBINTENIS_reden_uitschrijving_categorie = categorize_reasons(VERBINTENIS_reden_uitschrijving)
+  )
+
+# Add dropout indicators per student and BC code
+enrollments_combined_enriched <- enrollments_combined_enriched |>
+  # Sort by student ID and start date to get chronological order
+  arrange(DEELNEMER_ID, VERBINTENIS_begindatum) |>
+  # Group by student and BC code
+  group_by(DEELNEMER_ID, OPLEIDING_bc_label_kort) |>
+  mutate(
+    # Basic counts and details
+    aantal_inschrijvingen = n(),
+    DEELNEMER_BC_begindatum_eerst = min(VERBINTENIS_begindatum, na.rm = TRUE),
+    DEELNEMER_BC_einddatum_laatst = if_else(
+      is.na(max(VERBINTENIS_einddatum)),
+      max(as.Date(VERBINTENIS_geplande_einddatum, format = "%d-%m-%Y")),
+      max(VERBINTENIS_einddatum)
+    ),
+    
+    # Total duration in days across all enrollments with this BC code
+    DEELNEMER_BC_inschrijvingsduur = as.numeric(difftime(DEELNEMER_BC_einddatum_laatst, 
+                                              DEELNEMER_BC_begindatum_eerst, 
+                                              units = "days")),
+    
+    # Latest exit reason
+    laatste_uitstroomreden = last(VERBINTENIS_reden_uitschrijving),
+    laatste_uitstroomreden_categorie = last(VERBINTENIS_reden_uitschrijving_categorie),
+    
+    # Success indicators
+    DEELNEMER_BC_uitval = !(DEELNEMER_BC_inschrijvingsduur > 365 | laatste_uitstroomreden_categorie == "Succes")
+  ) |>
+  ungroup()
+
+# Calculate age and add additional fields
+enrollments_combined_enriched <- enrollments_combined_enriched |>
+  mutate(DEELNEMER_leeftijd = DEELNEMER_BC_begindatum_eerst - DEELNEMER_geboorte_jaarmaand, 
+         DEELNEMER_leeftijd = as.numeric(DEELNEMER_leeftijd, units = "days") / 365.25) |>
+     select(DEELNEMER_ID,
+           COHORT_startjaar,
+           DEELNEMER_leeftijd,
+           DEELNEMER_BC_uitval,
+           DEELNEMER_geslacht,
+           DEELNEMER_BC_begindatum_eerst,
+           TEAM_naam_kort,
+           AANMELDING_begin_dagen_tot_start,
+           AANMELDING_afgerond_dagen_tot_start,
+           OPLEIDING_naam_kort,
+           OPLEIDING_bc_label_kort,
+           DEELNEMER_havo_vwo_is_gezakt,
+           VERBINTENIS_niveau,
+           AANMELDING_laatst_gewijzigd_datum,
+           DEELNEMER_BC_begindatum_eerst,
+           DEELNEMER_BC_einddatum_laatst,
+           DEELNEMER_BC_inschrijvingsduur,
+           matches("VERBINTENIS_waarneming_pct_ongeoorloofd_week"),
+           matches("VERBINTENIS_waarneming_pct_geoorloofd_week"),
+           DEELNEMER_vooropleiding_categorie,
+           DEELNEMER_passend_niveau,
+           DEELNEMER_plaatsing,
+           DEELNEMER_havo_vwo_is_gezakt,
+           start_kwalificatie
+           )
+
+# Function to reorganize week variables by removing all-NA columns and renumbering
+reorganize_week_variables <- function(data, group_vars = c("COHORT_startjaar", "OPLEIDING_naam_kort")) {
+  # Check if grouping variables exist in the data
+  missing_vars <- setdiff(group_vars, names(data))
+  if (length(missing_vars) > 0) {
+    warning("The following grouping variables are missing from the data: ", 
+            paste(missing_vars, collapse = ", "), 
+            ". Using available grouping variables only.")
+    group_vars <- intersect(group_vars, names(data))
+    if (length(group_vars) == 0) {
+      message("No valid grouping variables found. Processing the entire dataset as one group.")
+    }
+  }
+  
+  # Get the unique groups
+  if (length(group_vars) > 0) {
+    # Create grouping expression
+    groups_list <- data %>%
+      group_by(across(all_of(group_vars))) %>%
+      group_keys()
+  } else {
+    # Create a dummy group if no valid grouping variables
+    groups_list <- data.frame(dummy_group = "all_data")
+    group_vars <- "dummy_group"
+  }
+  
+  # Identify week variables that need processing
+  week_vars <- names(data)[grepl("_week_[0-9]+$", names(data))]
+  
+  # If no week variables found, return original data with a message
+  if(length(week_vars) == 0) {
+    message("No week variables found in the dataset.")
+    return(data)
+  }
+  
+  # Identify the prefix patterns (e.g., "VERBINTENIS_waarneming_pct_ongeoorloofd", "VERBINTENIS_waarneming_pct_geoorloofd")
+  prefixes <- unique(gsub("_week_[0-9]+$", "", week_vars))
+  
+  # Create a list to store group-specific data
+  group_data_list <- list()
+  
+  # Track the weeks removed for each group
+  weeks_removed_by_group <- list()
+  
+  # Initialize an empty data frame to capture all of the renaming that happens
+  all_renamings <- data.frame(group = character(), 
+                             old_var = character(), 
+                             new_var = character(), 
+                             stringsAsFactors = FALSE)
+  
+  # Process each group separately
+  for(i in 1:nrow(groups_list)) {
+    # Extract group values and create a filter
+    if ("dummy_group" %in% names(groups_list)) {
+      # Process all data as one group
+      group_data <- data
+      group_name <- "All data"
+    } else {
+      # Extract the current group's values
+      current_group <- groups_list[i, , drop = FALSE]
+      
+      # Create filter conditions for each grouping variable
+      filter_conditions <- list()
+      for (var in group_vars) {
+        filter_conditions[[var]] <- current_group[[var]]
+      }
+      
+      # Filter data for the current group
+      group_data <- data %>%
+        filter(!!!rlang::quos(!!!lapply(seq_along(group_vars), function(j) {
+          var <- group_vars[j]
+          value <- current_group[[var]]
+          rlang::expr(!!rlang::sym(var) == !!value)
+        })))
+      
+      # Create a descriptive name for this group
+      group_values <- unlist(current_group)
+      group_name <- paste(group_vars, group_values, sep = ": ", collapse = ", ")
+    }
+    
+    # Skip if the group has no data
+    if (nrow(group_data) == 0) {
+      message("Group [", group_name, "] has no data. Skipping.")
+      next
+    }
+    
+    # For this group, track which weeks are removed across all prefixes
+    weeks_removed <- c()
+    
+    # Process each prefix for this group
+    for(prefix in prefixes) {
+      # Get all variables for this prefix
+      prefix_vars <- names(group_data)[grepl(paste0("^", prefix, "_week_[0-9]+$"), names(group_data))]
+      
+      # Identify which columns are all NA for this group
+      na_columns <- prefix_vars[sapply(prefix_vars, function(col) all(is.na(group_data[[col]])))]
+      
+      # Extract week numbers from NA columns
+      if(length(na_columns) > 0) {
+        week_nums <- unique(as.numeric(gsub(paste0("^", prefix, "_week_"), "", na_columns)))
+        weeks_removed <- unique(c(weeks_removed, week_nums))
+      }
+      
+      # Remove NA columns from group data
+      if(length(na_columns) > 0) {
+        group_data <- group_data %>% select(-all_of(na_columns))
+      }
+      
+      # Keep only the variables that are not all NA for this prefix
+      remaining_vars <- setdiff(prefix_vars, na_columns)
+      
+      if(length(remaining_vars) > 0) {
+        # Extract week numbers from variable names
+        week_numbers <- as.numeric(gsub(paste0("^", prefix, "_week_"), "", remaining_vars))
+        
+        # Create a mapping from old to new week numbers
+        old_to_new <- data.frame(
+          old_var = remaining_vars,
+          old_num = week_numbers,
+          new_num = rank(week_numbers),
+          stringsAsFactors = FALSE
+        ) %>%
+          mutate(
+            new_var = paste0(prefix, "_week_", sprintf("%02d", new_num))
+          )
+        
+        # If there's any renaming to do (old names differ from new names)
+        if(any(old_to_new$old_var != old_to_new$new_var)) {
+          # Create a named vector for renaming
+          rename_mapping <- setNames(old_to_new$old_var, old_to_new$new_var)
+          
+          # Capture the renaming for this group
+          group_renamings <- data.frame(
+            group = rep(group_name, sum(old_to_new$old_var != old_to_new$new_var)),
+            old_var = old_to_new$old_var[old_to_new$old_var != old_to_new$new_var],
+            new_var = old_to_new$new_var[old_to_new$old_var != old_to_new$new_var],
+            stringsAsFactors = FALSE
+          )
+          all_renamings <- rbind(all_renamings, group_renamings)
+          
+          # Rename the columns in this group's data
+          group_data <- group_data %>%
+            rename(!!!rename_mapping)
+        }
+      }
+    }
+    
+    # Store the weeks that were removed for this group
+    if(length(weeks_removed) > 0) {
+      weeks_removed_by_group[[group_name]] <- sort(weeks_removed)
+    }
+    
+    # Store the processed group data
+    group_data_list[[i]] <- group_data
+  }
+  
+  # Combine all group data back together
+  if (length(group_data_list) > 0) {
+    result_data <- bind_rows(group_data_list)
+  } else {
+    message("No groups were processed. Returning original data.")
+    return(data)
+  }
+  
+  # Output summary of weeks removed by group
+  message("\n===== WEEKS REMOVED BY GROUP =====")
+  all_weeks_removed <- sort(unique(unlist(weeks_removed_by_group)))
+  
+  # First report weeks removed from all groups
+  if(length(all_weeks_removed) > 0) {
+    all_groups_weeks <- all_weeks_removed[sapply(all_weeks_removed, function(week) {
+      all(sapply(weeks_removed_by_group, function(group_weeks) week %in% group_weeks))
+    })]
+    
+    if(length(all_groups_weeks) > 0) {
+      message("Weeks removed from ALL groups: ", 
+              paste(sprintf("%02d", all_groups_weeks), collapse = ", "))
+    }
+    
+    # Then report group-specific removals
+    for(group in names(weeks_removed_by_group)) {
+      group_specific <- setdiff(weeks_removed_by_group[[group]], all_groups_weeks)
+      if(length(group_specific) > 0) {
+        message("Weeks removed from group [", group, "]: ", 
+                paste(sprintf("%02d", group_specific), collapse = ", "))
+      }
+    }
+  } else {
+    message("No weeks were removed from any group.")
+  }
+  
+  # Output summary of renamings if any occurred
+  if(nrow(all_renamings) > 0) {
+    message("\n===== COLUMN RENAMINGS =====")
+    
+    # Group renamings by pattern for cleaner output
+    renaming_patterns <- all_renamings %>%
+      group_by(group) %>%
+      summarise(
+        old_patterns = paste(gsub("^.*week_", "week_", old_var), collapse = ", "),
+        new_patterns = paste(gsub("^.*week_", "week_", new_var), collapse = ", ")
+      )
+    
+    for(i in 1:nrow(renaming_patterns)) {
+      message("Group [", renaming_patterns$group[i], "]:")
+      message("  ", renaming_patterns$old_patterns[i], " -> ", renaming_patterns$new_patterns[i])
+    }
+  } else {
+    message("\nNo column renamings were needed.")
+  }
+  
+  return(result_data)
+}
+
+# Reorganize the week variables in the dataset
+enrollments_combined_enriched <- reorganize_week_variables(enrollments_combined_enriched)
+
+# Show basic data dimensions
+cat("Loaded dataset dimensions:", dim(enrollments_combined_enriched), "\n")
+```
+
+## Identifying Programs and Levels
+
+We'll identify the available programs and education levels to model.
+
+```{r}
+#| label: identify-programs-levels
+
+# Get unique programs and their counts
+programs_level_count <- enrollments_combined_enriched |>
+  count(OPLEIDING_naam_kort, VERBINTENIS_niveau) |>
+  arrange(desc(n))
+
+print("Available programs:")
+print(programs_level_count)
+
+
+# Select programs with sufficient data for modeling (at least 100 students)
+## TODO hard-coded limit, put this in config
+selected_programs <- programs_level_count |>
+  filter(n >= 80) |>
+  pull(OPLEIDING_naam_kort)
+
+## TODO Filter on data only from 2021 to 2023 COHORT_startjaar
+## TODO Show how many students are in training and test (2023), and how many are excluded
+
+print(paste("Selected", length(selected_programs), "programs-levels for modeling"))
+```
+
+## Data Preparation for All Programs
+
+We'll first prepare a dataset containing all programs and levels.
+
+```{r}
+#| label: prepare-all-data
+
+# Prepare data for all programs and levels
+all_data_prep <- prepare_model_data(
+  data = enrollments_combined_enriched,
+  program_filter = NULL,
+  level_filter = NULL,
+  test_cohort = 2023,
+  save = TRUE
+)
+
+# Display information about the prepared data
+cat("All programs - Training data dimensions:", dim(all_data_prep$train), "\n")
+cat("All programs - Test data dimensions:", dim(all_data_prep$test), "\n")
+
+# Check class balance in training and test data
+all_train_balance <- table(all_data_prep$train$DEELNEMER_BC_uitval)
+all_test_balance <- table(all_data_prep$test$DEELNEMER_BC_uitval)
+
+print("Class balance in training data:")
+print(prop.table(all_train_balance))
+
+print("Class balance in test data:")
+print(prop.table(all_test_balance))
+```
+
+## Data Preparation by Program and Level
+
+Now we'll prepare separate datasets for each selected program-level combination.
+
+```{r}
+#| label: prepare-by-program-level
+
+# Initialize a list to store all prepared datasets
+program_level_data <- list()
+
+# Prepare data for each program-level combination
+for (program in selected_programs) {
+  for (level in c(1, 2, 3, 4)) {
+    # Create identifier for this combination
+    combo_id <- paste0(program, "_level", level)
+    
+    cat("\nPreparing data for:", combo_id, "\n")
+    
+    # Try to prepare data for this combination
+    tryCatch({
+      program_level_data[[combo_id]] <- prepare_model_data(
+        data = enrollments_combined_enriched,
+        program_filter = program,
+        level_filter = level,
+        test_cohort = 2023,
+        save = TRUE
+      )
+      
+      # Display information about the prepared data
+      cat("  Training data dimensions:", dim(program_level_data[[combo_id]]$train), "\n")
+      cat("  Test data dimensions:", dim(program_level_data[[combo_id]]$test), "\n")
+      
+    }, error = function(e) {
+      cat("  Error preparing data:", e$message, "\n")
+    })
+  }
+}
+
+# Count how many valid datasets we created
+valid_datasets <- sum(sapply(program_level_data, function(x) {
+  !is.null(x) && nrow(x$train) > 0 && nrow(x$test) > 0
+}))
+
+cat("\nSuccessfully prepared", valid_datasets, "valid program-level datasets\n")
+```
+
+## Save Dataset List for Next Steps
+
+```{r}
+#| label: save-dataset-list
+
+# Create a summary of all prepared datasets
+dataset_summary <- data.frame(
+  id = names(program_level_data),
+  train_rows = sapply(program_level_data, function(x) if(!is.null(x)) nrow(x$train) else 0),
+  test_rows = sapply(program_level_data, function(x) if(!is.null(x)) nrow(x$test) else 0),
+  train_columns = sapply(program_level_data, function(x) if(!is.null(x)) ncol(x$train) else 0),
+  test_columns = sapply(program_level_data, function(x) if(!is.null(x)) ncol(x$test) else 0),
+  ratio_0 = sapply(program_level_data, function(x) {
+    if(!is.null(x) && nrow(x$train) > 0) {
+      table_values <- table(x$train$DEELNEMER_BC_uitval)
+      names_values <- names(table_values)
+      if(length(names_values) >= 2) {
+        table_values[names_values[1]] / sum(table_values)
+      } else {
+        NA
+      }
+    } else {
+      NA
+    }
+  }),
+  ratio_1 = sapply(program_level_data, function(x) {
+    if(!is.null(x) && nrow(x$train) > 0) {
+      table_values <- table(x$train$DEELNEMER_BC_uitval)
+      names_values <- names(table_values)
+      if(length(names_values) >= 2) {
+        table_values[names_values[2]] / sum(table_values)
+      } else {
+        NA
+      }
+    } else {
+      NA
+    }
+  })
+)
+
+# Save the summary
+saveRDS(dataset_summary, file.path(config::get("modelled_dir"), "prepared", "dataset_summary.rds"))
+
+# Show the summary
+knitr::kable(dataset_summary)
+```
+
+## Next Steps
+
+The prepared datasets are now available in the `data/modelled/prepared` directory and ready for model training. The next document in this workflow will train predictive models using these prepared datasets.

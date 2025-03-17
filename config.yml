@@ -12,6 +12,7 @@ default:
   data_combined_dir: "data/combined"
   data_analysed_dir: "data/analysed"
   data_test_dir: "data/test"
+  modelled_dir: "data/modelled"
   first_year: 2019
   last_year: 2023
 
