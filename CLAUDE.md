@@ -29,9 +29,12 @@
 ## Naming Conventions
 - Function names should be verbs (get_*, save_*, load_*)
 - Variable names should be descriptive and self-documenting
+- Object names should be starting with the noun and add adjectives if needed (e.g., data_train)
+- Column names should have as first noun a type in capital letters (e.g., STUDENT_id)
 - Use consistent prefixes for related functions
 - Have a preference for pacakges already mentioned in utils/manage_packages.R
-- Secondly properply supported packages, firstly from posit (like tidyverse and tidymodels)
+- Secondly properply supported packages, firstly from posit
+- Don't use metapackages like tidymodels and tidyverse themselves though, only packages in it
 
 ## Dependencies
 - Uses renv for dependency management
