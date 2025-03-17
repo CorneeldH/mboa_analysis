@@ -219,6 +219,8 @@ summarise_special_needs <- function(special_needs) {
 #'     \item Datum: Date of observation
 #'   }
 #'
+#' @param first_n_weeks Integer specifying the number of weeks to include in the analysis
+#'
 #' @return A tibble with summarized enrollment data containing:
 #'   \itemize{
 #'     \item SK_GroepInschrijving: Group enrollment identifier

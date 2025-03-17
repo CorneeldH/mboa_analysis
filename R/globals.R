@@ -1,6 +1,34 @@
 
 utils::globalVariables(
     c(
+        # From add_grouped_enrollment_dates
+        "OPLEIDING_bc_code",
+
+        # From calculate_active_on_1_okt
+        "VERBINTENIS_begindatum_eerst",
+        "VERBINTENIS_eerste_1_okt_eerst",
+
+        # From calculate_is_havo_vwo_dropout
+        "DEELNEMER_vooropleiding_hoogste_diploma_soort",
+        "DEELNEMER_vooropleiding_hoogst",
+
+        # From ingest_mapping_employees_satisfaction
+        "mto_characteristic_1",
+        "mto_characteristic_2",
+        "mto_characteristic_3",
+
+        # From summarise_enrollments_num_vars_to_teams
+        "DEELNEMER_passend_niveau",
+
+        # From summarise_observations_to_weekly_attendance
+        "school_start_date",
+        "week_number",
+        "school_start_week",
+        "adjusted_week",
+
+        # From transform_prior_education_vo_and_highest_degree
+        "DEELNEMER_vooropleiding_diploma_behaald",
+
         # ingest_cohorts
         "ID",
         "NAAM",

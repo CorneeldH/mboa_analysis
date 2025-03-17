@@ -4,7 +4,10 @@
 \alias{summarise_observations_to_weekly_attendance}
 \title{Summarise Attendance Observations to weekly percentages}
 \usage{
-summarise_observations_to_weekly_attendance(attendance_observations)
+summarise_observations_to_weekly_attendance(
+  attendance_observations,
+  first_n_weeks = 14
+)
 }
 \arguments{
 \item{attendance_observations}{A tibble containing attendance observations with columns:
@@ -14,6 +17,8 @@ summarise_observations_to_weekly_attendance(attendance_observations)
 \item Waarnemingsduur: Duration of observation
 \item Datum: Date of observation
 }}
+
+\item{first_n_weeks}{Integer specifying the number of weeks to include in the analysis}
 }
 \value{
 A tibble with summarized enrollment data containing:

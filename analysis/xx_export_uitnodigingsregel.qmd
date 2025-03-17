@@ -195,7 +195,10 @@ enrollments_filtered <- enrollments_combined_enriched |>
     filter(
         DEELNEMER_BC_begindatum_eerst >= as.Date("2021-08-01", format = "%Y-%m-%d"),
         DEELNEMER_BC_begindatum_eerst <= as.Date("2023-08-31", format = "%Y-%m-%d"),
+        VERBINTENIS_actief_op_1_okt_peildatum == TRUE,
         month(VERBINTENIS_begindatum) == 8,
+        month(DEELNEMER_BC_begindatum_eerst) == 8,
+        DEELNEMER_BC_begindatum_eerst == VERBINTENIS_begindatum,
         VERBINTENIS_bekostigd == "Ja",
         VERBINTENIS_intensiteit == "Voltijd",
         OPLEIDING_leerweg == "BOL"
@@ -212,6 +215,7 @@ enrollments_filtered_select <- enrollments_filtered |>
     mutate(DEELNEMER_leeftijd = DEELNEMER_BC_begindatum_eerst - DEELNEMER_geboorte_jaarmaand, 
            DEELNEMER_leeftijd = as.numeric(DEELNEMER_leeftijd, units = "days") / 365.25) |>
     select(DEELNEMER_ID,
+           COHORT_startjaar,
            DEELNEMER_leeftijd,
            DEELNEMER_BC_uitval,
            DEELNEMER_geslacht,
@@ -240,6 +244,231 @@ enrollments_filtered_select <- enrollments_filtered |>
 ```
 
 ```{r}
+#| label: reorganize_week_variables
+
+# Function to reorganize week variables by removing all-NA columns and renumbering
+reorganize_week_variables <- function(data, group_vars = c("COHORT_startjaar", "OPLEIDING_naam_kort")) {
+  # Check if grouping variables exist in the data
+  missing_vars <- setdiff(group_vars, names(data))
+  if (length(missing_vars) > 0) {
+    warning("The following grouping variables are missing from the data: ", 
+            paste(missing_vars, collapse = ", "), 
+            ". Using available grouping variables only.")
+    group_vars <- intersect(group_vars, names(data))
+    if (length(group_vars) == 0) {
+      message("No valid grouping variables found. Processing the entire dataset as one group.")
+    }
+  }
+  
+  # Get the unique groups
+  if (length(group_vars) > 0) {
+    # Create grouping expression
+    groups_list <- data %>%
+      group_by(across(all_of(group_vars))) %>%
+      group_keys()
+  } else {
+    # Create a dummy group if no valid grouping variables
+    groups_list <- data.frame(dummy_group = "all_data")
+    group_vars <- "dummy_group"
+  }
+  
+  # Identify week variables that need processing
+  week_vars <- names(data)[grepl("_week_[0-9]+$", names(data))]
+  
+  # If no week variables found, return original data with a message
+  if(length(week_vars) == 0) {
+    message("No week variables found in the dataset.")
+    return(data)
+  }
+  
+  # Identify the prefix patterns (e.g., "VERBINTENIS_waarneming_pct_ongeoorloofd", "VERBINTENIS_waarneming_pct_geoorloofd")
+  prefixes <- unique(gsub("_week_[0-9]+$", "", week_vars))
+  
+  # Create a list to store group-specific data
+  group_data_list <- list()
+  
+  # Track the weeks removed for each group
+  weeks_removed_by_group <- list()
+  
+  # Initialize an empty data frame to capture all of the renaming that happens
+  all_renamings <- data.frame(group = character(), 
+                             old_var = character(), 
+                             new_var = character(), 
+                             stringsAsFactors = FALSE)
+  
+  # Process each group separately
+  for(i in 1:nrow(groups_list)) {
+    # Extract group values and create a filter
+    if ("dummy_group" %in% names(groups_list)) {
+      # Process all data as one group
+      group_data <- data
+      group_name <- "All data"
+    } else {
+      # Extract the current group's values
+      current_group <- groups_list[i, , drop = FALSE]
+      
+      # Create filter conditions for each grouping variable
+      filter_conditions <- list()
+      for (var in group_vars) {
+        filter_conditions[[var]] <- current_group[[var]]
+      }
+      
+      # Filter data for the current group
+      group_data <- data %>%
+        filter(!!!rlang::quos(!!!lapply(seq_along(group_vars), function(j) {
+          var <- group_vars[j]
+          value <- current_group[[var]]
+          rlang::expr(!!rlang::sym(var) == !!value)
+        })))
+      
+      # Create a descriptive name for this group
+      group_values <- unlist(current_group)
+      group_name <- paste(group_vars, group_values, sep = ": ", collapse = ", ")
+    }
+    
+    # Skip if the group has no data
+    if (nrow(group_data) == 0) {
+      message("Group [", group_name, "] has no data. Skipping.")
+      next
+    }
+    
+    # For this group, track which weeks are removed across all prefixes
+    weeks_removed <- c()
+    
+    # Process each prefix for this group
+    for(prefix in prefixes) {
+      # Get all variables for this prefix
+      prefix_vars <- names(group_data)[grepl(paste0("^", prefix, "_week_[0-9]+$"), names(group_data))]
+      
+      # Identify which columns are all NA for this group
+      na_columns <- prefix_vars[sapply(prefix_vars, function(col) all(is.na(group_data[[col]])))]
+      
+      # Extract week numbers from NA columns
+      if(length(na_columns) > 0) {
+        week_nums <- unique(as.numeric(gsub(paste0("^", prefix, "_week_"), "", na_columns)))
+        weeks_removed <- unique(c(weeks_removed, week_nums))
+      }
+      
+      # Remove NA columns from group data
+      if(length(na_columns) > 0) {
+        group_data <- group_data %>% select(-all_of(na_columns))
+      }
+      
+      # Keep only the variables that are not all NA for this prefix
+      remaining_vars <- setdiff(prefix_vars, na_columns)
+      
+      if(length(remaining_vars) > 0) {
+        # Extract week numbers from variable names
+        week_numbers <- as.numeric(gsub(paste0("^", prefix, "_week_"), "", remaining_vars))
+        
+        # Create a mapping from old to new week numbers
+        old_to_new <- data.frame(
+          old_var = remaining_vars,
+          old_num = week_numbers,
+          new_num = rank(week_numbers),
+          stringsAsFactors = FALSE
+        ) %>%
+          mutate(
+            new_var = paste0(prefix, "_week_", sprintf("%02d", new_num))
+          )
+        
+        # If there's any renaming to do (old names differ from new names)
+        if(any(old_to_new$old_var != old_to_new$new_var)) {
+          # Create a named vector for renaming
+          rename_mapping <- setNames(old_to_new$old_var, old_to_new$new_var)
+          
+          # Capture the renaming for this group
+          group_renamings <- data.frame(
+            group = rep(group_name, sum(old_to_new$old_var != old_to_new$new_var)),
+            old_var = old_to_new$old_var[old_to_new$old_var != old_to_new$new_var],
+            new_var = old_to_new$new_var[old_to_new$old_var != old_to_new$new_var],
+            stringsAsFactors = FALSE
+          )
+          all_renamings <- rbind(all_renamings, group_renamings)
+          
+          # Rename the columns in this group's data
+          group_data <- group_data %>%
+            rename(!!!rename_mapping)
+        }
+      }
+    }
+    
+    # Store the weeks that were removed for this group
+    if(length(weeks_removed) > 0) {
+      weeks_removed_by_group[[group_name]] <- sort(weeks_removed)
+    }
+    
+    # Store the processed group data
+    group_data_list[[i]] <- group_data
+  }
+  
+  # Combine all group data back together
+  if (length(group_data_list) > 0) {
+    result_data <- bind_rows(group_data_list)
+  } else {
+    message("No groups were processed. Returning original data.")
+    return(data)
+  }
+  
+  # Output summary of weeks removed by group
+  message("\n===== WEEKS REMOVED BY GROUP =====")
+  all_weeks_removed <- sort(unique(unlist(weeks_removed_by_group)))
+  
+  # First report weeks removed from all groups
+  if(length(all_weeks_removed) > 0) {
+    all_groups_weeks <- all_weeks_removed[sapply(all_weeks_removed, function(week) {
+      all(sapply(weeks_removed_by_group, function(group_weeks) week %in% group_weeks))
+    })]
+    
+    if(length(all_groups_weeks) > 0) {
+      message("Weeks removed from ALL groups: ", 
+              paste(sprintf("%02d", all_groups_weeks), collapse = ", "))
+    }
+    
+    # Then report group-specific removals
+    for(group in names(weeks_removed_by_group)) {
+      group_specific <- setdiff(weeks_removed_by_group[[group]], all_groups_weeks)
+      if(length(group_specific) > 0) {
+        message("Weeks removed from group [", group, "]: ", 
+                paste(sprintf("%02d", group_specific), collapse = ", "))
+      }
+    }
+  } else {
+    message("No weeks were removed from any group.")
+  }
+  
+  # Output summary of renamings if any occurred
+  if(nrow(all_renamings) > 0) {
+    message("\n===== COLUMN RENAMINGS =====")
+    
+    # Group renamings by pattern for cleaner output
+    renaming_patterns <- all_renamings %>%
+      group_by(group) %>%
+      summarise(
+        old_patterns = paste(gsub("^.*week_", "week_", old_var), collapse = ", "),
+        new_patterns = paste(gsub("^.*week_", "week_", new_var), collapse = ", ")
+      )
+    
+    for(i in 1:nrow(renaming_patterns)) {
+      message("Group [", renaming_patterns$group[i], "]:")
+      message("  ", renaming_patterns$old_patterns[i], " -> ", renaming_patterns$new_patterns[i])
+    }
+  } else {
+    message("\nNo column renamings were needed.")
+  }
+  
+  return(result_data)
+}
+
+# First test
+# data_sport_4_nieuw <- data_sport_4 %>% reorganize_week_variables()
+
+# Apply the function to the data
+enrollments_filtered_select <- reorganize_week_variables(enrollments_filtered_select)
+
+```
+
+```{r}
 #| label: export_uitnodigingsregel
 
 data_train <- enrollments_filtered_select %>%
@@ -249,6 +478,13 @@ data_train <- enrollments_filtered_select %>%
 data_pred <- enrollments_filtered_select %>%
     filter(
         DEELNEMER_BC_begindatum_eerst >= as.Date("2023-08-01", format = "%Y-%m-%d"))
+
+data_sport_4 <- enrollments_filtered_select %>%
+    filter(
+        TEAM_naam_kort == "Sportacademie",
+        VERBINTENIS_niveau == 4#,
+        #COHORT_startjaar == 2023
+        )
 
 data_train_sport_4 <- enrollments_filtered_select %>%
     filter(TEAM_naam_kort == "Sportacademie",
@@ -264,9 +500,16 @@ write_csv(data_train, file.path(config::get("data_analysed_dir"), "uitnodigingsr
 
 write_csv(data_pred, file.path(config::get("data_analysed_dir"), "uitnodigingsregel_pred.csv"))
 
-write_csv(data_train_sport_4, file.path(config::get("data_analysed_dir"), "uitnodigingsregel_train_sport_4.csv"))
+save_analysed(data_sport_4)
 
-write_csv(data_pred_sport_4, file.path(config::get("data_analysed_dir"), "uitnodigingsregel_pred_sport_4.csv"))
+write_csv(data_sport_4, file.path(config::get("data_analysed_dir"), 
+                                  "uitnodigingsregel_sport_4.csv"))
+
+write_csv(data_train_sport_4, file.path(config::get("data_analysed_dir"),
+                                        "uitnodigingsregel_train_sport_4.csv"))
+
+write_csv(data_pred_sport_4, file.path(config::get("data_analysed_dir"),
+                                       "uitnodigingsregel_pred_sport_4.csv"))
 
 ```
 

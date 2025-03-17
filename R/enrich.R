@@ -465,7 +465,7 @@ calculate_proper_placement <- function(enrollments) {
 #' @description
 #' Determine if students failed HAVO/VWO based on prior education data
 #'
-#' @param data A data frame containing prior education columns
+#' @param enrollments A data frame containing prior education columns
 #'
 #' @returns
 #' A data frame with an additional column DEELNEMER_havo_vwo_gezakt indicating
