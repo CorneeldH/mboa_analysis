@@ -129,7 +129,6 @@ transform_students_to_student_year <- function(students_demographics, first_year
     first_reference_date <- as.Date(paste0(first_year, "-10-01"))
     last_reference_date <- as.Date(paste0(last_year, "-10-01"))
 
-
     # TODO Number of moves is ignored
     students_demographics_filtered <- students_demographics |>
         mutate(
@@ -296,19 +295,6 @@ summarise_observations_to_weekly_attendance <- function(attendance_observations,
                ) |>
         arrange(VERBINTENIS_ID, SCHOOLJAAR_naam, VERBINTENIS_verzuim_week_nummer)
 
-    ## TODO DRY
-    num_years <- enrollment_weeks_attendance |>
-        distinct(SCHOOLJAAR_naam) |>
-        nrow()
-
-    if (num_years == 1) {
-        year <- parse_number(unique(enrollment_weeks_attendance$SCHOOLJAAR_naam))
-        filename <- paste0("enrollment_weeks_attendance_", year)
-        save_transformed_and_comment(enrollment_weeks_attendance, filename = filename)
-    } else {
-        save_transformed_and_comment(enrollment_weeks_attendance)
-    }
-
     return(enrollment_weeks_attendance)
 
 }
@@ -350,8 +336,6 @@ summarise_attendance_to_enrollment <- function(attendance_observations) {
             # Calculate total duration excluding Te laat, Kort verzuim, and Uitgestuurd
             VERBINTENIS_waarneming_totale_duur = sum(Waarnemingsduur[!Presentietekst %in%
                                                                          c("Te laat", "Kort verzuim", "Uitgestuurd")]),
-            # TODO: "Te laat", "Kort verzuim", "Uitgestuurd" are enclosed in total sum, but
-            # maybe they shouldn't be? It was around 0.7 %
             # Calculate total duration excluding Te laat, Kort verzuim, and Uitgestuurd
             VERBINTENIS_waarneming_pct_aanwezig = sum(Waarnemingsduur[Presentietekst == "Aanwezig"]) / VERBINTENIS_waarneming_totale_duur,
             # Calculate weighted percentage "Ziek/Geoorloofd verzuim"
@@ -373,19 +357,6 @@ summarise_attendance_to_enrollment <- function(attendance_observations) {
         ) |>
         mutate(across(contains("_pct_"), round, 2)) |>
         arrange(VERBINTENIS_ID, SCHOOLJAAR_naam)
-
-    # ## TODO DRY
-    # num_years <- enrollment_years_attendance |>
-    #     distinct(SCHOOLJAAR_naam) |>
-    #     nrow()
-    #
-    # if (num_years == 1) {
-    #     year <- parse_number(unique(enrollment_years_attendance$SCHOOLJAAR_naam))
-    #     filename <- paste0("enrollment_years_attendance_", year)
-    #     save_transformed_and_comment(enrollment_years_attendance, filename = filename)
-    # } else {
-    #     save_transformed_and_comment(enrollment_years_attendance)
-    # }
 
     return(enrollment_years_attendance)
 
@@ -483,19 +454,6 @@ transform_attendance_weekly_to_enrollments <- function(enrollment_weeks_attendan
 
     enrollments_years_attendance_weekly <- enrollment_years_attendance_summarised |>
         left_join(enrolmment_years_attendance_pivoted, by = c("VERBINTENIS_ID", "SCHOOLJAAR_naam"))
-
-    ## TODO DRY
-    num_years <- enrollments_years_attendance_weekly |>
-        distinct(SCHOOLJAAR_naam) |>
-        nrow()
-
-    if (num_years == 1) {
-        year <- parse_number(unique(enrollments_years_attendance_weekly$SCHOOLJAAR_naam))
-        filename <- paste0("enrollments_years_attendance_weekly_", year)
-        save_transformed_and_comment(enrollments_years_attendance_weekly, filename = filename)
-    } else {
-        save_transformed_and_comment(enrollments_years_attendance_weekly)
-    }
 
     return(enrollments_years_attendance_weekly)
 }
@@ -1095,7 +1053,7 @@ pivot_weeks_to_years <- function(employee_absence_in_weeks) {
 #' @export
 transform_bpv_statusses_to_enrollments <- function(bpv_statusses) {
 
-    # TODO Split in 3 dataframes and then join, otherwise there were issues
+    # TODO Split in 4 dataframes and then join, otherwise there were issues
 
     # Keep all the basic variables
     enrollments_bpv_summarised_basics <- bpv_statusses |>

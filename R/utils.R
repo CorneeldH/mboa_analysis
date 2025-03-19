@@ -176,11 +176,6 @@ get_school_year <- function(date) {
         stop("Input must be a Date object")
     }
 
-    # TODO This doesn't work when a vector is passed
-    # if (is.na(month(date))) {
-    #     return(NA)
-    # }
-
     adjusted_year <- ifelse(month(date) < 8,
                             year(date) - 1,
                             year(date))

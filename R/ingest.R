@@ -1781,7 +1781,6 @@ ingest_students_prior_education <- function(..., filename = NULL, path = NULL, c
                           path = path,
                           config_data_path = config_data_path)
 
-    # TODO Deelnemer lijkt me niet 100%
     data_clean <- data_raw |>
         clean_names() |>
         rename(DEELNEMER_ID = id_deelnemer) |>

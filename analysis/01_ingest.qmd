@@ -141,16 +141,7 @@ employees_absence_yearly <- ingest_employee_absences() |>
     distinct() |>
     # TODO rename function after fixing dates at ingest
     convert_absence_types() |>
-    # TODO interne functies maken
-    #split_absences_into_school_years() |>
-    #map(expand_to_daily) |>
-    #map(summarise_employee_absence_to_years) |>
-    #map(summarise_employee_absence_to_weeks) |>
-    #map(pivot_weeks_to_years) |>
-    # TODO
-    #map_dfr(bind_rows) |>
     summarise_employee_absence_to_years()
-    #save_prepared_and_return(filename = "employees_absence")
 
 print("Medewerker verzuim data succesvol ingeladen en getransformeerd naar schooljaar.")
 

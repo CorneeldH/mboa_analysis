@@ -36,7 +36,6 @@ We maken een correlatie dataframe en hernoemen de variabelen.
 #| include: false
 
 # TODO Code wordt nu niet gebruikt
-
 teams_correlation <- teams_selected |>
     correlate_teams() |>
     set_user_friendly_names()

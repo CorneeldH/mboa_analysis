@@ -106,7 +106,6 @@ enrollments_combined  <- enrollments_extra_id_joins |>
     left_join_load("programmes_exam_plan",
               by = join_by(OPLEIDING_ID, COHORT_ID),
               relationship = "many-to-one") |>
-    # TODO Check cohorts and exam plans and fix order
     left_join_load("cohorts",
               by = join_by(COHORT_ID),
               relationship = "many-to-one") |>
