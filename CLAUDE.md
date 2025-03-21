@@ -27,9 +27,9 @@
 - Never use library calls, check if package is loaded in `utils/manage_packages.R`
 
 ## Naming Conventions
-- Function names should be verbs (get_*, save_*, load_*)
+- Function names should be verbs first an secondary (if needed) a noun(save_analysed, save_prepared)
+- Object/variable names should be starting with the noun and add adjectives if needed (e.g., data_train)
 - Variable names should be descriptive and self-documenting
-- Object names should be starting with the noun and add adjectives if needed (e.g., data_train)
 - Column names should have as first noun a type in capital letters (e.g., STUDENT_id)
 - Use consistent prefixes for related functions
 - Have a preference for pacakges already mentioned in utils/manage_packages.R
