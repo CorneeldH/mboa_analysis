@@ -19,18 +19,18 @@ load_all()
 
 ```
 
-## Introduction
+## Introductie
 
-This document trains predictive models for student dropout across different educational programs and levels. The process includes:
+Dit document traint voorspellende modellen voor studentuitval over verschillende onderwijsprogramma's en niveaus. Het proces omvat:
 
-1. Loading prepared datasets from the previous step
-2. Training models for each program-level combination
-3. Evaluating model performance
-4. Saving trained models and metrics
+1. Laden van voorbereide datasets uit de vorige stap
+2. Trainen van modellen voor elke programma-niveaucombinatie
+3. Evalueren van modelprestaties
+4. Opslaan van getrainde modellen en metrieken
 
-## Loading Prepared Data Information
+## Laden van voorbereide gegevens
 
-We first load the summary of prepared datasets created in the previous document.
+We laden eerst de samenvatting van de voorbereide datasets die in het vorige document zijn gemaakt.
 
 ```{r}
 #| label: load-dataset-info
@@ -113,9 +113,9 @@ if(file.exists(valid_datasets_path)) {
 week_strategies <- c("none", "early", "all")
 ```
 
-## Model Training Function
+## Modeltrainingsfunctie
 
-We'll define a helper function to train models for each dataset.
+We definiëren een hulpfunctie om modellen te trainen voor elke dataset.
 
 ```{r}
 #| label: define-training-function
@@ -180,9 +180,9 @@ train_model_for_dataset <- function(dataset_id, model_type = "random_forest") {
 }
 ```
 
-## Training Individual Program-Level Models
+## Training van individuele programma-niveau modellen
 
-Now we'll train models for each individual program-level combination.
+Nu gaan we modellen trainen voor elke individuele programma-niveaucombinatie.
 
 ```{r}
 #| label: train-program-level-models
@@ -249,9 +249,9 @@ for(strategy in week_strategies) {
 saveRDS(model_results_list, file.path(config::get("modelled_dir"), "run", "all_model_results.rds"))
 ```
 
-## Model Performance Summary
+## Samenvatting van modelprestaties
 
-Let's create a summary of model performance across all trained models.
+Laten we een samenvatting maken van de modelprestaties voor alle getrainde modellen.
 
 ```{r}
 #| label: model-performance-summary
@@ -297,35 +297,35 @@ if(nrow(performance_summary) > 0) {
   cat("\nModel Performance Summary (Top 10, sorted by ROC AUC):\n")
   print(knitr::kable(head(performance_display, 10), digits = 4))
   
-  # Compare performance by week strategy
+  # Compare performance by week strategy using ROC AUC (better for ranking)
   week_strategy_summary <- performance_summary |>
-    filter(.metric == "accuracy") |>
+    filter(.metric == "roc_auc") |>  # Using ROC AUC instead of accuracy
     group_by(week_strategy) |>
     summarize(
-      avg_accuracy = mean(.estimate, na.rm = TRUE),
-      min_accuracy = min(.estimate, na.rm = TRUE),
-      max_accuracy = max(.estimate, na.rm = TRUE),
+      avg_roc_auc = mean(.estimate, na.rm = TRUE),
+      min_roc_auc = min(.estimate, na.rm = TRUE),
+      max_roc_auc = max(.estimate, na.rm = TRUE),
       n_models = n()
     )
   
-  cat("\nPerformance Comparison by Week Strategy:\n")
+  cat("\nPerformance Comparison by Week Strategy (ROC AUC):\n")
   print(knitr::kable(week_strategy_summary, digits = 4))
   
-  # Visualize strategy comparison
-  ggplot(performance_summary |> filter(.metric == "accuracy"), 
+  # Visualize strategy comparison with ROC AUC
+  ggplot(performance_summary |> filter(.metric == "roc_auc"), 
          aes(x = week_strategy, y = .estimate, fill = week_strategy)) +
     geom_boxplot() +
     labs(
-      title = "Model Accuracy by Week Variable Strategy",
-      x = "Week Strategy",
-      y = "Accuracy"
+      title = "Model ROC AUC per weekvariabelestrategie",
+      subtitle = "Hogere waarden geven betere studentenrangschikkingscapaciteit aan",
+      x = "Weekstrategie",
+      y = "ROC AUC"
     ) +
-    scale_y_continuous(labels = scales::percent) +
     theme_minimal()
   
   # Check if we have multiple models for same program-level with different strategies
   program_levels_with_all_strategies <- performance_summary |>
-    filter(.metric == "accuracy") |>
+    filter(.metric == "roc_auc") |>  # Using ROC AUC for consistent comparison
     group_by(program_level) |>
     summarize(
       n_strategies = n_distinct(week_strategy),
@@ -340,22 +340,23 @@ if(nrow(performance_summary) > 0) {
     # Compare strategies directly for these program-levels
     direct_comparison <- performance_summary |>
       filter(
-        .metric == "accuracy",
+        .metric == "roc_auc",  # Using ROC AUC for ranking quality
         program_level %in% program_levels_with_all_strategies$program_level
       ) |>
-      select(program_level, week_strategy, accuracy = .estimate) |>
+      select(program_level, week_strategy, roc_auc = .estimate) |>
       pivot_wider(
         names_from = week_strategy,
-        values_from = accuracy
+        values_from = roc_auc
       ) |>
       mutate(
-        early_vs_none = none - early,
-        all_vs_none = none - all,
-        all_vs_early = early - all
+        # Positive values mean the second strategy is better
+        early_vs_none = early - none,  # Changed sign to make interpretation consistent
+        all_vs_none = all - none,      # Higher values = better ranking
+        all_vs_early = all - early
       ) |>
       arrange(desc(all))
     
-    cat("\nDirect comparison of week strategies (first 10 program-levels):\n")
+    cat("\nDirect comparison of week strategies by ROC AUC (first 10 program-levels):\n")
     print(knitr::kable(head(direct_comparison, 10), digits = 4))
     
     # Save this comparison for use in interpretation
@@ -369,6 +370,6 @@ if(nrow(performance_summary) > 0) {
 }
 ```
 
-## Next Steps
+## Volgende stappen
 
-The trained models and their performance metrics are now saved in the `data/modelled/run` directory. In the next document, we'll interpret these models to understand the most important factors influencing student dropout.
+De getrainde modellen en hun prestatiemetrieken zijn nu opgeslagen in de map `data/modelled/run`. In het volgende document zullen we deze modellen interpreteren om de belangrijkste factoren te begrijpen die van invloed zijn op studentuitval.

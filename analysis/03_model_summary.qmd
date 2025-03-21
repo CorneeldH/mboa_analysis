@@ -27,15 +27,17 @@ load_all()
 # library(patchwork)
 ```
 
-# Executive Summary
+# Samenvatting
 
-This report analyzes the impact of attendance data on student dropout predictions. We specifically investigated whether early attendance data (weeks 1-5) is sufficient for accurate predictions, or if longer-term attendance data provides significant improvements. Our analysis compares three modeling approaches:
+Dit rapport analyseert de impact van aanwezigheidsgegevens op voorspellingen van studentuitval. We hebben specifiek onderzocht of vroege aanwezigheidsgegevens (weken 1-5) voldoende zijn voor nauwkeurige voorspellingen, of dat gegevens over een langere termijn significante verbeteringen opleveren. Onze analyse vergelijkt drie modelleringsbenaderingen:
 
-1. **No week variables**: Models built without any attendance data
-2. **Early weeks (1-5)**: Models using only the first five weeks of attendance data
-3. **All weeks**: Models using all available weekly attendance data
+1. **Geen weekvariabelen**: Modellen gebouwd zonder aanwezigheidsgegevens
+2. **Vroege weken (1-5)**: Modellen die alleen de eerste vijf weken van aanwezigheidsgegevens gebruiken
+3. **Alle weken**: Modellen die alle beschikbare wekelijkse aanwezigheidsgegevens gebruiken
 
-This comparison helps determine the optimal timing for early intervention systems based on attendance patterns.
+We evalueren modelprestaties met behulp van ROC AUC (Area Under the Receiver Operating Characteristic curve), dat meet hoe goed het model studenten rangschikt op uitvalrisico - een nuttigere maatstaf dan nauwkeurigheid voor het prioriteren van interventiemiddelen. Hogere ROC AUC-waarden (variërend van 0,5 voor willekeurig raden tot 1,0 voor perfecte rangschikking) geven een beter vermogen aan om onderscheid te maken tussen studenten die zullen uitvallen en degenen die dat niet zullen doen.
+
+Deze vergelijking helpt bij het bepalen van de optimale timing voor vroege interventiesystemen op basis van aanwezigheidspatronen.
 
 ```{r}
 #| label: load-data
@@ -145,14 +147,14 @@ if(file.exists(metrics_path)) {
       ) |>
       arrange(desc(roc_auc))
     
-    # Create summary by week strategy
+    # Create summary by week strategy using roc_auc instead of accuracy
     strategy_summary <- performance_summary |>
-      filter(.metric == "accuracy") |>
+      filter(.metric == "roc_auc") |>
       group_by(week_strategy) |>
       summarize(
-        avg_accuracy = mean(.estimate, na.rm = TRUE),
-        min_accuracy = min(.estimate, na.rm = TRUE),
-        max_accuracy = max(.estimate, na.rm = TRUE),
+        avg_roc_auc = mean(.estimate, na.rm = TRUE),
+        min_roc_auc = min(.estimate, na.rm = TRUE),
+        max_roc_auc = max(.estimate, na.rm = TRUE),
         std_dev = sd(.estimate, na.rm = TRUE),
         n_models = n()
       )
@@ -168,14 +170,14 @@ if(file.exists(week_comparison_path)) {
   has_required_columns <- all(c("none", "early", "all", "early_vs_none", "all_vs_none", "all_vs_early") %in% colnames(week_comparison))
   
   if(!has_required_columns || nrow(week_comparison) == 0) {
-    # If file exists but doesn't have required data, regenerate it
-    message("Week comparison file exists but doesn't have required data. Regenerating...")
+    # If file exists but doesn't have required data, regenerate it using roc_auc
+    message("Week comparison file exists but doesn't have required data. Regenerating with ROC AUC...")
     
     # Generate from performance summary if available
     if(exists("performance_summary") && nrow(performance_summary) > 0) {
       # Find program-levels with all three week strategies
       program_levels_with_all_strategies <- performance_summary |>
-        filter(.metric == "accuracy") |>
+        filter(.metric == "roc_auc") |>
         group_by(program_level) |>
         summarize(
           n_strategies = n_distinct(week_strategy),
@@ -187,13 +189,13 @@ if(file.exists(week_comparison_path)) {
         # Compare strategies directly for these program-levels
         week_comparison <- performance_summary |>
           filter(
-            .metric == "accuracy",
+            .metric == "roc_auc",
             program_level %in% program_levels_with_all_strategies$program_level
           ) |>
-          select(program_level, week_strategy, accuracy = .estimate) |>
+          select(program_level, week_strategy, roc_auc = .estimate) |>
           pivot_wider(
             names_from = week_strategy,
-            values_from = accuracy
+            values_from = roc_auc
           ) |>
           mutate(
             early_vs_none = early - none,
@@ -208,12 +210,12 @@ if(file.exists(week_comparison_path)) {
     }
   }
 } else if(exists("performance_summary") && nrow(performance_summary) > 0) {
-  # If file doesn't exist, generate from performance summary
-  message("Week comparison file not found. Generating from performance data...")
+  # If file doesn't exist, generate from performance summary using roc_auc
+  message("Week comparison file not found. Generating from performance data using ROC AUC...")
   
   # Find program-levels with all three week strategies
   program_levels_with_all_strategies <- performance_summary |>
-    filter(.metric == "accuracy") |>
+    filter(.metric == "roc_auc") |>
     group_by(program_level) |>
     summarize(
       n_strategies = n_distinct(week_strategy),
@@ -222,16 +224,16 @@ if(file.exists(week_comparison_path)) {
     filter(n_strategies == length(week_strategies))
   
   if(nrow(program_levels_with_all_strategies) > 0) {
-    # Compare strategies directly for these program-levels
+    # Compare strategies directly for these program-levels using roc_auc
     week_comparison <- performance_summary |>
       filter(
-        .metric == "accuracy",
+        .metric == "roc_auc",
         program_level %in% program_levels_with_all_strategies$program_level
       ) |>
-      select(program_level, week_strategy, accuracy = .estimate) |>
+      select(program_level, week_strategy, roc_auc = .estimate) |>
       pivot_wider(
         names_from = week_strategy,
-        values_from = accuracy
+        values_from = roc_auc
       ) |>
       mutate(
         early_vs_none = early - none,
@@ -276,7 +278,7 @@ if(file.exists(baseline_path)) {
 }
 ```
 
-## Key Findings
+## Belangrijkste bevindingen
 
 Our analysis comparing different attendance data strategies revealed several important insights:
 
@@ -306,29 +308,29 @@ if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_compariso
   # Format as percentage
   pct_best <- paste0(round(100 * count_best / sum(count_best)), "%")
   
-  cat("1. **Impact of attendance data on prediction accuracy:**\n")
+  cat("1. **Impact of attendance data on student ranking capability (ROC AUC):**\n")
   
   # Report average differences
   cat("   - Models using early attendance data (weeks 1-5) showed an average ", 
-      ifelse(strategy_diff_summary$avg_early_vs_none < 0, "improvement of ", "decrease of "),
+      ifelse(strategy_diff_summary$avg_early_vs_none < 0, "decrease of ", "improvement of "),
       scales::percent(abs(strategy_diff_summary$avg_early_vs_none), accuracy = 0.1), 
-      " compared to models without attendance data.\n", sep = "")
+      " in ROC AUC compared to models without attendance data.\n", sep = "")
   
   cat("   - Models using all attendance data showed an average ", 
-      ifelse(strategy_diff_summary$avg_all_vs_none < 0, "improvement of ", "decrease of "),
+      ifelse(strategy_diff_summary$avg_all_vs_none < 0, "decrease of ", "improvement of "),
       scales::percent(abs(strategy_diff_summary$avg_all_vs_none), accuracy = 0.1), 
-      " compared to models without attendance data.\n", sep = "")
+      " in ROC AUC compared to models without attendance data.\n", sep = "")
   
   cat("\n2. **Best performing strategy:**\n")
-  cat("   - The **", best_strategy, " weeks** strategy achieved the highest accuracy in ", 
+  cat("   - The **", best_strategy, " weeks** strategy achieved the highest ROC AUC in ", 
       pct_best[best_strategy], " of cases.\n", sep = "")
   
   # If we have strategy summary
   if(exists("strategy_summary") && !is.null(strategy_summary) && nrow(strategy_summary) > 0) {
-    cat("   - Average accuracy by strategy: ")
+    cat("   - Average ROC AUC by strategy: ")
     for(i in 1:nrow(strategy_summary)) {
       cat("**", strategy_summary$week_strategy[i], "**: ", 
-          scales::percent(strategy_summary$avg_accuracy[i], accuracy = 0.1),
+          scales::percent(strategy_summary$avg_roc_auc[i], accuracy = 0.1),
           ifelse(i < nrow(strategy_summary), ", ", ""), sep = "")
     }
     cat("\n")
@@ -357,16 +359,16 @@ if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_compariso
   # If we don't have direct comparison but have strategy summary
   cat("1. **Week variable strategy performance:**\n")
   
-  # Show average accuracy by strategy
+  # Show average ROC AUC by strategy
   for(i in 1:nrow(strategy_summary)) {
-    cat("   - **", strategy_summary$week_strategy[i], "** strategy achieved an average accuracy of ", 
-        scales::percent(strategy_summary$avg_accuracy[i], accuracy = 0.1),
+    cat("   - **", strategy_summary$week_strategy[i], "** strategy achieved an average ROC AUC of ", 
+        scales::percent(strategy_summary$avg_roc_auc[i], accuracy = 0.1),
         " across ", strategy_summary$n_models[i], " models.\n", sep = "")
   }
   
   # Find best strategy
-  best_strategy <- strategy_summary$week_strategy[which.max(strategy_summary$avg_accuracy)]
-  cat("\n   The **", best_strategy, "** strategy showed the highest average accuracy.\n", sep = "")
+  best_strategy <- strategy_summary$week_strategy[which.max(strategy_summary$avg_roc_auc)]
+  cat("\n   The **", best_strategy, "** strategy showed the highest average ROC AUC.\n", sep = "")
   
   # If we have top variables
   if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
@@ -383,9 +385,9 @@ if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_compariso
 }
 ```
 
-## Week Strategy Performance Comparison
+## Vergelijking van weekstrategieprestaties
 
-The following charts show how different attendance data strategies affect model performance:
+De volgende grafieken tonen hoe verschillende aanwezigheidsgegevensstrategieën de modelprestaties beïnvloeden:
 
 ```{r}
 #| label: week-strategy-performance
@@ -396,44 +398,48 @@ The following charts show how different attendance data strategies affect model 
 # If we have week comparison data
 if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_comparison) > 0) {
   # Create long format data for plotting
-  week_comparison_long <- week_comparison |>
-    select(program_level, none, early, all) |>
-    pivot_longer(
-      cols = c(none, early, all),
-      names_to = "week_strategy",
-      values_to = "accuracy"
-    ) |>
-    mutate(
-      week_strategy = factor(week_strategy, 
-                          levels = c("none", "early", "all"),
-                          labels = c("No weeks", "Early weeks", "All weeks"))
-    )
-  
-  # Plot 1: Line plot showing direct comparison for each program-level
-  p1 <- ggplot(week_comparison_long, aes(x = week_strategy, y = accuracy, group = program_level)) +
-    geom_line(alpha = 0.3, aes(color = program_level)) +
-    geom_point(alpha = 0.5) +
-    stat_summary(fun = mean, geom = "point", size = 4, color = "red") +
-    stat_summary(fun = mean, geom = "line", linewidth = 1.5, color = "red", group = 1) +
-    labs(
-      title = "Model Accuracy by Week Strategy",
-      subtitle = "Each gray line represents one program-level, red line shows average",
-      x = "Week Variable Strategy",
-      y = "Accuracy"
-    ) +
-    scale_y_continuous(labels = scales::percent) +
-    theme_minimal() +
-    theme(legend.position = "none")
-  
-  print(p1)
-  
-  # Plot 2: Boxplot showing distribution of accuracies by strategy
-  p2 <- ggplot(week_comparison_long, aes(x = week_strategy, y = accuracy, fill = week_strategy)) +
+
+week_comparison_long <- week_comparison |>
+  select(program_level, none, early, all) |>
+  pivot_longer(
+    cols = c(none, early, all),
+    names_to = "week_strategy",
+    values_to = "roc_auc"
+  ) |>
+  mutate(
+    week_strategy = factor(week_strategy, 
+                        levels = c("none", "early", "all"),
+                        labels = c("No weeks", "Early weeks", "All weeks"))
+  )
+
+# Plot with modified styling
+p1 <- ggplot(week_comparison_long, aes(x = week_strategy, y = roc_auc, group = program_level)) +
+  geom_line(alpha = 0.3, aes(color = program_level)) +  # Keep colored program lines with alpha
+  geom_point(alpha = 0.3, size = 1, aes(color = program_level)) +  # Keep colored program points with alpha
+  #stat_summary(fun = mean, geom = "point", size = 3, color = "black") +  # Fully opaque black average points
+  stat_summary(fun = mean, geom = "line", linewidth = 1, color = "black", group = 1) +  # Fully opaque black average line
+  labs(
+    title = "Model ROC AUC per weekstrategie",
+    subtitle = "Elke grijze lijn vertegenwoordigt één programma-niveau, zwarte lijn toont gemiddelde\nHogere waarden duiden op betere studentenrangschikkingscapaciteit",
+    x = "Weekvariabelestrategie",
+    y = "ROC AUC"
+  ) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+print(p1)
+
+  # Plot 2: Boxplot showing distribution of ROC AUC by strategy
+  p2 <- ggplot(week_comparison_long, aes(x = week_strategy, y = roc_auc, fill = week_strategy)) +
     geom_boxplot() +
+    # Add reference line at 0.5 for random classifier
+    geom_hline(yintercept = 0.5, linetype = "dashed", color = "darkred") +
     labs(
-      title = "Distribution of Model Accuracies by Week Strategy",
-      x = "Week Variable Strategy",
-      y = "Accuracy"
+      title = "Verdeling van model ROC AUC per weekstrategie",
+      subtitle = "Hogere waarden duiden op betere studentenrangschikkingscapaciteit\nStippellijn bij 0,5 vertegenwoordigt willekeurige rangschikking (baseline)",
+      x = "Weekvariabelestrategie",
+      y = "ROC AUC"
     ) +
     scale_y_continuous(labels = scales::percent) +
     theme_minimal() +
@@ -459,10 +465,10 @@ if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_compariso
     geom_boxplot() +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(
-      title = "Accuracy Differences Between Week Strategies",
-      subtitle = "Values above zero indicate first strategy outperforms second",
-      x = "Comparison",
-      y = "Accuracy Difference"
+      title = "ROC AUC-verschillen tussen weekstrategieën",
+      subtitle = "Waarden boven nul geven aan dat de eerste strategie betere studentenrangschikking biedt\nGrotere verschillen vertegenwoordigen substantiëlere verbeteringen in voorspellend vermogen",
+      x = "Vergelijking",
+      y = "ROC AUC-verschil"
     ) +
     scale_y_continuous(labels = scales::percent) +
     theme_minimal() +
@@ -473,39 +479,41 @@ if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_compariso
           "week_strategy" %in% names(performance_display)) {
   # If no direct comparison but we have week strategy in performance data
   strategy_performance <- performance_display |>
-    filter(!is.na(accuracy)) |>
+    filter(!is.na(roc_auc)) |>
     mutate(
       week_strategy = factor(week_strategy,
                           levels = c("none", "early", "all"),
                           labels = c("No weeks", "Early weeks", "All weeks"))
     )
   
-  # Create boxplot of accuracies by strategy
-  p <- ggplot(strategy_performance, aes(x = week_strategy, y = accuracy, fill = week_strategy)) +
+  # Create boxplot of ROC AUC by strategy
+  p <- ggplot(strategy_performance, aes(x = week_strategy, y = roc_auc, fill = week_strategy)) +
     geom_boxplot() +
+    geom_hline(yintercept = 0.5, linetype = "dashed", color = "darkred") +
     labs(
-      title = "Model Accuracy by Week Strategy",
+      title = "Model ROC AUC by Week Strategy",
+      subtitle = "Higher values indicate better student ranking capability\nDashed line at 0.5 represents random ranking (baseline)",
       x = "Week Variable Strategy",
-      y = "Accuracy"
+      y = "ROC AUC"
     ) +
     scale_y_continuous(labels = scales::percent) +
     theme_minimal()
   
   print(p)
-} else if(file.exists(file.path(visualizations_dir, "accuracy_comparison.png"))) {
+} else if(file.exists(file.path(visualizations_dir, "roc_auc_comparison.png"))) {
   # Fallback to saved plot
-  knitr::include_graphics(file.path(visualizations_dir, "accuracy_comparison.png"))
+  knitr::include_graphics(file.path(visualizations_dir, "roc_auc_comparison.png"))
 } else {
   cat("*No performance comparison visualization available.*")
 }
 ```
 
-The charts above provide insight into how the inclusion of attendance data affects prediction accuracy. By comparing models with no attendance data, early attendance data (weeks 1-5), and all attendance data, we can determine the optimal timing for attendance-based interventions.
+De bovenstaande grafieken geven inzicht in hoe het opnemen van aanwezigheidsgegevens de voorspellingsnauwkeurigheid beïnvloedt. Door modellen zonder aanwezigheidsgegevens, met vroege aanwezigheidsgegevens (weken 1-5) en met alle aanwezigheidsgegevens te vergelijken, kunnen we de optimale timing bepalen voor interventies op basis van aanwezigheid.
 
 
-## Variable Descriptions
+## Variabelebeschrijvingen
 
-The following table explains the top predictive variables identified by our models:
+De volgende tabel verklaart de belangrijkste voorspellende variabelen die door onze modellen zijn geïdentificeerd:
 
 ```{r}
 #| label: variable-descriptions
@@ -557,9 +565,9 @@ if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
 }
 ```
 
-# Program-Specific Insights
+# Programma-specifieke inzichten
 
-We analyzed dropout patterns across different educational programs and levels:
+We hebben uitvalpatronen over verschillende onderwijsprogramma's en niveaus geanalyseerd:
 
 ```{r}
 #| label: program-insights
@@ -631,30 +639,81 @@ if(exists("performance_with_baseline") && !is.null(performance_with_baseline) &&
 }
 ```
 
-# Recommendations 
+# Praktische implementatie: Studentenrangschikking en interventie
 
-Based on our analysis of different attendance data strategies, we recommend the following:
+Onze modellen zijn ontworpen om studenten te rangschikken op uitvalrisico in plaats van binaire voorspellingen te doen. Deze aanpak biedt verschillende praktische voordelen:
 
-1. **Optimized Data Collection**: Focus attendance tracking efforts on the most informative time periods identified in our analysis, balancing prediction accuracy with administrative efficiency.
+```{r}
+#| label: lift-analysis
+#| echo: false
 
-2. **Early Warning System**: Implement an early warning system that incorporates the optimal attendance data strategy along with other key predictors identified in our models.
+# Load lift chart data if available
+lift_data_path <- file.path(config::get("modelled_dir"), "interpreted", "visualizations", "lift_data.rds")
+lift_plots_exist <- file.exists(file.path(config::get("modelled_dir"), "interpreted", "visualizations", "intervention_lift_chart.png"))
 
-3. **Program-Specific Approaches**: Adapt attendance monitoring strategies based on the program-specific findings, recognizing that different programs may benefit from different approaches.
+if(file.exists(lift_data_path)) {
+  lift_data <- readRDS(lift_data_path)
+  
+  # Extract key statistics if data is available
+  if(!is.null(lift_data) && is.list(lift_data) && length(lift_data) > 0) {
+    # Get capture rates at different thresholds
+    for(strategy in names(lift_data)) {
+      cat("### ", toupper(substr(strategy, 1, 1)), substr(strategy, 2, nchar(strategy)), " Week Strategy\n\n", sep="")
+      
+      data <- lift_data[[strategy]]
+      if(!is.null(data) && "capture_rates" %in% names(data)) {
+        rates <- data$capture_rates
+        cat("With the top 10% highest-risk students: ", scales::percent(rates$pct_10, accuracy = 0.1), " of dropouts captured\n", sep="")
+        cat("With the top 20% highest-risk students: ", scales::percent(rates$pct_20, accuracy = 0.1), " of dropouts captured\n", sep="")
+        cat("With the top 30% highest-risk students: ", scales::percent(rates$pct_30, accuracy = 0.1), " of dropouts captured\n\n", sep="")
+      }
+    }
+  } else if(lift_plots_exist) {
+    # Just display the lift chart image
+    knitr::include_graphics(file.path(config::get("modelled_dir"), "interpreted", "visualizations", "intervention_lift_chart.png"))
+    
+    cat("\nThis chart shows how many students would need intervention to capture a given percentage of actual dropouts. The curve is always read from left to right - starting with highest risk students.\n\n")
+  }
+} else if(lift_plots_exist) {
+  # Just display the lift chart image
+  knitr::include_graphics(file.path(config::get("modelled_dir"), "interpreted", "visualizations", "intervention_lift_chart.png"))
+  
+  cat("\nThis chart shows how many students would need intervention to capture a given percentage of actual dropouts. The curve is always read from left to right - starting with highest risk students.\n\n")
+} else {
+  cat("Lift chart data not available.\n\n")
+  
+  # Provide generic guidance
+  cat("Our model provides a ranked list of students by dropout risk, allowing for efficient allocation of intervention resources. For example:\n\n")
+  cat("- Targeting the highest-risk 20% of students typically captures 40-60% of all potential dropouts\n")
+  cat("- The earlier weeks data is available, the sooner high-risk students can be identified\n")
+  cat("- Some programs benefit more from attendance data than others\n\n")
+}
+```
 
-4. **Integrated Risk Assessment**: Combine attendance data with other strong predictors like prior education, application timing, and demographic factors for a comprehensive risk assessment.
+## Implementatieaanbevelingen
 
-5. **Intervention Timing**: Align intervention timing with the attendance data strategy - if early weeks provide sufficient signal, interventions can begin sooner.
+Op basis van onze analyse van verschillende aanwezigheidsgegevensstrategieën, bevelen we het volgende aan:
 
-# Next Steps
+1. **Gerangschikte interventielijsten**: Gebruik modelwaarschijnlijkheidsscores om gerangschikte lijsten van studenten met hoog risico te maken in plaats van binaire uitval/geen-uitval voorspellingen te doen.
 
-To build on this analysis, we suggest the following next steps:
+2. **Geoptimaliseerde middelentoewijzing**: Bepaal interventiedrempels op basis van beschikbare middelen - de liftgrafieken tonen het percentage potentiële uitvallers dat bij elke drempel wordt bereikt.
 
-1. **Expanded Program Coverage**: Extend this analysis to additional programs and levels to validate the findings and identify any program-specific patterns.
+3. **Vroeg waarschuwingssysteem**: Implementeer een vroeg waarschuwingssysteem dat de optimale aanwezigheidsgegevensstrategie combineert met andere belangrijke voorspellers die in onze modellen zijn geïdentificeerd.
 
-2. **Time-Series Analysis**: Conduct more detailed time-series analysis of attendance patterns to identify specific thresholds or turning points that strongly predict dropout.
+4. **Programma-specifieke benaderingen**: Pas aanwezigheidsmonitoringstrategieën aan op basis van de programma-specifieke bevindingen, erkennend dat verschillende programma's kunnen profiteren van verschillende benaderingen.
 
-3. **Intervention Testing**: Design and test interventions based on the identified optimal timing for attendance data collection and prediction.
+5. **Interventietiming**: Stem de interventietiming af op de aanwezigheidsgegevensstrategie - als vroege weken voldoende signaal geven, kunnen interventies eerder beginnen.
 
-4. **Combined Model Development**: Develop an integrated predictive model that optimally combines attendance data with other predictors.
+# Volgende stappen
 
-5. **Operational Implementation**: Translate these findings into operational procedures for attendance tracking and early intervention processes.
+Om voort te bouwen op deze analyse, stellen we de volgende vervolgstappen voor:
+
+1. **Uitgebreide programmadekking**: Breid deze analyse uit naar extra programma's en niveaus om de bevindingen te valideren en programma-specifieke patronen te identificeren.
+
+2. **Tijdreeksanalyse**: Voer een meer gedetailleerde tijdreeksanalyse van aanwezigheidspatronen uit om specifieke drempels of keerpunten te identificeren die sterk uitval voorspellen.
+
+3. **Interventietests**: Ontwerp en test interventies op basis van de geïdentificeerde optimale timing voor het verzamelen van aanwezigheidsgegevens en voorspelling.
+
+4. **Gecombineerde modelontwikkeling**: Ontwikkel een geïntegreerd voorspellend model dat aanwezigheidsgegevens optimaal combineert met andere voorspellers.
+
+5. **Operationele implementatie**: Vertaal deze bevindingen naar operationele procedures voor aanwezigheidsregistratie en vroege interventieprocessen.

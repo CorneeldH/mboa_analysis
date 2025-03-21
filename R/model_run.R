@@ -74,8 +74,8 @@ run_model <- function(data_list,
   # Tune the model
   tuned_results <- tune_model(model_workflow, cv_folds, grid_size)
 
-  # Get best hyperparameters
-  best_params <- select_best_params(tuned_results)
+  # Get best hyperparameters (optimized for ROC AUC for better ranking)
+  best_params <- select_best_params(tuned_results, metric = "roc_auc")
 
   # Finalize workflow with best parameters
   final_workflow <- finalize_model_workflow(model_workflow, best_params, model_type)
@@ -277,14 +277,15 @@ tune_model <- function(model_workflow, cv_folds, grid_size = 25) {
 #' Select the best hyperparameters from tuning results.
 #'
 #' @param tuned_results Tuning results from tune_model()
+#' @param metric Metric to optimize, defaults to "roc_auc" which is best for ranking students
 #'
 #' @return The best hyperparameter values
 #'
 #' @importFrom tune select_best
 #'
 #' @export
-select_best_params <- function(tuned_results) {
-  select_best(x = tuned_results, metric = "roc_auc")
+select_best_params <- function(tuned_results, metric = "roc_auc") {
+  select_best(x = tuned_results, metric = metric)
 }
 
 #' Finalize Model Workflow with Best Parameters

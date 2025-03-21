@@ -19,18 +19,18 @@ load_all()
 
 ```
 
-## Introduction
+## Introductie
 
-This document prepares data for predictive modeling of student dropout across different educational programs and levels. The data preparation process includes:
+Dit document bereidt gegevens voor ten behoeve van voorspellende modellering van studentuitval over verschillende onderwijsprogramma's en niveaus. Het voorbereidingsproces omvat:
 
-1. Loading the necessary datasets
-2. Filtering and preprocessing data
-3. Splitting data into training and test sets
-4. Saving prepared data in an organized structure
+1. Laden van de benodigde datasets
+2. Filteren en voorverwerken van gegevens
+3. Opsplitsen van gegevens in trainings- en testsets
+4. Opslaan van voorbereide gegevens in een georganiseerde structuur
 
-## Loading Data
+## Gegevens laden
 
-We first load the combined and enriched enrollment data from our data pipeline.
+Als eerste laden we de gecombineerde en verrijkte inschrijvingsgegevens uit onze datapijplijn.
 
 ```{r}
 #| label: load-data
@@ -441,9 +441,9 @@ enrollments_combined_enriched <- reorganize_week_variables(enrollments_combined_
 cat("Loaded dataset dimensions:", dim(enrollments_combined_enriched), "\n")
 ```
 
-## Identifying Programs and Levels
+## Identificeren van programma's en niveaus
 
-We'll identify the available programs and education levels to model.
+We identificeren de beschikbare opleidingsprogramma's en onderwijsniveaus voor modellering.
 
 ```{r}
 #| label: identify-programs-levels
@@ -513,9 +513,9 @@ saveRDS(
 )
 ```
 
-## Data Preparation for All Programs
+## Gegevensvoorbereiding voor alle programma's
 
-We'll first prepare a dataset containing all programs and levels.
+We bereiden eerst een dataset voor die alle programma's en niveaus bevat.
 
 ```{r}
 #| label: prepare-all-data
@@ -568,9 +568,9 @@ cat("\nVariable count comparison across week strategies:\n")
 print(var_counts)
 ```
 
-## Data Preparation by Program and Level
+## Gegevensvoorbereiding per programma en niveau
 
-Now we'll prepare separate datasets for each selected program-level combination.
+Nu gaan we afzonderlijke datasets voorbereiden voor elke geselecteerde programma-niveaucombinatie.
 
 ```{r}
 #| label: prepare-by-program-level
@@ -667,7 +667,7 @@ total_valid <- sum(valid_datasets_by_strategy)
 cat("\nSuccessfully prepared", total_valid, "valid program-level datasets in total\n")
 ```
 
-## Save Dataset List for Next Steps
+## Dataset lijst opslaan voor de volgende stappen
 
 ```{r}
 #| label: save-dataset-list
@@ -755,6 +755,6 @@ valid_summary <- valid_datasets |>
 print(knitr::kable(valid_summary, digits = 0))
 ```
 
-## Next Steps
+## Volgende stappen
 
-The prepared datasets are now available in the `data/modelled/prepared` directory and ready for model training. The next document in this workflow will train predictive models using these prepared datasets.
+De voorbereide datasets zijn nu beschikbaar in de map `data/modelled/prepared` en klaar voor modeltraining. Het volgende document in deze workflow zal voorspellende modellen trainen met behulp van deze voorbereide datasets.

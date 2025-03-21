@@ -19,18 +19,18 @@ load_all()
 
 ```
 
-## Introduction
+## Introductie
 
-This document interprets the predictive models for student dropout that were trained in the previous document. We'll analyze:
+Dit document interpreteert de voorspellende modellen voor studentuitval die in het vorige document zijn getraind. We analyseren:
 
-1. Variable importance across different models
-2. Model performance comparison
-3. Key factors influencing student dropout
-4. Program-specific insights
+1. Variabele-importantie over verschillende modellen
+2. Vergelijking van modelprestaties
+3. Belangrijkste factoren die studentuitval beïnvloeden
+4. Programma-specifieke inzichten
 
-## Loading Model Results
+## Laden van modelresultaten
 
-First, we'll load the trained models and their performance metrics.
+Eerst laden we de getrainde modellen en hun prestatiemetrieken.
 
 ```{r}
 #| label: load-model-results
@@ -80,11 +80,11 @@ if(file.exists(performance_summary_path)) {
   
   cat("Loaded performance summary for", n_distinct(performance_summary$dataset_id), "models\n")
   cat("Models by week strategy:\n")
-  print(table(performance_summary$week_strategy[performance_summary$.metric == "accuracy"]))
+  print(table(performance_summary$week_strategy[performance_summary$.metric == "roc_auc"]))
   
-  # Show top 5 models by accuracy
-  cat("\nTop 5 models by accuracy:\n")
-  print(knitr::kable(head(performance_display |> arrange(desc(accuracy)), 5), digits = 4))
+  # Show top 5 models by ROC AUC (better for ranking)
+  cat("\nTop 5 models by ROC AUC:\n")
+  print(knitr::kable(head(performance_display |> arrange(desc(roc_auc)), 5), digits = 4))
 } else {
   cat("Performance summary not found. Looking for individual metrics files...\n")
   
@@ -189,10 +189,10 @@ if(file.exists(week_comparison_path)) {
     stat_summary(fun = mean, geom = "point", size = 4, color = "red") +
     stat_summary(fun = mean, geom = "line", linewidth = 1.5, color = "red", group = 1) +
     labs(
-      title = "Model Accuracy by Week Strategy",
-      x = "Week Variable Strategy",
-      y = "Accuracy",
-      color = "Program-Level"
+      title = "Modelnauwkeurigheid per weekstrategie",
+      x = "Weekvariabelestrategie",
+      y = "Nauwkeurigheid",
+      color = "Programma-niveau"
     ) +
     scale_y_continuous(labels = scales::percent) +
     theme_minimal() +
@@ -202,9 +202,9 @@ if(file.exists(week_comparison_path)) {
 }
 ```
 
-## Interpreting Selected Models
+## Interpreteren van geselecteerde modellen
 
-We'll interpret the top-performing models to understand important factors.
+We interpreteren de best presterende modellen om de belangrijke factoren te begrijpen.
 
 ```{r}
 #| label: interpret-models
@@ -223,7 +223,7 @@ if(exists("performance_display") && nrow(performance_display) > 0) {
   for(strategy in week_strategies) {
     strategy_models <- performance_display |>
       filter(week_strategy == strategy) |>
-      arrange(desc(accuracy))
+      arrange(desc(roc_auc))  # Sort by ROC AUC for better ranking capability
     
     if(nrow(strategy_models) > 0) {
       top_by_strategy[[strategy]] <- head(strategy_models$dataset_id, 1)
@@ -234,8 +234,8 @@ if(exists("performance_display") && nrow(performance_display) > 0) {
   if(exists("week_comparison") && nrow(week_comparison) > 0) {
     # Find top 3 program-levels with best overall performance
     top_program_levels <- week_comparison |>
-      mutate(avg_accuracy = (none + early + all)/3) |>
-      arrange(desc(avg_accuracy)) |>
+      mutate(avg_roc_auc = (none + early + all)/3) |>
+      arrange(desc(avg_roc_auc)) |>
       head(3) |>
       pull(program_level)
     
@@ -244,8 +244,8 @@ if(exists("performance_display") && nrow(performance_display) > 0) {
       filter(program_level %in% top_program_levels) |>
       pull(dataset_id)
   } else {
-    # If no week comparison, select top 3 models overall
-    top_program_models <- head(performance_display |> arrange(desc(accuracy)) |> pull(dataset_id), 3)
+    # If no week comparison, select top 3 models overall by ROC AUC
+    top_program_models <- head(performance_display |> arrange(desc(roc_auc)) |> pull(dataset_id), 3)
   }
   
   # Combine both selection approaches
@@ -315,12 +315,23 @@ if(exists("performance_display") && nrow(performance_display) > 0) {
       # Store in results list
       interpretation_results[[model_id]] <- interpretation
       
-      # Display performance
-      model_accuracy <- performance_display |>
+      # Display performance metrics
+      # Primary metric: ROC AUC (for ranking capability)
+      model_roc_auc <- performance_display |>
         filter(dataset_id == model_id) |>
-        pull(accuracy)
+        pull(roc_auc)
       
-      cat("  Model accuracy:", scales::percent(model_accuracy, accuracy = 0.1), "\n")
+      cat("  Model ROC AUC:", scales::percent(model_roc_auc, accuracy = 0.1), 
+          "(higher values = better student ranking)\n")
+      
+      # Secondary metric: accuracy (for reference)
+      if ("accuracy" %in% colnames(performance_display)) {
+        model_accuracy <- performance_display |>
+          filter(dataset_id == model_id) |>
+          pull(accuracy)
+        
+        cat("  Model accuracy:", scales::percent(model_accuracy, accuracy = 0.1), "\n")
+      }
       
       # Display variable importance
       if(!is.null(interpretation$variable_importance) && nrow(interpretation$variable_importance) > 0) {
@@ -348,9 +359,9 @@ if(exists("performance_display") && nrow(performance_display) > 0) {
 }
 ```
 
-## Variable Importance Across Models
+## Variabele-importantie over modellen
 
-We'll compare variable importance across different models to identify consistent patterns.
+We vergelijken variabele-importantie over verschillende modellen om consistente patronen te identificeren.
 
 ```{r}
 #| label: compare-importance
@@ -398,9 +409,9 @@ if(length(interpretation_results) >= 2) {
       geom_col(position = "dodge") +
       coord_flip() +
       labs(
-        title = "Variable Importance Comparison by Week Strategy",
+        title = "Vergelijking van variabele-importantie per weekstrategie",
         x = NULL,
-        y = "Importance"
+        y = "Importantie"
       ) +
       theme_minimal() +
       theme(legend.position = "bottom")
@@ -424,88 +435,207 @@ if(length(interpretation_results) >= 2) {
 }
 ```
 
-## Model Performance Comparison
+## Vergelijking van modelprestaties
 
-Let's compare performance metrics across different models.
+Laten we prestatiemetrieken vergelijken tussen verschillende modellen.
 
 ```{r}
 #| label: compare-performance
 
 if(exists("performance_display") && nrow(performance_display) > 0) {
-  # Calculate baseline accuracy for each model
-  baseline_accuracies <- data.frame()
+  # For ROC AUC, we don't need to calculate baseline from data
+  # A random model has ROC AUC of 0.5 regardless of class distribution
   
-  for(model_id in performance_display$dataset_id) {
-    # Try to load the original data
-    data_path <- file.path(config::get("modelled_dir"), "prepared", paste0(model_id, ".rds"))
+  # Display performance sorted by ROC AUC
+  cat("\nModel performance by ROC AUC (ranking capability):\n")
+  print(knitr::kable(
+    performance_display |> 
+      select(dataset_id, program_level, week_strategy, roc_auc) |>
+      arrange(desc(roc_auc)),
+    digits = 4
+  ))
+  
+  # Plot ROC AUC comparison with fixed baseline of 0.5
+  model_comparison <- performance_display |>
+    select(dataset_id, program_level, week_strategy, roc_auc) |>
+    mutate(
+      baseline_auc = 0.5,  # Random model has ROC AUC of 0.5
+      auc_gain = roc_auc - baseline_auc
+    )
+  
+  # Plot performance comparison
+  p <- ggplot(model_comparison, aes(x = reorder(dataset_id, roc_auc))) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", color = "grey70") +
+    geom_col(aes(y = roc_auc), fill = "steelblue", alpha = 0.7) +
+    geom_text(aes(y = roc_auc, label = sprintf("%.3f", roc_auc)), 
+              hjust = -0.2) +
+    coord_flip() +
+    labs(
+      title = "Vergelijking van model ROC AUC",
+      subtitle = "Hogere waarden geven betere studentenrangschikking aan (0.5 = willekeurige rangschikking)",
+      x = NULL,
+      y = "ROC AUC"
+    ) +
+    theme_minimal() +
+    ylim(0, max(1, max(model_comparison$roc_auc) * 1.1))
+  
+  print(p)
+  
+  # Save plot
+  ggsave(
+    file.path(config::get("modelled_dir"), "interpreted", "visualizations", "roc_auc_comparison.png"),
+    p,
+    width = 10,
+    height = 8
+  )
+}
+```
+
+## Interventieplanning met waarschijnlijkheidsrangschikking
+
+Om interventies te plannen op basis van uitvalrisico, maken we liftgrafieken die laten zien hoeveel studenten moeten worden benaderd om een bepaald percentage uitvallers te bereiken.
+
+```{r}
+#| label: program-comparison-chart
+#| fig.width: 10
+#| fig.height: 6
+
+# Parameter: specify the program name pattern to analyze
+program_name <- "Keuken.*25180.*level2"  # Can be changed to any program pattern
+program_name <- "Leidinggeven.*25160.*level4"
+program_name <- "Dienstverlening (25636)_level4"
+
+
+# Create a function to generate comparison chart for any program
+create_program_comparison <- function(program_name) {
+    program_pattern <- str_replace(program_name, " \\(", ".*")
+    program_pattern <- str_replace(program_pattern, "\\)_", ".*")
     
-    if(file.exists(data_path)) {
-      # Load the data
-      prepared_data <- readRDS(data_path)
+  # Find models matching the pattern
+  model_ids <- names(all_model_results)[grep(paste0(program_pattern, ".*weeks"), names(all_model_results))]
+  
+  if(length(model_ids) == 0) {
+    cat("Models for", program_pattern, "not found\n")
+    return(NULL)
+  }
+  
+  # Extract program name from first matching model for display
+  program_display_name <- sub("_weeks.*$", "", model_ids[1])
+  
+  # Initialize data collection
+  chart_data <- data.frame()
+  
+  # Extract data from each model
+  for(model_id in model_ids) {
+    model <- all_model_results[[model_id]]
+    week_strategy <- sub(".*weeks_", "", model_id)
+    
+    # Extract predictions
+    predictions <- tryCatch(
+      collect_predictions(model$final_model), 
+      error = function(e) NULL
+    )
+    
+    if(!is.null(predictions) && nrow(predictions) > 0) {
+      # Find outcome and probability columns
+      outcome_col <- grep("DEELNEMER_BC_uitval|.outcome|truth", colnames(predictions), value = TRUE)[1]
+      prob_col <- grep("^.pred_Uitval|^.pred_TRUE", colnames(predictions), value = TRUE)[1]
       
-      if(!is.null(prepared_data$test) && nrow(prepared_data$test) > 0) {
-        # Calculate baseline accuracy
-        class_counts <- table(prepared_data$test$DEELNEMER_BC_uitval)
-        baseline_acc <- max(class_counts) / sum(class_counts)
-        
-        baseline_accuracies <- rbind(
-          baseline_accuracies,
-          data.frame(
-            dataset_id = model_id,
-            baseline_accuracy = baseline_acc,
-            majority_class = names(class_counts)[which.max(class_counts)]
-          )
-        )
+      if(!is.na(outcome_col) && !is.na(prob_col)) {
+        # Calculate lift data
+        lift_data <- predictions |>
+          arrange(desc(!!sym(prob_col))) |>
+          mutate(
+            actual_dropout = as.numeric(!!sym(outcome_col) %in% c("Uitval", "TRUE", "1", 1, TRUE)),
+            rank = row_number(),
+            rank_pct = rank / n(),
+            cum_dropouts = cumsum(actual_dropout),
+            cum_dropout_pct = cum_dropouts / sum(actual_dropout)
+          ) |>
+          select(rank_pct, cum_dropout_pct) |>
+          mutate(strategy = week_strategy)
+          
+        chart_data <- bind_rows(chart_data, lift_data)
       }
     }
   }
   
-  # Join with performance data
-  if(nrow(baseline_accuracies) > 0) {
-    performance_with_baseline <- performance_display |>
-      left_join(baseline_accuracies, by = "dataset_id") |>
-      mutate(
-        accuracy_gain = accuracy - baseline_accuracy,
-        relative_improvement = (accuracy / baseline_accuracy) - 1
+  # Create chart if we have data
+  if(nrow(chart_data) > 0) {
+    # Format strategy names
+    chart_data <- chart_data |>
+      mutate(strategy = factor(strategy, 
+                            levels = c("none", "early", "all"),
+                            labels = c("No Weeks", "Early Weeks", "All Weeks")))
+    
+    # Clean program name for display
+    clean_program <- gsub("\\.\\.+", " ", program_display_name)
+    
+    # Create the chart
+    comparison_chart <- ggplot(chart_data, aes(x = rank_pct, y = cum_dropout_pct, color = strategy)) +
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray70") +
+      geom_line(linewidth = 1.2) +
+      geom_point(aes(shape = strategy), size = 3) +
+      labs(
+        title = paste0(clean_program, ": Vergelijking van interventie-efficiëntie"),
+        subtitle = "Toont % uitvallers bereikt bij interventie met % studenten met hoogste risico",
+        x = "Percentage benaderde studenten (hoogste risico eerst)",
+        y = "Percentage bereikte uitvallers",
+        color = "Weekstrategie",
+        shape = "Weekstrategie",
+        caption = paste("Programma:", clean_program, "| Gerangschikt op ROC AUC")
+      ) +
+      scale_x_continuous(labels = scales::percent) +
+      scale_y_continuous(labels = scales::percent) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(face = "bold", size = 14),
+        plot.subtitle = element_text(face = "italic", size = 12),
+        legend.position = "bottom"
       )
     
-    # Display performance with baseline
-    cat("\nModel performance compared to baseline:\n")
-    print(knitr::kable(
-      performance_with_baseline |> 
-        select(dataset_id, accuracy, baseline_accuracy, accuracy_gain, relative_improvement, roc_auc) |>
-        arrange(desc(accuracy_gain)),
-      digits = 4
-    ))
+    # Save chart
+    vis_dir <- file.path(config::get("modelled_dir"), "interpreted", "visualizations", "programs")
+    if(!dir.exists(vis_dir)) {
+      dir.create(vis_dir, recursive = TRUE)
+    }
     
-    # Plot performance comparison
-    p <- ggplot(performance_with_baseline, aes(x = reorder(dataset_id, accuracy_gain))) +
-      geom_col(aes(y = baseline_accuracy), fill = "grey80") +
-      geom_col(aes(y = accuracy), fill = "steelblue", alpha = 0.7) +
-      geom_text(aes(y = accuracy, label = scales::percent(accuracy, accuracy = 0.1)), 
-                hjust = -0.2) +
-      coord_flip() +
-      labs(
-        title = "Model Accuracy vs. Baseline",
-        x = NULL,
-        y = "Accuracy"
-      ) +
-      theme_minimal() +
-      ylim(0, max(1, max(performance_with_baseline$accuracy) * 1.2))
+    # Create clean filename
+    clean_filename <- gsub("[^a-zA-Z0-9]", "_", clean_program)
+    filename <- paste0("lift_chart_", clean_filename, "_comparison.png")
     
-    print(p)
-    
-    # Save plot
     ggsave(
-      file.path(config::get("modelled_dir"), "interpreted", "visualizations", "accuracy_comparison.png"),
-      p,
+      file.path(vis_dir, filename),
+      comparison_chart,
       width = 10,
-      height = 8
+      height = 7
     )
+    
+    return(comparison_chart)
+  } else {
+    cat("Could not extract prediction data for", program_pattern, "models\n")
+    return(NULL)
   }
+}
+
+# Run the function with the specified program
+program_chart <- create_program_comparison(program_name)
+
+# Print the chart if available
+if(!is.null(program_chart)) {
+  print(program_chart)
 }
 ```
 
-## Next Steps
+Deze liftgrafieken bieden een praktisch hulpmiddel voor het plannen van interventies:
 
-The model interpretations and visualizations are now saved in the `data/modelled/interpreted` directory. In the next document, we'll create a summary dashboard of our findings.
+1. De x-as toont het percentage studenten dat wordt benaderd voor interventie, beginnend met degenen met het hoogste risico.
+2. De y-as toont het percentage daadwerkelijke uitvallers dat met deze benaderingsstrategie zou worden bereikt.
+3. De gestippelde diagonale lijn vertegenwoordigt een willekeurige selectie van studenten.
+4. Gebieden waar de curve het steilste is, geven de meest efficiënte drempels voor interventie aan.
+
+Je zou bijvoorbeeld kunnen ontdekken dat het benaderen van de top 20% studenten met het hoogste risico 60% van alle uitvallers bereikt - wat een verbetering van 3x ten opzichte van willekeurige selectie aangeeft. Deze informatie helpt bestuurders om geïnformeerde beslissingen te nemen over de toewijzing van middelen voor behoudprogramma's.
+
+## Volgende stappen
+
+De modelinterpretaties en visualisaties zijn nu opgeslagen in de map `data/modelled/interpreted`. In het volgende document maken we een samenvattend dashboard van onze bevindingen, gericht op studentenrangschikking en vroege interventiestrategieën.

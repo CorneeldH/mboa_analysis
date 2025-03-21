@@ -150,39 +150,62 @@ calculate_baseline_accuracy <- function(data, outcome_var = "DEELNEMER_BC_uitval
 #'
 #' @description
 #' Calculate how much better the model performs compared to the baseline.
+#' For ROC AUC, the baseline is always 0.5 (random classifier).
 #'
-#' @param model_accuracy Model accuracy value
-#' @param baseline_accuracy Baseline accuracy value
+#' @param model_metric Model performance metric value (ROC AUC or accuracy)
+#' @param baseline_metric Baseline metric value (0.5 for ROC AUC)
+#' @param metric_type Type of metric being used (default: "roc_auc")
 #'
 #' @return A list with lift values and descriptive text
 #'
 #' @export
-calculate_model_lift <- function(model_accuracy, baseline_accuracy) {
+calculate_model_lift <- function(model_metric, baseline_metric, metric_type = "roc_auc") {
   # Calculate absolute and relative lift
-  accuracy_lift <- model_accuracy - baseline_accuracy
-  accuracy_lift_pct <- (model_accuracy / baseline_accuracy - 1) * 100
+  metric_lift <- model_metric - baseline_metric
+  metric_lift_pct <- (model_metric / baseline_metric - 1) * 100
 
-  # Generate descriptive text
-  if (accuracy_lift <= 0) {
-    comparison_text <- "not better than"
-    level_text <- "insufficient"
-  } else if (accuracy_lift < 0.05) {
-    comparison_text <- "slightly better than"
-    level_text <- "minimal"
-  } else if (accuracy_lift < 0.1) {
-    comparison_text <- "better than"
-    level_text <- "moderate"
-  } else if (accuracy_lift < 0.2) {
-    comparison_text <- "substantially better than"
-    level_text <- "substantial"
+  # Different thresholds based on metric type
+  if (metric_type == "roc_auc") {
+    # For ROC AUC
+    if (metric_lift <= 0) {
+      comparison_text <- "not better than"
+      level_text <- "insufficient"
+    } else if (metric_lift < 0.1) {
+      comparison_text <- "slightly better than"
+      level_text <- "minimal"
+    } else if (metric_lift < 0.2) {
+      comparison_text <- "better than"
+      level_text <- "moderate"
+    } else if (metric_lift < 0.3) {
+      comparison_text <- "substantially better than"
+      level_text <- "substantial"
+    } else {
+      comparison_text <- "far better than"
+      level_text <- "exceptional"
+    }
   } else {
-    comparison_text <- "far better than"
-    level_text <- "exceptional"
+    # For accuracy or other metrics
+    if (metric_lift <= 0) {
+      comparison_text <- "not better than"
+      level_text <- "insufficient"
+    } else if (metric_lift < 0.05) {
+      comparison_text <- "slightly better than"
+      level_text <- "minimal"
+    } else if (metric_lift < 0.1) {
+      comparison_text <- "better than"
+      level_text <- "moderate"
+    } else if (metric_lift < 0.2) {
+      comparison_text <- "substantially better than"
+      level_text <- "substantial"
+    } else {
+      comparison_text <- "far better than"
+      level_text <- "exceptional"
+    }
   }
 
   return(list(
-    lift = accuracy_lift,
-    lift_pct = accuracy_lift_pct,
+    lift = metric_lift,
+    lift_pct = metric_lift_pct,
     comparison = comparison_text,
     level = level_text
   ))
@@ -375,6 +398,7 @@ compare_group_importance <- function(interpretation_list,
 #'
 #' @description
 #' Compare model performance between different week variable strategies for the same program-level combinations.
+#' Focuses on ROC AUC for better student ranking capability.
 #'
 #' @param performance_comparison Performance comparison data frame from compare_group_performance()
 #' @param save Logical indicating whether to save the comparison (default: TRUE)
@@ -388,21 +412,23 @@ compare_group_importance <- function(interpretation_list,
 #' @export
 compare_week_strategies <- function(performance_comparison, save = TRUE, path = NULL) {
   # Group by program_level and compute performance for each week strategy
+  # Using ROC AUC for better ranking assessment
   week_comparison <- performance_comparison |>
-    filter(.metric == "accuracy") |>
+    filter(.metric == "roc_auc") |>  # Using ROC AUC instead of accuracy
     group_by(program_level, week_strategy) |>
     summarize(
-      accuracy = mean(.estimate, na.rm = TRUE),
+      roc_auc = mean(.estimate, na.rm = TRUE),
       .groups = "drop"
     ) |>
     # Pivot to wide format for easy comparison
     pivot_wider(
       names_from = week_strategy,
-      values_from = accuracy
+      values_from = roc_auc
     ) |>
     # Calculate differences between strategies
     mutate(
-      early_vs_none = weeks_early - weeks_none,
+      # Positive values indicate second strategy is better
+      early_vs_none = weeks_early - weeks_none,  # Higher = better student ranking
       all_vs_none = weeks_all - weeks_none,
       all_vs_early = weeks_all - weeks_early
     ) |>
@@ -446,7 +472,7 @@ compare_week_strategies <- function(performance_comparison, save = TRUE, path = 
 #' Compare model performance metrics across different program/level groups.
 #'
 #' @param interpretation_list A list of interpretation results from interpret_model()
-#' @param metric Performance metric to compare (default: "accuracy")
+#' @param metric Performance metric to compare (default: "roc_auc")
 #' @param save Logical indicating whether to save the comparison (default: TRUE)
 #' @param path Optional custom path to save the comparison
 #'
@@ -457,7 +483,7 @@ compare_week_strategies <- function(performance_comparison, save = TRUE, path = 
 #'
 #' @export
 compare_group_performance <- function(interpretation_list,
-                                   metric = "accuracy",
+                                   metric = "roc_auc",
                                    save = TRUE,
                                    path = NULL) {
   # Extract performance metrics for each group
@@ -536,14 +562,22 @@ compare_group_performance <- function(interpretation_list,
 #' @importFrom scales percent
 #'
 #' @export
-create_performance_plot <- function(performance_comparison, metric = "accuracy", title = NULL) {
+create_performance_plot <- function(performance_comparison, metric = "roc_auc", title = NULL) {
   # Set default title if not provided
   if (is.null(title)) {
-    title <- paste("Model", toupper(substr(metric, 1, 1)), substr(metric, 2, nchar(metric)), "Comparison")
+    # Special case for ROC AUC
+    if (metric == "roc_auc") {
+      title <- "Model ROC AUC Comparison"
+    } else {
+      title <- paste("Model", toupper(substr(metric, 1, 1)), substr(metric, 2, nchar(metric)), "Comparison")
+    }
   }
 
   # Calculate baseline performance if available
   has_baseline <- "baseline" %in% colnames(performance_comparison)
+  
+  # If there's no baseline but we're using ROC AUC, add a reference line at 0.5
+  add_roc_baseline <- (metric == "roc_auc" && !has_baseline)
 
   # Create the plot
   p <- ggplot(performance_comparison, aes(x = reorder(group, .estimate), y = .estimate)) +
@@ -554,7 +588,8 @@ create_performance_plot <- function(performance_comparison, metric = "accuracy",
     labs(
       title = title,
       x = NULL,
-      y = toupper(substr(metric, 1, 1)) %+% substr(metric, 2, nchar(metric))
+      y = if(metric == "roc_auc") "ROC AUC" else toupper(substr(metric, 1, 1)) %+% substr(metric, 2, nchar(metric)),
+      subtitle = if(metric == "roc_auc") "Higher values indicate better student ranking capability" else NULL
     ) +
     theme_minimal() +
     ylim(0, max(1, max(performance_comparison$.estimate) * 1.2))
@@ -563,6 +598,10 @@ create_performance_plot <- function(performance_comparison, metric = "accuracy",
   if (has_baseline) {
     p <- p +
       geom_vline(aes(xintercept = baseline), linetype = "dashed", color = "darkred")
+  } else if (add_roc_baseline) {
+    # For ROC AUC, add reference line at 0.5 (random model)
+    p <- p +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "darkred")
   }
 
   return(p)
@@ -593,7 +632,7 @@ create_week_strategy_plot <- function(week_comparison, title = NULL) {
     pivot_longer(
       cols = c(weeks_none, weeks_early, weeks_all),
       names_to = "strategy",
-      values_to = "accuracy"
+      values_to = "roc_auc"
     ) |>
     mutate(
       strategy = factor(strategy,
@@ -602,16 +641,16 @@ create_week_strategy_plot <- function(week_comparison, title = NULL) {
     )
 
   # Create plot
-  p <- ggplot(plot_data, aes(x = reorder(program_level, accuracy), y = accuracy, color = strategy, group = strategy)) +
+  p <- ggplot(plot_data, aes(x = reorder(program_level, roc_auc), y = roc_auc, color = strategy, group = strategy)) +
     geom_point(size = 3, position = position_dodge(width = 0.5)) +
-    geom_segment(aes(y = 0, yend = accuracy, xend = reorder(program_level, accuracy)),
+    geom_segment(aes(y = 0, yend = roc_auc, xend = reorder(program_level, roc_auc)),
                 position = position_dodge(width = 0.5), alpha = 0.3, linewidth = 0.5) +
     coord_flip() +
     scale_y_continuous(labels = scales::percent) +
     labs(
       title = title,
       x = NULL,
-      y = "Accuracy",
+      y = "ROC AUC",
       color = "Week Strategy"
     ) +
     theme_minimal()
@@ -690,4 +729,407 @@ interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE)
   }
 
   return(interpretation_list)
+}
+
+
+#' Create Intervention Lift Chart
+#'
+#' @description
+#' Create a chart showing the percentage of dropouts captured at different intervention thresholds.
+#' This helps determine how many students need intervention to catch a given percentage of dropouts.
+#'
+#' @param model_results Model results from run_model()
+#' @param title Optional title for the plot
+#' @param save Logical indicating whether to save the plot (default: TRUE)
+#' @param path Optional custom path to save the plot
+#' @param filename Optional custom filename for the saved plot (without extension)
+#' @param program_id Optional program identifier for unique filename generation
+#' @param week_strategy Optional week strategy for unique filename generation
+#'
+#' @return A ggplot object showing the lift chart or NULL if unable to extract predictions
+#'
+#' @importFrom tune collect_predictions
+#' @importFrom dplyr arrange mutate select bind_rows filter left_join
+#' @importFrom tidyr group_by summarize
+#' @importFrom ggplot2 ggplot aes geom_line geom_area geom_abline labs theme_minimal
+#' @importFrom scales percent
+#'
+#' @export
+create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = NULL, 
+                             filename = NULL, program_id = NULL, week_strategy = NULL) {
+  # Set default title
+  if (is.null(title)) {
+    title <- "Intervention Efficiency: Dropout Capture Rate vs. Students Targeted"
+  }
+  
+  # Extract predictions
+  predictions <- tryCatch({
+    # Try collect_predictions first
+    preds <- collect_predictions(model_results$final_model)
+    
+    # If empty, try alternative locations
+    if (nrow(preds) == 0) {
+      if ("predictions" %in% names(model_results)) {
+        preds <- model_results$predictions
+      } else if (!is.null(model_results$final_model) && ".predictions" %in% names(model_results$final_model)) {
+        preds <- model_results$final_model$.predictions[[1]]
+      } else if (!is.null(model_results$workflow) && !is.null(model_results$test_data)) {
+        preds <- predict(model_results$workflow, model_results$test_data, type = "prob") |>
+          bind_cols(model_results$test_data |> select(matches("DEELNEMER_BC_uitval")))
+      }
+    }
+    preds
+  }, error = function(e) {
+    return(NULL)
+  })
+  
+  # Check if we have predictions
+  if (is.null(predictions) || nrow(predictions) == 0) {
+    return(NULL)
+  }
+  
+  # Find probability column
+  dropout_prob_col <- grep("^.pred_", colnames(predictions), value = TRUE)[1]
+  if (is.na(dropout_prob_col)) {
+    return(NULL)
+  }
+  
+  # Find outcome column
+  outcome_col <- intersect(
+    colnames(predictions), 
+    c(".outcome", "DEELNEMER_BC_uitval", "truth", "actual", "y")
+  )[1]
+  if (is.na(outcome_col)) {
+    return(NULL)
+  }
+  
+  # Determine positive class values
+  unique_outcomes <- unique(predictions[[outcome_col]])
+  pos_values <- c("Uitval", "1", 1, TRUE)
+  positive_class <- pos_values[which(pos_values %in% unique_outcomes)[1]]
+  
+  # If can't identify positive class, use least frequent class
+  if (is.na(positive_class)) {
+    outcome_counts <- table(predictions[[outcome_col]])
+    positive_class <- names(outcome_counts)[which.min(outcome_counts)]
+  }
+  
+  # Prepare lift chart data
+  lift_data <- predictions |>
+    arrange(desc(!!sym(dropout_prob_col))) |>
+    mutate(
+      actual_dropout = as.numeric(as.character(!!sym(outcome_col)) == as.character(positive_class)),
+      rank = row_number(),
+      rank_pct = rank / n()
+    )
+  
+  # Calculate cumulative metrics
+  if (sum(lift_data$actual_dropout) > 0) {
+    lift_data <- lift_data |>
+      mutate(
+        cum_dropouts = cumsum(actual_dropout),
+        cum_dropout_pct = cum_dropouts / sum(actual_dropout)
+      ) |>
+      select(rank_pct, cum_dropout_pct)
+  } else {
+    return(NULL)
+  }
+  
+  # Add reference points
+  reference_points <- data.frame(
+    rank_pct = seq(0, 1, by = 0.1),
+    model = "reference"
+  ) |>
+    left_join(
+      lift_data |>
+        filter(rank_pct >= 0) |>
+        group_by(rank_pct = floor(rank_pct * 10) / 10) |>
+        summarize(cum_dropout_pct = max(cum_dropout_pct), .groups = "drop")
+    )
+  
+  # Create plot
+  p <- ggplot(lift_data, aes(x = rank_pct, y = cum_dropout_pct)) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray70") +
+    geom_area(fill = "steelblue", alpha = 0.3) +
+    geom_line(color = "steelblue", linewidth = 1.2) +
+    geom_point(data = reference_points, size = 3, color = "darkred") +
+    labs(
+      title = title,
+      subtitle = "Shows % of dropouts captured when intervening with % of highest-risk students",
+      x = "Percentage of Students Targeted (Highest Risk First)",
+      y = "Percentage of Dropouts Captured"
+    ) +
+    scale_x_continuous(labels = scales::percent) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_minimal()
+  
+  # Save if requested
+  if (save) {
+    # Get save directory
+    if (is.null(path)) {
+      modelled_dir <- tryCatch(
+        config::get("modelled_dir"), 
+        error = function(e) file.path("data", "modelled")
+      )
+      vis_dir <- file.path(modelled_dir, "interpreted", "visualizations")
+    } else {
+      vis_dir <- path
+    }
+    
+    # Create directory if needed
+    if (!dir.exists(vis_dir)) {
+      dir.create(vis_dir, recursive = TRUE)
+    }
+    
+    # Generate filename
+    if (is.null(filename)) {
+      # Auto-extract program and strategy if not provided
+      if (is.null(program_id) && !is.null(model_results$filter_info)) {
+        program_id <- model_results$filter_info$program
+      }
+      if (is.null(week_strategy) && !is.null(model_results$filter_info)) {
+        week_strategy <- model_results$filter_info$week_vars
+      }
+      
+      # Build filename with available info
+      parts <- c("lift_chart")
+      if (!is.null(program_id)) {
+        parts <- c(parts, gsub("[^a-zA-Z0-9]", "_", program_id))
+      }
+      if (!is.null(week_strategy)) {
+        parts <- c(parts, week_strategy)
+      }
+      if (length(parts) == 1) {
+        parts <- c(parts, format(Sys.time(), "%Y%m%d_%H%M%S"))
+      }
+      
+      output_filename <- paste0(paste(parts, collapse = "_"), ".png")
+    } else {
+      output_filename <- paste0(filename, ".png")
+    }
+    
+    # Save plot
+    ggsave(
+      file.path(vis_dir, output_filename),
+      p,
+      width = 10,
+      height = 7
+    )
+  }
+  
+  return(p)
+}
+
+#' Create Lift Charts for All Week Strategies
+#'
+#' @description
+#' Create lift charts for each week strategy to compare intervention efficiency.
+#' This function expects a named list of model results, with week strategy names as keys.
+#'
+#' @param models_by_strategy A named list of model results, with strategy names ("none", "early", "all") as keys
+#' @param save Logical indicating whether to save the plots (default: TRUE)
+#' @param path Optional custom path to save the plots
+#' @param program_filter Optional program filter for filename generation
+#'
+#' @return A list of ggplot objects
+#'
+#' @importFrom ggplot2 ggsave
+#'
+#' @export
+create_all_strategy_lift_charts <- function(models_by_strategy, save = TRUE, path = NULL, program_filter = NULL) {
+  # Initialize results and create individual charts
+  lift_charts <- list()
+  
+  # Process each strategy
+  for (strategy in names(models_by_strategy)) {
+    title <- paste0("Intervention Efficiency: ", toupper(substr(strategy, 1, 1)), 
+                   substr(strategy, 2, nchar(strategy)), " Week Strategy")
+    
+    # Create individual chart
+    chart <- tryCatch({
+      create_lift_chart(
+        model_results = models_by_strategy[[strategy]],
+        title = title,
+        save = save,
+        path = path,
+        filename = paste0("lift_chart_strategy_", strategy),
+        program_id = program_filter,
+        week_strategy = strategy
+      )
+    }, error = function(e) NULL)
+    
+    if (!is.null(chart)) {
+      lift_charts[[strategy]] <- chart
+    }
+  }
+  
+  # Create comparison chart if we have multiple strategies
+  if (length(lift_charts) >= 2) {
+    # Extract and combine data
+    comparison_data <- data.frame()
+    
+    for (strategy in names(lift_charts)) {
+      if (strategy != "comparison" && !is.null(lift_charts[[strategy]]$data)) {
+        strategy_data <- lift_charts[[strategy]]$data |>
+          mutate(strategy = factor(strategy, 
+                                 levels = c("none", "early", "all"),
+                                 labels = c("No Weeks", "Early Weeks", "All Weeks")))
+        comparison_data <- bind_rows(comparison_data, strategy_data)
+      }
+    }
+    
+    # Create comparison plot if we have data
+    if (nrow(comparison_data) > 0) {
+      combined_plot <- ggplot(comparison_data, aes(x = rank_pct, y = cum_dropout_pct, color = strategy)) +
+        geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray70") +
+        geom_line(linewidth = 1.2) +
+        geom_point(aes(shape = strategy), size = 3) +
+        labs(
+          title = "Intervention Efficiency Comparison Across Week Strategies",
+          subtitle = "Shows % of dropouts captured when intervening with % of highest-risk students",
+          x = "Percentage of Students Targeted (Highest Risk First)",
+          y = "Percentage of Dropouts Captured",
+          color = "Week Strategy",
+          shape = "Week Strategy"
+        ) +
+        scale_x_continuous(labels = scales::percent) +
+        scale_y_continuous(labels = scales::percent) +
+        theme_minimal() +
+        theme(legend.position = "bottom")
+      
+      # Save comparison plot
+      if (save) {
+        # Get path and create directory if needed
+        vis_dir <- if (is.null(path)) {
+          modelled_dir <- tryCatch(
+            config::get("modelled_dir"),
+            error = function(e) file.path("data", "modelled")
+          )
+          file.path(modelled_dir, "interpreted", "visualizations")
+        } else {
+          path
+        }
+        
+        if (!dir.exists(vis_dir)) {
+          dir.create(vis_dir, recursive = TRUE)
+        }
+        
+        # Create filename
+        filename <- "lift_chart_strategy_comparison"
+        if (!is.null(program_filter)) {
+          filename <- paste0(filename, "_", gsub("[^a-zA-Z0-9]", "_", program_filter))
+        }
+        
+        # Save plot
+        ggsave(
+          file.path(vis_dir, paste0(filename, ".png")),
+          combined_plot,
+          width = 10,
+          height = 7
+        )
+      }
+      
+      # Add to results
+      lift_charts$comparison <- combined_plot
+    }
+  }
+  
+  return(lift_charts)
+}
+
+#' Create Lift Charts for Top Programs
+#'
+#' @description
+#' Create lift charts for the top-performing program-level combinations to show
+#' intervention efficiency for specific programs.
+#'
+#' @param top_model_results List of model results for top-performing programs
+#' @param performance_display Performance metrics data frame to extract program information
+#' @param save Logical indicating whether to save the plots (default: TRUE)
+#' @param path Optional custom path to save the plots
+#'
+#' @return A list of ggplot objects
+#'
+#' @importFrom ggplot2 ggsave element_text
+#'
+#' @export
+create_top_programs_lift_charts <- function(top_model_results, performance_display, 
+                                          save = TRUE, path = NULL) {
+  # Initialize results list
+  lift_charts <- list()
+  
+  # Get default programs directory
+  programs_dir <- if(is.null(path)) {
+    modelled_dir <- tryCatch(
+      config::get("modelled_dir"),
+      error = function(e) file.path("data", "modelled")
+    )
+    file.path(modelled_dir, "interpreted", "visualizations", "programs")
+  } else {
+    file.path(path, "programs")
+  }
+  
+  # Create directory if needed
+  if(save && !dir.exists(programs_dir)) {
+    dir.create(programs_dir, recursive = TRUE)
+  }
+  
+  # Process each model
+  for (model_id in names(top_model_results)) {
+    # Extract program and strategy info
+    program_level <- NA
+    week_strategy <- NA
+    
+    # Try to get from performance display first
+    if(!is.null(performance_display)) {
+      program_info <- performance_display |> filter(dataset_id == model_id)
+      if(nrow(program_info) > 0) {
+        program_level <- program_info$program_level[1]
+        week_strategy <- program_info$week_strategy[1]
+      }
+    }
+    
+    # Fall back to extracting from model_id
+    if(is.na(program_level) || is.na(week_strategy)) {
+      parts <- strsplit(model_id, "_weeks_")[[1]]
+      if(length(parts) >= 2) {
+        program_level <- parts[1]
+        week_strategy <- parts[2]
+      }
+    }
+    
+    # Skip if missing key info
+    if(is.na(program_level) || is.na(week_strategy)) {
+      next
+    }
+    
+    # Create enhanced chart
+    chart <- tryCatch({
+      create_lift_chart(
+        model_results = top_model_results[[model_id]],
+        title = paste0("Program: ", program_level, " - Intervention Efficiency"),
+        save = save,
+        path = programs_dir,
+        filename = paste0("lift_chart_program_", gsub("[^a-zA-Z0-9]", "_", program_level), "_", week_strategy),
+        program_id = program_level,
+        week_strategy = week_strategy
+      ) +
+      labs(
+        subtitle = paste0("Week Strategy: ", toupper(substr(week_strategy, 1, 1)), 
+                        substr(week_strategy, 2, nchar(week_strategy)), " Weeks"),
+        caption = paste("Program:", program_level)
+      ) +
+      theme(
+        plot.title = element_text(face = "bold", size = 14),
+        plot.subtitle = element_text(face = "italic", size = 12)
+      )
+    }, error = function(e) NULL)
+    
+    # Store chart if successful
+    if(!is.null(chart)) {
+      lift_charts[[model_id]] <- chart
+    }
+  }
+  
+  return(lift_charts)
 }
