@@ -35,37 +35,82 @@ We first load the summary of prepared datasets created in the previous document.
 ```{r}
 #| label: load-dataset-info
 
-# Load dataset summary
-dataset_summary_path <- file.path(config::get("modelled_dir"), "prepared", "dataset_summary.rds")
+# Get model settings from config
+model_settings <- config::get("model_settings")
 
-if(file.exists(dataset_summary_path)) {
-  dataset_summary <- readRDS(dataset_summary_path)
-  
-  # Show dataset summary
-  cat("Found", nrow(dataset_summary), "prepared datasets\n")
-  print(knitr::kable(dataset_summary))
-  
-  # Filter for datasets with sufficient data
-  valid_datasets <- dataset_summary |>
-      ## TODO hard-coded, should be in config
-    filter(train_rows >= 50, test_rows >= 20) |>
-    pull(id)
-  
-  cat("\nSelected", length(valid_datasets), "datasets with sufficient data for modeling\n")
+# Load information about selected programs and levels
+selection_path <- file.path(config::get("modelled_dir"), "selected_programs_levels.rds")
+if(file.exists(selection_path)) {
+  selection_info <- readRDS(selection_path)
+  test_run <- selection_info$test_run
+  test_cohort_year <- selection_info$test_cohort_year
+  cat("Test run:", test_run, "\n")
+  cat("Test cohort year:", test_cohort_year, "\n")
 } else {
-  # If summary not found, look for RDS files directly
-  prepared_files <- list.files(
-    file.path(config::get("modelled_dir"), "prepared"), 
-    pattern = ".rds$", 
-    full.names = FALSE
-  )
-  
-  # Filter out the summary file itself
-  prepared_files <- prepared_files[prepared_files != "dataset_summary.rds"]
-  
-  cat("Found", length(prepared_files), "prepared dataset files directly\n")
-  valid_datasets <- gsub(".rds$", "", prepared_files)
+  test_run <- model_settings$test_run
+  test_cohort_year <- model_settings$test_cohort_year
+  cat("Warning: Selected programs file not found. Using config settings.\n")
 }
+
+# Load valid datasets
+valid_datasets_path <- file.path(config::get("modelled_dir"), "prepared", "valid_datasets.rds")
+
+if(file.exists(valid_datasets_path)) {
+  valid_datasets_df <- readRDS(valid_datasets_path)
+  
+  # Show dataset summary by week strategy
+  dataset_by_strategy <- valid_datasets_df |>
+    group_by(week_strategy) |>
+    summarize(
+      count = n(),
+      avg_train_rows = mean(train_rows),
+      avg_week_vars = mean(week_vars),
+      unique_programs = n_distinct(program_level)
+    )
+  
+  cat("Found", nrow(valid_datasets_df), "valid datasets across", 
+      n_distinct(valid_datasets_df$program_level), "program-levels\n\n")
+  
+  print(knitr::kable(dataset_by_strategy, digits = 1))
+  
+  # Extract dataset IDs for modeling
+  valid_datasets <- valid_datasets_df$id
+} else {
+  # If valid datasets file not found, try the summary file
+  dataset_summary_path <- file.path(config::get("modelled_dir"), "prepared", "dataset_summary.rds")
+  
+  if(file.exists(dataset_summary_path)) {
+    dataset_summary <- readRDS(dataset_summary_path)
+    
+    # Filter for valid datasets using config settings
+    valid_datasets_df <- dataset_summary |>
+      filter(
+        train_rows >= model_settings$min_training_samples,
+        test_rows >= model_settings$min_test_samples, 
+        min_class_count >= model_settings$min_minority_class
+      )
+    
+    valid_datasets <- valid_datasets_df$id
+    
+    cat("Found", nrow(valid_datasets_df), "valid datasets\n")
+  } else {
+    # If neither file is found, look for RDS files directly
+    prepared_files <- list.files(
+      file.path(config::get("modelled_dir"), "prepared"), 
+      pattern = "\\.rds$", 
+      full.names = FALSE
+    )
+    
+    # Filter out the summary file itself
+    prepared_files <- prepared_files[!prepared_files %in% c("dataset_summary.rds", "valid_datasets.rds")]
+    
+    cat("Warning: Dataset summary files not found. Found", length(prepared_files), "prepared dataset files directly\n")
+    valid_datasets <- gsub("\\.rds$", "", prepared_files)
+  }
+}
+
+# Define the week strategies we're testing
+week_strategies <- c("none", "early", "all")
 ```
 
 ## Model Training Function
@@ -79,11 +124,16 @@ train_model_for_dataset <- function(dataset_id, model_type = "random_forest") {
   cat("\nTraining model for:", dataset_id, "\n")
   
   # Load prepared data
-  data_path <- file.path(config::get("modelled_dir"), "prepared", paste0(dataset_id, "_cohort2023.rds"))
+  data_path <- file.path(config::get("modelled_dir"), "prepared", paste0(dataset_id, ".rds"))
   
   if(!file.exists(data_path)) {
-    cat("  ERROR: Data file not found:", data_path, "\n")
-    return(NULL)
+    # Try with cohort suffix if not found
+    data_path <- file.path(config::get("modelled_dir"), "prepared", paste0(dataset_id, "_cohort", test_cohort_year, ".rds"))
+    
+    if(!file.exists(data_path)) {
+      cat("  ERROR: Data file not found:", data_path, "\n")
+      return(NULL)
+    }
   }
   
   # Load the data
@@ -140,13 +190,40 @@ Now we'll train models for each individual program-level combination.
 # Initialize results list
 model_results_list <- list()
 
-# Train models for each valid dataset (excluding the all-programs model)
-individual_datasets <- valid_datasets[valid_datasets != all_programs_id]
+# If test run, limit to a small subset of datasets
+if(test_run) {
+  # For test runs, limit to one program-level with all week strategies
+  # Extract one program-level to test all week strategies
+  unique_program_levels <- unique(str_remove(valid_datasets, "_weeks_.*$"))
+  
+  if(length(unique_program_levels) > 0) {
+    test_program_level <- unique_program_levels[1]
+    test_datasets <- valid_datasets[str_detect(valid_datasets, 
+                                               stringr::fixed(paste0(test_program_level, "_weeks_")))]
+    
+    cat("Running in TEST mode with program-level:", test_program_level, "\n")
+    cat("Testing", length(test_datasets), "week strategies for this program-level\n")
+    
+    datasets_to_train <- test_datasets
+  } else {
+    # Fallback if there are no valid datasets
+    cat("No valid program-levels found. Using first 3 valid datasets for testing.\n")
+    datasets_to_train <- head(valid_datasets, 3)
+  }
+} else {
+  # In full mode, use all valid datasets
+  datasets_to_train <- valid_datasets
+}
 
-## TODO for testing, limit to first two datasets, should be in config
-individual_datasets <- individual_datasets[1:2]
-
-for(dataset_id in individual_datasets) {
+# Train models for each selected dataset
+for(dataset_id in datasets_to_train) {
+  # Extract program-level and week strategy for better organization
+  parts <- strsplit(dataset_id, "_weeks_")[[1]]
+  program_level <- parts[1]
+  week_strategy <- parts[2]
+  
+  cat("\n----- Training model for program-level:", program_level, "| Week strategy:", week_strategy, "-----\n")
+  
   # Train model for this dataset
   model_result <- train_model_for_dataset(dataset_id)
   
@@ -156,8 +233,20 @@ for(dataset_id in individual_datasets) {
   }
 }
 
-# Summarize results
-cat("\nSuccessfully trained", length(model_results_list), "individual models\n")
+# Summarize results by week strategy
+cat("\n----- Training Summary -----\n")
+successful_models <- names(model_results_list)
+cat("Successfully trained", length(successful_models), "models\n\n")
+
+# Count models by week strategy
+for(strategy in week_strategies) {
+  strategy_models <- successful_models[str_detect(successful_models, 
+                                                  stringr::fixed(paste0("_weeks_", strategy)))]
+  cat("Week strategy '", strategy, "': ", length(strategy_models), " models\n", sep="")
+}
+
+# Save the successfully trained model list
+saveRDS(model_results_list, file.path(config::get("modelled_dir"), "run", "all_model_results.rds"))
 ```
 
 ## Model Performance Summary
@@ -170,19 +259,20 @@ Let's create a summary of model performance across all trained models.
 # Create a performance summary dataframe
 performance_summary <- data.frame()
 
-# Add all-programs model if available
-if(exists("all_model") && !is.null(all_model)) {
-  all_metrics <- all_model$metrics |>
-    mutate(dataset_id = all_programs_id)
-  
-  performance_summary <- bind_rows(performance_summary, all_metrics)
-}
-
-# Add individual model metrics
+# Add individual model metrics with program-level and week strategy information
 for(dataset_id in names(model_results_list)) {
   if(!is.null(model_results_list[[dataset_id]]$metrics)) {
+    # Extract program-level and week strategy
+    parts <- strsplit(dataset_id, "_weeks_")[[1]]
+    program_level <- parts[1]
+    week_strategy <- parts[2]
+    
     metrics <- model_results_list[[dataset_id]]$metrics |>
-      mutate(dataset_id = dataset_id)
+      mutate(
+        dataset_id = dataset_id,
+        program_level = program_level,
+        week_strategy = week_strategy
+      )
     
     performance_summary <- bind_rows(performance_summary, metrics)
   }
@@ -190,22 +280,90 @@ for(dataset_id in names(model_results_list)) {
 
 # Format and display the summary
 if(nrow(performance_summary) > 0) {
-  # Reformat the summary for display
+  # Create complete performance summary
   performance_display <- performance_summary |>
-    select(dataset_id, .metric, .estimate) |>
+    select(dataset_id, program_level, week_strategy, .metric, .estimate) |>
     pivot_wider(
       names_from = .metric,
       values_from = .estimate
     ) |>
     arrange(desc(roc_auc))
   
-  # Save performance summary
+  # Save full performance summary
   saveRDS(performance_summary, 
           file.path(config::get("modelled_dir"), "run", "metrics", "performance_summary.rds"))
   
-  # Display summary
-  cat("\nModel Performance Summary (sorted by ROC AUC):\n")
-  print(knitr::kable(performance_display, digits = 4))
+  # Display overall summary
+  cat("\nModel Performance Summary (Top 10, sorted by ROC AUC):\n")
+  print(knitr::kable(head(performance_display, 10), digits = 4))
+  
+  # Compare performance by week strategy
+  week_strategy_summary <- performance_summary |>
+    filter(.metric == "accuracy") |>
+    group_by(week_strategy) |>
+    summarize(
+      avg_accuracy = mean(.estimate, na.rm = TRUE),
+      min_accuracy = min(.estimate, na.rm = TRUE),
+      max_accuracy = max(.estimate, na.rm = TRUE),
+      n_models = n()
+    )
+  
+  cat("\nPerformance Comparison by Week Strategy:\n")
+  print(knitr::kable(week_strategy_summary, digits = 4))
+  
+  # Visualize strategy comparison
+  ggplot(performance_summary |> filter(.metric == "accuracy"), 
+         aes(x = week_strategy, y = .estimate, fill = week_strategy)) +
+    geom_boxplot() +
+    labs(
+      title = "Model Accuracy by Week Variable Strategy",
+      x = "Week Strategy",
+      y = "Accuracy"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_minimal()
+  
+  # Check if we have multiple models for same program-level with different strategies
+  program_levels_with_all_strategies <- performance_summary |>
+    filter(.metric == "accuracy") |>
+    group_by(program_level) |>
+    summarize(
+      n_strategies = n_distinct(week_strategy),
+      strategies = paste(sort(unique(week_strategy)), collapse = ", ")
+    ) |>
+    filter(n_strategies == length(week_strategies))
+  
+  if(nrow(program_levels_with_all_strategies) > 0) {
+    cat("\nProgram-levels with all week strategies available:", 
+        nrow(program_levels_with_all_strategies), "\n")
+    
+    # Compare strategies directly for these program-levels
+    direct_comparison <- performance_summary |>
+      filter(
+        .metric == "accuracy",
+        program_level %in% program_levels_with_all_strategies$program_level
+      ) |>
+      select(program_level, week_strategy, accuracy = .estimate) |>
+      pivot_wider(
+        names_from = week_strategy,
+        values_from = accuracy
+      ) |>
+      mutate(
+        early_vs_none = none - early,
+        all_vs_none = none - all,
+        all_vs_early = early - all
+      ) |>
+      arrange(desc(all))
+    
+    cat("\nDirect comparison of week strategies (first 10 program-levels):\n")
+    print(knitr::kable(head(direct_comparison, 10), digits = 4))
+    
+    # Save this comparison for use in interpretation
+    saveRDS(direct_comparison, 
+            file.path(config::get("modelled_dir"), "run", "metrics", "week_strategy_comparison.rds"))
+  } else {
+    cat("\nNo program-levels have models for all week strategies.\n")
+  }
 } else {
   cat("\nNo model performance metrics available.\n")
 }

@@ -18,10 +18,10 @@
 #' @importFrom workflows workflow add_model add_recipe
 #' @importFrom tune tune_grid collect_metrics select_best last_fit
 #' @importFrom rsample vfold_cv make_splits
-#' @importFrom recipes recipe step_rm step_normalize step_unknown all_nominal_predictors all_numeric_predictors
+#' @importFrom recipes recipe step_rm step_normalize step_unknown step_zv all_nominal_predictors all_numeric_predictors
 #' @importFrom dplyr filter pull bind_rows mutate
 #' @importFrom yardstick metric_set roc_auc accuracy
-#' @importFrom rlang sym !! 
+#' @importFrom rlang sym !!
 #' @importFrom stats as.formula
 #' @importFrom utils head
 #'
@@ -39,6 +39,24 @@ run_model <- function(data_list,
   data_train <- data_list$train
   data_test <- data_list$test
   filter_info <- data_list$filter_info
+  
+  # Check if we have both classes in the training data
+  if (outcome_var %in% colnames(data_train)) {
+    class_counts <- table(data_train[[outcome_var]])
+    if (length(class_counts) < 2) {
+      stop(paste0("Cannot train a model: training data only contains one class (", 
+                 paste(names(class_counts), collapse = ", "), 
+                 "). A predictive model requires examples of both classes."))
+    } else {
+      # Check if the minimum class count is sufficient
+      min_class_count <- min(class_counts)
+      if (min_class_count < 5) {  # Using 5 as a minimum threshold
+        warning(paste0("Training data contains very few examples of class '", 
+                      names(which.min(class_counts)), "' (only ", min_class_count, 
+                      " instances). Model performance may be unreliable."))
+      }
+    }
+  }
 
   # Create cross-validation folds
   set.seed(0821)
@@ -139,7 +157,7 @@ create_cv_folds <- function(data, outcome_var = "DEELNEMER_BC_uitval", n_folds =
 #'
 #' @return A recipe object for preprocessing data
 #'
-#' @importFrom recipes recipe step_rm step_normalize step_unknown all_nominal_predictors all_numeric_predictors
+#' @importFrom recipes recipe step_rm step_normalize step_unknown step_zv all_nominal_predictors all_numeric_predictors
 #'
 #' @export
 create_model_recipe <- function(data, outcome_var = "DEELNEMER_BC_uitval") {
@@ -151,10 +169,14 @@ create_model_recipe <- function(data, outcome_var = "DEELNEMER_BC_uitval") {
     # Remove identifying variables and dates
     step_rm(matches("_ID$"),
             matches("datum"),
+            matches("naam"),
             matches("duur"),
             matches("jaar")) |>
     # Handle unknown levels in categorical variables
     step_unknown(all_nominal_predictors()) |>
+    # Remove zero variance predictors before normalization
+    # This prevents errors when normalizing variables with no variance
+    step_zv(all_predictors()) |>
     # Normalize numeric predictors
     step_normalize(all_numeric_predictors())
 }
@@ -411,50 +433,64 @@ run_group_models <- function(data,
   # Initialize results list
   group_results <- list()
 
-  # Run model for each program-level combination
+  # Define the week variable strategies to test
+  week_strategies <- c("none", "early", "all")
+
+  # Run model for each program-level combination with each week variable strategy
   for (program in programs) {
     for (level in levels) {
-      # Build group identifier
-      group_id <- paste0(program, "_level", level)
-      message("Processing group: ", group_id)
+      # Base group identifier
+      base_group_id <- paste0(program, "_level", level)
+      
+      for (week_strategy in week_strategies) {
+        # Build complete group identifier including week strategy
+        group_id <- paste0(base_group_id, "_weeks_", week_strategy)
+        message("Processing group: ", group_id)
 
-      # Prepare data for this group
-      prepared_data <- prepare_model_data(
-        data = data,
-        program_filter = program,
-        level_filter = level,
-        test_cohort = test_cohort,
-        save = TRUE
-      )
+        # Prepare data for this group with the current week strategy
+        prepared_data <- prepare_model_data(
+          data = data,
+          program_filter = program,
+          level_filter = level,
+          test_cohort = test_cohort,
+          week_vars = week_strategy,
+          save = TRUE
+        )
 
-      # Run model for this group
-      group_results[[group_id]] <- run_model(
-        data_list = prepared_data,
-        model_type = model_type,
-        save = TRUE
-      )
+        # Run model for this group
+        group_results[[group_id]] <- run_model(
+          data_list = prepared_data,
+          model_type = model_type,
+          save = TRUE
+        )
+      }
     }
   }
 
   # Build aggregate model if requested
   if (aggregate_models) {
-    message("Processing aggregate model for all programs and levels")
+    # Run aggregate model for each week variable strategy
+    for (week_strategy in week_strategies) {
+      aggregate_id <- paste0("all_programs_all_levels_weeks_", week_strategy)
+      message("Processing aggregate model: ", aggregate_id)
+      
+      # Prepare data for all programs and levels with the current week strategy
+      prepared_all_data <- prepare_model_data(
+        data = data,
+        program_filter = NULL,
+        level_filter = NULL,
+        test_cohort = test_cohort,
+        week_vars = week_strategy,
+        save = TRUE
+      )
 
-    # Prepare data for all programs and levels
-    prepared_all_data <- prepare_model_data(
-      data = data,
-      program_filter = NULL,
-      level_filter = NULL,
-      test_cohort = test_cohort,
-      save = TRUE
-    )
-
-    # Run model for all data
-    group_results[["all_programs_all_levels"]] <- run_model(
-      data_list = prepared_all_data,
-      model_type = model_type,
-      save = TRUE
-    )
+      # Run model for all data
+      group_results[[aggregate_id]] <- run_model(
+        data_list = prepared_all_data,
+        model_type = model_type,
+        save = TRUE
+      )
+    }
   }
 
   return(group_results)
