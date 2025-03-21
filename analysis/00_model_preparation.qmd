@@ -145,7 +145,9 @@ categorize_reasons <- function(reason) {
       TRUE ~ "Overig"
   )
 }
+```
 
+```{r}
 # Add categorized reasons
 enrollments_combined_enriched <- enrollments_combined_enriched |>
   mutate(
@@ -182,6 +184,10 @@ enrollments_combined_enriched <- enrollments_combined_enriched |>
   ) |>
   ungroup()
 
+```
+
+```{r}
+
 # Calculate age and add additional fields
 enrollments_combined_enriched <- enrollments_combined_enriched |>
   mutate(DEELNEMER_leeftijd = DEELNEMER_BC_begindatum_eerst - DEELNEMER_geboorte_jaarmaand, 
@@ -211,7 +217,9 @@ enrollments_combined_enriched <- enrollments_combined_enriched |>
            DEELNEMER_havo_vwo_is_gezakt,
            start_kwalificatie
            )
+```
 
+```{r}
 # Function to reorganize week variables by removing all-NA columns and renumbering
 reorganize_week_variables <- function(data, group_vars = c("COHORT_startjaar", "OPLEIDING_naam_kort")) {
   # Check if grouping variables exist in the data
@@ -440,25 +448,69 @@ We'll identify the available programs and education levels to model.
 ```{r}
 #| label: identify-programs-levels
 
-# Get unique programs and their counts
+# Get model settings from config
+model_settings <- config::get("model_settings")
+test_run <- model_settings$test_run
+min_samples <- model_settings$min_training_samples
+test_cohort_year <- model_settings$test_cohort_year
+
+# Get unique programs and their counts, filtering for model-eligible cohort years
 programs_level_count <- enrollments_combined_enriched |>
-  count(OPLEIDING_naam_kort, VERBINTENIS_niveau) |>
-  arrange(desc(n))
+  filter(COHORT_startjaar %in% c(model_settings$training_cohort_years, test_cohort_year)) |>
+  count(OPLEIDING_naam_kort, VERBINTENIS_niveau, COHORT_startjaar) |>
+  pivot_wider(
+    names_from = COHORT_startjaar,
+    values_from = n,
+    values_fill = 0
+  ) |>
+  rowwise() |>
+  mutate(
+    total_training = sum(c_across(as.character(model_settings$training_cohort_years))),
+    total_test = !!as.name(as.character(test_cohort_year)),
+    total = total_training + total_test
+  ) |>
+  ungroup() |>
+  arrange(desc(total))
 
-print("Available programs:")
-print(programs_level_count)
+# Display available programs and their counts
+cat("Available programs and levels by cohort year:\n")
+print(programs_level_count |> arrange(desc(total)))
 
+# Select programs based on config settings
+if (test_run) {
+  cat("\nRunning in TEST mode with limited programs and levels\n")
+  
+  # Use only the configured test programs and levels
+  selected_programs <- model_settings$test_programs
+  selected_levels <- model_settings$test_levels
+  
+  cat("Selected test programs:", paste(selected_programs, collapse=", "), "\n")
+  cat("Selected test levels:", paste(selected_levels, collapse=", "), "\n")
+} else {
+  # In full mode, select programs with sufficient data
+  filtered_programs <- programs_level_count |>
+    filter(
+      total_training >= model_settings$min_training_samples,
+      total_test >= model_settings$min_test_samples
+    )
+  
+  selected_programs <- unique(filtered_programs$OPLEIDING_naam_kort)
+  selected_levels <- unique(filtered_programs$VERBINTENIS_niveau)
+  
+  cat("\nSelected", length(selected_programs), "programs with sufficient data:\n")
+  print(filtered_programs |> select(OPLEIDING_naam_kort, VERBINTENIS_niveau, total_training, total_test, total))
+}
 
-# Select programs with sufficient data for modeling (at least 100 students)
-## TODO hard-coded limit, put this in config
-selected_programs <- programs_level_count |>
-  filter(n >= 80) |>
-  pull(OPLEIDING_naam_kort)
-
-## TODO Filter on data only from 2021 to 2023 COHORT_startjaar
-## TODO Show how many students are in training and test (2023), and how many are excluded
-
-print(paste("Selected", length(selected_programs), "programs-levels for modeling"))
+# Save selected programs and levels for use in other QMD files
+saveRDS(
+  list(
+    programs = selected_programs,
+    levels = selected_levels,
+    test_run = test_run,
+    test_cohort_year = test_cohort_year
+  ),
+  file.path(config::get("modelled_dir"), "selected_programs_levels.rds")
+)
 ```
 
 ## Data Preparation for All Programs
@@ -468,28 +520,52 @@ We'll first prepare a dataset containing all programs and levels.
 ```{r}
 #| label: prepare-all-data
 
-# Prepare data for all programs and levels
-all_data_prep <- prepare_model_data(
-  data = enrollments_combined_enriched,
-  program_filter = NULL,
-  level_filter = NULL,
-  test_cohort = 2023,
-  save = TRUE
+# Define the week variable strategies to test
+week_strategies <- c("none", "early", "all")
+
+# Prepare data for all programs and levels with different week variable strategies
+all_data_preps <- list()
+
+for(week_strategy in week_strategies) {
+  cat("\n--- Preparing all programs data with week strategy:", week_strategy, "---\n")
+  
+  all_data_preps[[week_strategy]] <- prepare_model_data(
+    data = enrollments_combined_enriched,
+    program_filter = NULL,
+    level_filter = NULL,
+    test_cohort = test_cohort_year,
+    week_vars = week_strategy,
+    save = TRUE
+  )
+  
+  # Display information about the prepared data
+  cat("All programs (", week_strategy, "weeks) - Training data dimensions:", 
+      dim(all_data_preps[[week_strategy]]$train), "\n")
+  cat("All programs (", week_strategy, "weeks) - Test data dimensions:", 
+      dim(all_data_preps[[week_strategy]]$test), "\n")
+  
+  # Display variable counts for different strategies
+  cat("Number of variables:", ncol(all_data_preps[[week_strategy]]$train), "\n")
+  
+  # Count week variables
+  week_var_count <- sum(grepl("week", names(all_data_preps[[week_strategy]]$train)))
+  cat("Number of week variables:", week_var_count, "\n")
+  
+  # Check class balance in training data
+  train_balance <- table(all_data_preps[[week_strategy]]$train$DEELNEMER_BC_uitval)
+  cat("Class balance in training data:\n")
+  print(prop.table(train_balance))
+}
+
+# Show a comparison of variable counts across strategies
+var_counts <- data.frame(
+  strategy = week_strategies,
+  total_vars = sapply(all_data_preps, function(x) ncol(x$train)),
+  week_vars = sapply(all_data_preps, function(x) sum(grepl("week", names(x$train))))
 )
 
-# Display information about the prepared data
-cat("All programs - Training data dimensions:", dim(all_data_prep$train), "\n")
-cat("All programs - Test data dimensions:", dim(all_data_prep$test), "\n")
-
-# Check class balance in training and test data
-all_train_balance <- table(all_data_prep$train$DEELNEMER_BC_uitval)
-all_test_balance <- table(all_data_prep$test$DEELNEMER_BC_uitval)
-
-print("Class balance in training data:")
-print(prop.table(all_train_balance))
-
-print("Class balance in test data:")
-print(prop.table(all_test_balance))
+cat("\nVariable count comparison across week strategies:\n")
+print(var_counts)
 ```
 
 ## Data Preparation by Program and Level
@@ -499,43 +575,96 @@ Now we'll prepare separate datasets for each selected program-level combination.
 ```{r}
 #| label: prepare-by-program-level
 
+# TODO: All combinations of programs - levels are checked and tried, while we now that many 
+# combinations don't exist at all.
+
 # Initialize a list to store all prepared datasets
 program_level_data <- list()
 
-# Prepare data for each program-level combination
+# Prepare data for each program-level combination with different week variable strategies
 for (program in selected_programs) {
-  for (level in c(1, 2, 3, 4)) {
-    # Create identifier for this combination
-    combo_id <- paste0(program, "_level", level)
+  for (level in selected_levels) {
+    # Create base identifier for this combination
+    base_combo_id <- paste0(program, "_level", level)
     
-    cat("\nPreparing data for:", combo_id, "\n")
+    cat("\n===== Preparing data for:", base_combo_id, "=====\n")
     
-    # Try to prepare data for this combination
-    tryCatch({
-      program_level_data[[combo_id]] <- prepare_model_data(
-        data = enrollments_combined_enriched,
-        program_filter = program,
-        level_filter = level,
-        test_cohort = 2023,
-        save = TRUE
-      )
+    # Apply each week variable strategy
+    for (week_strategy in week_strategies) {
+      # Create full identifier including week strategy
+      combo_id <- paste0(base_combo_id, "_weeks_", week_strategy)
+      cat("\n--- Week strategy:", week_strategy, "---\n")
       
-      # Display information about the prepared data
-      cat("  Training data dimensions:", dim(program_level_data[[combo_id]]$train), "\n")
-      cat("  Test data dimensions:", dim(program_level_data[[combo_id]]$test), "\n")
-      
-    }, error = function(e) {
-      cat("  Error preparing data:", e$message, "\n")
-    })
+      # Try to prepare data for this combination
+      tryCatch({
+        program_level_data[[combo_id]] <- prepare_model_data(
+          data = enrollments_combined_enriched,
+          program_filter = program,
+          level_filter = level,
+          test_cohort = test_cohort_year,
+          week_vars = week_strategy,
+          save = TRUE
+        )
+        
+        # Display information about the prepared data
+        cat("  Training data dimensions:", dim(program_level_data[[combo_id]]$train), "\n")
+        cat("  Test data dimensions:", dim(program_level_data[[combo_id]]$test), "\n")
+        
+        # Count week variables
+        week_var_count <- sum(grepl("week", names(program_level_data[[combo_id]]$train)))
+        cat("  Number of week variables:", week_var_count, "\n")
+        
+        # Check class balance
+        if (nrow(program_level_data[[combo_id]]$train) > 0) {
+          train_balance <- table(program_level_data[[combo_id]]$train$DEELNEMER_BC_uitval)
+          cat("  Class balance in training data:", paste(names(train_balance), "=", train_balance, collapse=", "), "\n")
+          
+          # Check if it meets minimum requirements
+          min_class <- min(train_balance)
+          if (min_class < model_settings$min_minority_class) {
+            cat("  WARNING: Minority class has only", min_class, "samples (minimum needed:", 
+                model_settings$min_minority_class, ")\n")
+          }
+        }
+        
+      }, error = function(e) {
+        cat("  Error preparing data:", e$message, "\n")
+      })
+    }
   }
 }
 
-# Count how many valid datasets we created
-valid_datasets <- sum(sapply(program_level_data, function(x) {
-  !is.null(x) && nrow(x$train) > 0 && nrow(x$test) > 0
-}))
+# Count how many valid datasets we created per week strategy
+valid_datasets_by_strategy <- numeric(length(week_strategies))
+names(valid_datasets_by_strategy) <- week_strategies
 
-cat("\nSuccessfully prepared", valid_datasets, "valid program-level datasets\n")
+for (i in seq_along(week_strategies)) {
+  strategy <- week_strategies[i]
+  pattern <- paste0("_weeks_", strategy, "$")
+  relevant_keys <- grep(pattern, names(program_level_data), value = TRUE)
+  
+  # Count how many datasets are valid for this strategy
+  valid_count <- 0
+  if (length(relevant_keys) > 0) {
+    for (key in relevant_keys) {
+      x <- program_level_data[[key]]
+      if (!is.null(x) && nrow(x$train) > 0 && nrow(x$test) > 0) {
+        valid_count <- valid_count + 1
+      }
+    }
+  }
+  
+  valid_datasets_by_strategy[i] <- valid_count
+}
+
+cat("\n===== Summary of prepared datasets =====\n")
+for (i in seq_along(week_strategies)) {
+  cat("Week strategy '", week_strategies[i], "': ", valid_datasets_by_strategy[i], 
+      " valid program-level datasets\n", sep="")
+}
+
+total_valid <- sum(valid_datasets_by_strategy)
+cat("\nSuccessfully prepared", total_valid, "valid program-level datasets in total\n")
 ```
 
 ## Save Dataset List for Next Steps
@@ -546,10 +675,14 @@ cat("\nSuccessfully prepared", valid_datasets, "valid program-level datasets\n")
 # Create a summary of all prepared datasets
 dataset_summary <- data.frame(
   id = names(program_level_data),
+  program_level = sapply(strsplit(names(program_level_data), "_weeks_"), function(x) x[1]),
+  week_strategy = sapply(strsplit(names(program_level_data), "_weeks_"), function(x) x[2]),
   train_rows = sapply(program_level_data, function(x) if(!is.null(x)) nrow(x$train) else 0),
   test_rows = sapply(program_level_data, function(x) if(!is.null(x)) nrow(x$test) else 0),
   train_columns = sapply(program_level_data, function(x) if(!is.null(x)) ncol(x$train) else 0),
-  test_columns = sapply(program_level_data, function(x) if(!is.null(x)) ncol(x$test) else 0),
+  week_vars = sapply(program_level_data, function(x) {
+    if(!is.null(x)) sum(grepl("week", names(x$train))) else 0
+  }),
   ratio_0 = sapply(program_level_data, function(x) {
     if(!is.null(x) && nrow(x$train) > 0) {
       table_values <- table(x$train$DEELNEMER_BC_uitval)
@@ -578,11 +711,48 @@ dataset_summary <- data.frame(
   })
 )
 
+# Add min_class column
+dataset_summary$min_class_count <- pmin(
+  dataset_summary$ratio_0 * dataset_summary$train_rows,
+  dataset_summary$ratio_1 * dataset_summary$train_rows,
+  na.rm = TRUE
+)
+
+# Filter for valid datasets (meeting minimum requirements)
+valid_datasets <- dataset_summary |>
+  filter(
+    train_rows >= model_settings$min_training_samples,
+    test_rows >= model_settings$min_test_samples,
+    min_class_count >= model_settings$min_minority_class
+  )
+
 # Save the summary
 saveRDS(dataset_summary, file.path(config::get("modelled_dir"), "prepared", "dataset_summary.rds"))
+saveRDS(valid_datasets, file.path(config::get("modelled_dir"), "prepared", "valid_datasets.rds"))
 
-# Show the summary
-knitr::kable(dataset_summary)
+# Show the summary by week strategy
+dataset_summary_by_strategy <- dataset_summary |>
+  group_by(week_strategy) |>
+  summarize(
+    total_datasets = n(),
+    valid_datasets = sum(train_rows >= model_settings$min_training_samples & 
+                        test_rows >= model_settings$min_test_samples &
+                        min_class_count >= model_settings$min_minority_class),
+    avg_train_rows = mean(train_rows),
+    avg_columns = mean(train_columns),
+    avg_week_vars = mean(week_vars)
+  )
+
+cat("\nDataset summary by week strategy:\n")
+print(knitr::kable(dataset_summary_by_strategy, digits = 1))
+
+# Show detailed table of valid datasets
+cat("\nValid datasets meeting minimum requirements:\n")
+valid_summary <- valid_datasets |>
+  select(id, program_level, week_strategy, train_rows, test_rows, week_vars, min_class_count) |>
+  arrange(program_level, week_strategy)
+
+print(knitr::kable(valid_summary, digits = 0))
 ```
 
 ## Next Steps

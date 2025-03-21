@@ -12,7 +12,7 @@
 #' @param program_filter Optional character vector of programs to include
 #' @param level_filter Optional numeric vector of education levels to include
 #' @param test_cohort The cohort year to use as test data (default: 2023)
-#' @param remove_patterns Character vector of variable patterns to exclude (default: c("week"))
+#' @param week_vars Strategy for handling week variables: "none" = exclude all, "early" = keep weeks 1-5, "all" = keep all (default: "none")
 #' @param save Logical indicating whether to save the prepared data (default: TRUE)
 #' @param path Optional custom path to save the data
 #'
@@ -21,7 +21,7 @@
 #' @importFrom dplyr filter select mutate across where arrange matches everything
 #' @importFrom tidyr drop_na
 #' @importFrom forcats fct_explicit_na
-#' @importFrom stringr str_detect
+#' @importFrom stringr str_detect str_extract
 #'
 #' @export
 prepare_model_data <- function(data,
@@ -32,7 +32,7 @@ prepare_model_data <- function(data,
                                 program_filter = NULL,
                                 level_filter = NULL,
                                 test_cohort = 2023,
-                                remove_patterns = c("week"),
+                                week_vars = "none",
                                 save = TRUE,
                                 path = NULL) {
 
@@ -40,7 +40,8 @@ prepare_model_data <- function(data,
   filter_info <- list(
     program = program_filter,
     level = level_filter,
-    test_cohort = test_cohort
+    test_cohort = test_cohort,
+    week_vars = week_vars
   )
 
   # Step 1: Apply program and level filters if provided
@@ -57,11 +58,45 @@ prepare_model_data <- function(data,
   }
 
   # Step 2: Apply variable filtering and preprocessing
+  # Determine which week variables to keep based on the strategy
+  if (week_vars == "none") {
+    # Exclude all week variables
+    remove_patterns <- c("week")
+  } else if (week_vars == "early") {
+    # Keep only weeks 1-5, using multiple patterns instead of lookahead
+    # Match any week except 01-05: week_06, week_07, ... week_99
+    remove_patterns <- c("week_0[6-9]", "week_[1-9][0-9]")  # Exclude week variables except 01-05
+  } else if (week_vars == "all") {
+    # Keep all week variables
+    remove_patterns <- c("^$")  # Empty pattern that won't match anything
+  } else {
+    stop("Invalid week_vars parameter. Must be 'none', 'early', or 'all'.")
+  }
+  
   prepared_data <- filter_model_variables(filtered_data, remove_patterns)
   prepared_data <- encode_model_factors(prepared_data, outcome_var)
 
   # Step 3: Split the data into training and test sets
   split_data <- split_model_data(prepared_data, cohort_var, test_cohort)
+  
+  # Step 3.5: Check that both classes exist in the training data
+  if (outcome_var %in% colnames(split_data$train)) {
+    class_counts <- table(split_data$train[[outcome_var]])
+    if (length(class_counts) < 2) {
+      warning(paste0("Training data only contains one class (", 
+                    paste(names(class_counts), collapse = ", "), 
+                    "). A predictive model requires both classes."))
+    } else {
+      # Also check the minimum class count
+      min_class_count <- min(class_counts)
+      min_class_name <- names(which.min(class_counts))
+      if (min_class_count < 5) {  # Using 5 as a minimum threshold
+        warning(paste0("Training data contains very few examples of class '", 
+                      min_class_name, "' (only ", min_class_count, 
+                      " instances). Model may be unreliable."))
+      }
+    }
+  }
 
   # Add filter information to results
   result <- c(split_data, list(filter_info = filter_info))
@@ -88,14 +123,22 @@ prepare_model_data <- function(data,
 #'
 #' @export
 filter_model_variables <- function(data, remove_patterns = c("week")) {
-  # Create a pattern for matches() function
-  pattern_expr <- paste(remove_patterns, collapse = "|")
-
-  filtered_data <- data |>
-    # Remove specified patterns
-    select(-matches(pattern_expr)) |>
-    # Remove variables with only one unique value (non-informative)
-    select(where(~ n_distinct(.) > 1))
+  # Check if we have any actual patterns to remove
+  if (length(remove_patterns) == 0 || all(remove_patterns == "^$")) {
+    # No patterns to remove, just filter out non-informative columns
+    filtered_data <- data |>
+      # Remove variables with only one unique value (non-informative)
+      select(where(~ n_distinct(.) > 1))
+  } else {
+    # Create a pattern for matches() function
+    pattern_expr <- paste(remove_patterns, collapse = "|")
+  
+    filtered_data <- data |>
+      # Remove specified patterns
+      select(-matches(pattern_expr)) |>
+      # Remove variables with only one unique value (non-informative)
+      select(where(~ n_distinct(.) > 1))
+  }
 
   return(filtered_data)
 }
@@ -208,8 +251,11 @@ save_model_data <- function(data_list, program_filter = NULL, level_filter = NUL
   program_str <- if (is.null(program_filter)) "all_programs" else paste0(program_filter, collapse = "_")
   level_str <- if (is.null(level_filter)) "all_levels" else paste0("level", paste0(level_filter, collapse = "_"))
   cohort_str <- paste0("cohort", data_list$filter_info$test_cohort)
-
-  filename <- paste0(program_str, "_", level_str, "_", cohort_str, ".rds")
+  
+  # Add info about which week variables are included
+  week_str <- paste0("weeks_", data_list$filter_info$week_vars)
+  
+  filename <- paste0(program_str, "_", level_str, "_", week_str, "_", cohort_str, ".rds")
 
   # Determine the path for saving
   if (is.null(custom_path)) {

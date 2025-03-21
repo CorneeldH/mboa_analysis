@@ -35,21 +35,43 @@ First, we'll load the trained models and their performance metrics.
 ```{r}
 #| label: load-model-results
 
-# Get list of model files
+# Get model settings from config
+model_settings <- config::get("model_settings")
+
+# Define week strategies
+week_strategies <- c("none", "early", "all")
+
+# Get directory paths
 models_dir <- file.path(config::get("modelled_dir"), "run", "models")
 metrics_dir <- file.path(config::get("modelled_dir"), "run", "metrics")
 
-model_files <- list.files(models_dir, pattern = ".rds$", full.names = TRUE)
-metrics_files <- list.files(metrics_dir, pattern = ".rds$", full.names = TRUE)
+# Try to load all model results first
+all_models_path <- file.path(config::get("modelled_dir"), "run", "all_model_results.rds")
+if(file.exists(all_models_path)) {
+  all_model_results <- readRDS(all_models_path)
+  cat("Loaded combined results for", length(all_model_results), "models\n")
+} else {
+  cat("Combined model results not found. Will load individual files instead.\n")
+  all_model_results <- NULL
+}
 
-# Load performance summary if available
+# Load performance summary
 performance_summary_path <- file.path(metrics_dir, "performance_summary.rds")
 if(file.exists(performance_summary_path)) {
   performance_summary <- readRDS(performance_summary_path)
   
+  # Extract program-level and week strategy if not already present
+  if(!("program_level" %in% names(performance_summary))) {
+    performance_summary <- performance_summary |>
+      mutate(
+        program_level = sapply(strsplit(dataset_id, "_weeks_"), function(x) x[1]),
+        week_strategy = sapply(strsplit(dataset_id, "_weeks_"), function(x) x[2])
+      )
+  }
+  
   # Create a display version of the summary
   performance_display <- performance_summary |>
-    select(dataset_id, .metric, .estimate) |>
+    select(dataset_id, program_level, week_strategy, .metric, .estimate) |>
     pivot_wider(
       names_from = .metric,
       values_from = .estimate
@@ -57,49 +79,126 @@ if(file.exists(performance_summary_path)) {
     arrange(desc(roc_auc))
   
   cat("Loaded performance summary for", n_distinct(performance_summary$dataset_id), "models\n")
-  print(knitr::kable(performance_display, digits = 4))
+  cat("Models by week strategy:\n")
+  print(table(performance_summary$week_strategy[performance_summary$.metric == "accuracy"]))
+  
+  # Show top 5 models by accuracy
+  cat("\nTop 5 models by accuracy:\n")
+  print(knitr::kable(head(performance_display |> arrange(desc(accuracy)), 5), digits = 4))
 } else {
-  cat("Performance summary not found. Loading individual metrics files...\n")
+  cat("Performance summary not found. Looking for individual metrics files...\n")
   
-  # Load individual metrics files
-  performance_summary <- data.frame()
+  # Find metrics files
+  metrics_files <- list.files(metrics_dir, pattern = "_metrics\\.rds$", full.names = TRUE)
   
-  for(metrics_file in metrics_files) {
-    # Skip the summary file itself
-    if(basename(metrics_file) == "performance_summary.rds") {
-      next
-    }
+  if(length(metrics_files) > 0) {
+    # Load individual metrics files
+    performance_summary <- data.frame()
     
-    # Load metrics
-    metrics <- readRDS(metrics_file)
-    
-    # Extract dataset ID from filename
-    dataset_id <- gsub("_metrics.rds$", "", basename(metrics_file))
-    
-    # Add to summary
-    if(!is.null(metrics$metrics)) {
-      metrics_df <- metrics$metrics |>
-        mutate(dataset_id = dataset_id)
+    for(metrics_file in metrics_files) {
+      # Load metrics
+      metrics <- readRDS(metrics_file)
       
-      performance_summary <- bind_rows(performance_summary, metrics_df)
+      # Extract dataset ID from filename
+      dataset_id <- gsub("_metrics\\.rds$", "", basename(metrics_file))
+      
+      # Extract program-level and week strategy
+      parts <- strsplit(dataset_id, "_weeks_")[[1]]
+      if(length(parts) >= 2) {
+        program_level <- parts[1]
+        week_strategy <- parts[2]
+      } else {
+        # Handle case where week strategy is not in filename
+        program_level <- dataset_id
+        week_strategy <- "unknown"
+      }
+      
+      # Add to summary
+      if(!is.null(metrics$metrics)) {
+        metrics_df <- metrics$metrics |>
+          mutate(
+            dataset_id = dataset_id,
+            program_level = program_level,
+            week_strategy = week_strategy
+          )
+        
+        performance_summary <- bind_rows(performance_summary, metrics_df)
+      }
     }
-  }
-  
-  if(nrow(performance_summary) > 0) {
-    # Create a display version of the summary
-    performance_display <- performance_summary |>
-      select(dataset_id, .metric, .estimate) |>
-      pivot_wider(
-        names_from = .metric,
-        values_from = .estimate
-      ) |>
-      arrange(desc(roc_auc))
     
-    cat("Loaded metrics for", n_distinct(performance_summary$dataset_id), "models\n")
-    print(knitr::kable(performance_display, digits = 4))
+    if(nrow(performance_summary) > 0) {
+      # Create a display version of the summary
+      performance_display <- performance_summary |>
+        select(dataset_id, program_level, week_strategy, .metric, .estimate) |>
+        pivot_wider(
+          names_from = .metric,
+          values_from = .estimate
+        ) |>
+        arrange(desc(roc_auc))
+      
+      cat("Loaded metrics for", n_distinct(performance_summary$dataset_id), "models\n")
+      print(knitr::kable(head(performance_display, 5), digits = 4))
+    } else {
+      cat("No model metrics found.\n")
+    }
   } else {
-    cat("No model metrics found.\n")
+    cat("No metrics files found.\n")
+    performance_summary <- NULL
+    performance_display <- NULL
   }
+}
+
+# Try to load week strategy comparison if available
+week_comparison_path <- file.path(metrics_dir, "week_strategy_comparison.rds")
+if(file.exists(week_comparison_path)) {
+  week_comparison <- readRDS(week_comparison_path)
+  
+  cat("\nLoaded direct comparison for", nrow(week_comparison), "program-levels with all week strategies\n")
+  
+  # Summarize week comparison
+  week_comparison_summary <- week_comparison |>
+    summarize(
+      avg_none = mean(none, na.rm = TRUE),
+      avg_early = mean(early, na.rm = TRUE),
+      avg_all = mean(all, na.rm = TRUE),
+      avg_early_vs_none = mean(early_vs_none, na.rm = TRUE),
+      avg_all_vs_none = mean(all_vs_none, na.rm = TRUE),
+      avg_all_vs_early = mean(all_vs_early, na.rm = TRUE)
+    )
+  
+  cat("\nAverage performance across strategies:\n")
+  print(knitr::kable(week_comparison_summary, digits = 4))
+  
+  # Visualize comparison
+  week_comparison_long <- week_comparison |>
+    select(program_level, none, early, all) |>
+    pivot_longer(
+      cols = c(none, early, all),
+      names_to = "week_strategy",
+      values_to = "accuracy"
+    ) |>
+    mutate(
+      week_strategy = factor(week_strategy, 
+                          levels = c("none", "early", "all"),
+                          labels = c("No weeks", "Early weeks", "All weeks"))
+    )
+  
+  ggplot(week_comparison_long, aes(x = week_strategy, y = accuracy, group = program_level)) +
+    geom_line(alpha = 0.3, aes(color = program_level)) +
+    geom_point(alpha = 0.5) +
+    stat_summary(fun = mean, geom = "point", size = 4, color = "red") +
+    stat_summary(fun = mean, geom = "line", linewidth = 1.5, color = "red", group = 1) +
+    labs(
+      title = "Model Accuracy by Week Strategy",
+      x = "Week Variable Strategy",
+      y = "Accuracy",
+      color = "Program-Level"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_minimal() +
+    theme(legend.position = "none")
+} else {
+  cat("\nNo week strategy comparison found.\n")
 }
 ```
 
@@ -113,60 +212,128 @@ We'll interpret the top-performing models to understand important factors.
 # Initialize results list
 interpretation_results <- list()
 
-# Select top models to interpret
+# Select models to interpret
 if(exists("performance_display") && nrow(performance_display) > 0) {
-  # Select top 5 models or all if fewer
-  top_models <- head(performance_display$dataset_id, min(5, nrow(performance_display)))
+  # Two approaches for model selection:
+  # 1. Select top model for each week strategy
+  # 2. Select all models for top N program-levels
   
-  for(model_id in top_models) {
-    cat("\nInterpreting model:", model_id, "\n")
+  # 1. Select top model for each week strategy
+  top_by_strategy <- list()
+  for(strategy in week_strategies) {
+    strategy_models <- performance_display |>
+      filter(week_strategy == strategy) |>
+      arrange(desc(accuracy))
     
-    # Load model file
-    model_path <- file.path(models_dir, paste0(model_id, "_model.rds"))
+    if(nrow(strategy_models) > 0) {
+      top_by_strategy[[strategy]] <- head(strategy_models$dataset_id, 1)
+    }
+  }
+  
+  # 2. Select all models for top program-levels with all strategies
+  if(exists("week_comparison") && nrow(week_comparison) > 0) {
+    # Find top 3 program-levels with best overall performance
+    top_program_levels <- week_comparison |>
+      mutate(avg_accuracy = (none + early + all)/3) |>
+      arrange(desc(avg_accuracy)) |>
+      head(3) |>
+      pull(program_level)
     
-    if(file.exists(model_path)) {
-      # Load the model
-      model <- readRDS(model_path)
+    # Find all models for these program-levels
+    top_program_models <- performance_display |>
+      filter(program_level %in% top_program_levels) |>
+      pull(dataset_id)
+  } else {
+    # If no week comparison, select top 3 models overall
+    top_program_models <- head(performance_display |> arrange(desc(accuracy)) |> pull(dataset_id), 3)
+  }
+  
+  # Combine both selection approaches
+  selected_models <- c(unlist(top_by_strategy), top_program_models)
+  selected_models <- unique(selected_models)
+  
+  cat("Selected", length(selected_models), "models for interpretation:\n")
+  for(model_id in selected_models) {
+    parts <- strsplit(model_id, "_weeks_")[[1]]
+    program_level <- parts[1]
+    week_strategy <- parts[2]
+    cat("- ", model_id, " (", program_level, ", weeks: ", week_strategy, ")\n", sep="")
+  }
+  
+  # Interpret each selected model
+  for(model_id in selected_models) {
+    # Extract program-level and week strategy
+    parts <- strsplit(model_id, "_weeks_")[[1]]
+    program_level <- parts[1]
+    week_strategy <- parts[2]
+    
+    cat("\n===== Interpreting model:", model_id, "=====\n")
+    cat("Program-level:", program_level, "| Week strategy:", week_strategy, "\n")
+    
+    # First try to get model from combined results
+    model <- NULL
+    if(!is.null(all_model_results) && model_id %in% names(all_model_results)) {
+      model_results <- all_model_results[[model_id]]
+      cat("Using model from combined results\n")
+    } else {
+      # If not in combined results, load individual model file
+      model_path <- file.path(models_dir, paste0(model_id, "_model.rds"))
       
-      # Get metrics
-      model_metrics <- performance_summary |>
-        filter(dataset_id == model_id)
-      
-      # Create model results structure expected by interpret_model function
-      model_results <- list(
-        final_model = model$.workflow[[1]],  # Extract the actual workflow from the last_fit object
-        metrics = model_metrics,
-        filter_info = list(
-          program = gsub("_level.*$", "", model_id),
-          level = gsub("^.*_level([0-9]+).*$", "\\1", model_id)
+      if(file.exists(model_path)) {
+        # Load the model
+        model <- readRDS(model_path)
+        cat("Loaded model from individual file\n")
+        
+        # Get metrics
+        model_metrics <- performance_summary |>
+          filter(dataset_id == model_id)
+        
+        # Create model results structure expected by interpret_model function
+        model_results <- list(
+          final_model = model,  # The model itself is the workflow
+          metrics = model_metrics,
+          filter_info = list(
+            program = program_level,
+            level = gsub("^.*_level([0-9]+).*$", "\\1", program_level),
+            week_vars = week_strategy
+          )
         )
+      } else {
+        cat("  ERROR: Model file not found:", model_path, "\n")
+        next
+      }
+    }
+    
+    # Run interpretation
+    tryCatch({
+      interpretation <- interpret_model(
+        model_results = model_results,
+        n_vars = 15,
+        save = TRUE
       )
       
-      # Run interpretation
-      tryCatch({
-        interpretation <- interpret_model(
-          model_results = model_results,
-          n_vars = 15,
-          save = TRUE
-        )
+      # Store in results list
+      interpretation_results[[model_id]] <- interpretation
+      
+      # Display performance
+      model_accuracy <- performance_display |>
+        filter(dataset_id == model_id) |>
+        pull(accuracy)
+      
+      cat("  Model accuracy:", scales::percent(model_accuracy, accuracy = 0.1), "\n")
+      
+      # Display variable importance
+      if(!is.null(interpretation$variable_importance) && nrow(interpretation$variable_importance) > 0) {
+        cat("\n  Top 10 important variables:\n")
+        print(knitr::kable(head(interpretation$variable_importance, 10)))
         
-        # Store in results list
-        interpretation_results[[model_id]] <- interpretation
-        
-        # Display variable importance
-        if(!is.null(interpretation$variable_importance) && nrow(interpretation$variable_importance) > 0) {
-          cat("  Top important variables:\n")
-          print(knitr::kable(head(interpretation$variable_importance, 10)))
-        } else {
-          cat("  No variable importance available.\n")
-        }
-        
-      }, error = function(e) {
-        cat("  ERROR interpreting model:", e$message, "\n")
-      })
-    } else {
-      cat("  Model file not found:", model_path, "\n")
-    }
+      } else {
+        cat("  No variable importance available.\n")
+      }
+      
+    }, error = function(e) {
+      cat("  ERROR interpreting model:", e$message, "\n")
+    })
   }
   
   # Save all interpretation results
@@ -189,51 +356,66 @@ We'll compare variable importance across different models to identify consistent
 #| label: compare-importance
 
 if(length(interpretation_results) >= 2) {
-  # Compare importance across models
+  # Compare importance across all models
   importance_comparison <- compare_group_importance(
     interpretation_list = interpretation_results,
     n_vars = 15,
     save = TRUE
   )
   
-  # Display comparison
+  # Display overall comparison
   if(!is.null(importance_comparison) && nrow(importance_comparison) > 0) {
-    cat("\nVariable importance comparison across models:\n")
+    cat("\nVariable importance comparison across all models:\n")
     print(knitr::kable(importance_comparison, digits = 4))
     
-    # Create a long format for visualization
+    # Extract model metadata for better visualization
+    model_metadata <- data.frame(
+      model_id = names(interpretation_results),
+      program_level = sapply(strsplit(names(interpretation_results), "_weeks_"), function(x) x[1]),
+      week_strategy = sapply(strsplit(names(interpretation_results), "_weeks_"), function(x) x[2])
+    )
+    
+    # Create a long format for visualization with metadata
     importance_long <- importance_comparison |>
       pivot_longer(
         cols = -Variable,
-        names_to = "model",
+        names_to = "model_id",
         values_to = "importance"
       ) |>
+      left_join(model_metadata, by = "model_id") |>
       mutate(
-        Variable = forcats::fct_reorder(Variable, importance, .fun = mean, na.rm = TRUE),
-        importance = replace_na(importance, 0)
+        Variable = fct_reorder(Variable, importance, .fun = mean, na.rm = TRUE, .na_rm = TRUE),
+        importance = replace_na(importance, 0),
+        week_strategy = factor(week_strategy, 
+                             levels = c("none", "early", "all"),
+                             labels = c("No weeks", "Early weeks", "All weeks"))
       )
     
-    # Plot comparison
-    p <- ggplot(importance_long, aes(x = Variable, y = importance, fill = model)) +
+    # We've removed the top variables by week strategy section as requested
+    
+    # 2. Overall top variables across all models (traditional comparison)
+    p2 <- ggplot(importance_long, aes(x = Variable, y = importance, fill = week_strategy)) +
       geom_col(position = "dodge") +
       coord_flip() +
       labs(
-        title = "Variable Importance Comparison Across Models",
+        title = "Variable Importance Comparison by Week Strategy",
         x = NULL,
         y = "Importance"
       ) +
       theme_minimal() +
       theme(legend.position = "bottom")
     
-    print(p)
+    print(p2)
     
-    # Save plot
+    # Save overall comparison plot
     ggsave(
       file.path(config::get("modelled_dir"), "interpreted", "visualizations", "importance_comparison.png"),
-      p,
+      p2,
       width = 10,
       height = 8
     )
+    
+    # We've removed the week variables importance section as requested
   } else {
     cat("\nNo variable importance comparison available.\n")
   }
@@ -321,28 +503,6 @@ if(exists("performance_display") && nrow(performance_display) > 0) {
       height = 8
     )
   }
-}
-```
-
-## Key Insights and Recommendations
-
-Based on our model interpretations, we can identify several key factors that influence student dropout.
-
-```{r}
-#| label: key-insights
-
-# Identify top variables across all models
-if(exists("importance_comparison") && !is.null(importance_comparison) && nrow(importance_comparison) > 0) {
-  # Calculate average importance across models
-  top_vars <- importance_comparison |>
-    rowwise() |>
-    mutate(mean_importance = mean(c_across(-Variable), na.rm = TRUE)) |>
-    ungroup() |>
-    arrange(desc(mean_importance)) |>
-    head(10)
-  
-  cat("\nTop 10 variables influencing student dropout across all models:\n")
-  print(knitr::kable(select(top_vars, Variable, mean_importance), digits = 4))
 }
 ```
 

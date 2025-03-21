@@ -64,7 +64,7 @@ extract_variable_importance <- function(model_results, n_vars = 10) {
   # Extract the fitted model from the results
   tryCatch({
     # Check if model_results contains a valid model
-    if (is.null(model_results$final_model) || !inherits(model_results$final_model, "workflow")) {
+    if (is.null(model_results$final_model) || !inherits(model_results$final_model, "last_fit")) {
       warning("Invalid model object: model_results does not contain a valid fitted model")
       return(data.frame(Variable = character(0), Importance = numeric(0)))
     }
@@ -371,6 +371,75 @@ compare_group_importance <- function(interpretation_list,
   return(comparison_wide)
 }
 
+#' Compare Performance by Week Strategy
+#'
+#' @description
+#' Compare model performance between different week variable strategies for the same program-level combinations.
+#'
+#' @param performance_comparison Performance comparison data frame from compare_group_performance()
+#' @param save Logical indicating whether to save the comparison (default: TRUE)
+#' @param path Optional custom path to save the comparison
+#'
+#' @return A data frame with performance comparisons by week strategy
+#'
+#' @importFrom dplyr group_by summarize arrange desc mutate
+#' @importFrom tidyr pivot_wider
+#'
+#' @export
+compare_week_strategies <- function(performance_comparison, save = TRUE, path = NULL) {
+  # Group by program_level and compute performance for each week strategy
+  week_comparison <- performance_comparison |>
+    filter(.metric == "accuracy") |>
+    group_by(program_level, week_strategy) |>
+    summarize(
+      accuracy = mean(.estimate, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    # Pivot to wide format for easy comparison
+    pivot_wider(
+      names_from = week_strategy,
+      values_from = accuracy
+    ) |>
+    # Calculate differences between strategies
+    mutate(
+      early_vs_none = weeks_early - weeks_none,
+      all_vs_none = weeks_all - weeks_none,
+      all_vs_early = weeks_all - weeks_early
+    ) |>
+    arrange(desc(weeks_all))
+
+  # Save comparison if requested
+  if (save) {
+    # Determine base path for saving
+    if (is.null(path)) {
+      # Check if config exists, otherwise use default path
+      if (requireNamespace("config", quietly = TRUE)) {
+        modelled_dir <- try(config::get("modelled_dir"), silent = TRUE)
+        if (inherits(modelled_dir, "try-error")) {
+          modelled_dir <- file.path("data", "modelled")
+        }
+      } else {
+        modelled_dir <- file.path("data", "modelled")
+      }
+
+      vis_dir <- file.path(modelled_dir, "interpreted", "visualizations")
+    } else {
+      vis_dir <- file.path(path, "visualizations")
+    }
+
+    # Create directory if it doesn't exist
+    if (!dir.exists(vis_dir)) {
+      dir.create(vis_dir, recursive = TRUE)
+    }
+
+    # Save comparison
+    saveRDS(week_comparison, file.path(vis_dir, "week_strategy_comparison.rds"))
+    message("Week strategy comparison saved to: ", file.path(vis_dir, "week_strategy_comparison.rds"))
+  }
+
+  return(week_comparison)
+}
+
 #' Compare Model Performance Across Groups
 #'
 #' @description
@@ -384,6 +453,7 @@ compare_group_importance <- function(interpretation_list,
 #' @return A data frame with performance comparisons across groups
 #'
 #' @importFrom dplyr bind_rows mutate filter arrange desc
+#' @importFrom stringr str_extract
 #'
 #' @export
 compare_group_performance <- function(interpretation_list,
@@ -405,8 +475,13 @@ compare_group_performance <- function(interpretation_list,
     }
   }
 
-  # Combine all groups
+  # Combine all groups and extract metadata
   comparison <- bind_rows(group_performance) |>
+    mutate(
+      # Extract program-level and week strategy information from group name
+      program_level = str_extract(group, "^[^_weeks]+"),
+      week_strategy = str_extract(group, "weeks_[^_]+$")
+    ) |>
     arrange(desc(.estimate))
 
   if (nrow(comparison) == 0) {
@@ -493,6 +568,57 @@ create_performance_plot <- function(performance_comparison, metric = "accuracy",
   return(p)
 }
 
+#' Create Week Strategy Comparison Plot
+#'
+#' @description
+#' Create a standardized ggplot comparing performance of different week strategies.
+#'
+#' @param week_comparison Week strategy comparison data frame from compare_week_strategies()
+#' @param title Optional title for the plot
+#'
+#' @return A ggplot object
+#'
+#' @importFrom ggplot2 ggplot aes geom_segment geom_point position_dodge theme_minimal labs scale_y_continuous
+#' @importFrom scales percent
+#'
+#' @export
+create_week_strategy_plot <- function(week_comparison, title = NULL) {
+  # Set default title if not provided
+  if (is.null(title)) {
+    title <- "Comparison of Week Variable Strategies"
+  }
+
+  # Reshape data for plotting
+  plot_data <- week_comparison |>
+    pivot_longer(
+      cols = c(weeks_none, weeks_early, weeks_all),
+      names_to = "strategy",
+      values_to = "accuracy"
+    ) |>
+    mutate(
+      strategy = factor(strategy,
+                        levels = c("weeks_none", "weeks_early", "weeks_all"),
+                        labels = c("No Weeks", "Early Weeks (1-5)", "All Weeks"))
+    )
+
+  # Create plot
+  p <- ggplot(plot_data, aes(x = reorder(program_level, accuracy), y = accuracy, color = strategy, group = strategy)) +
+    geom_point(size = 3, position = position_dodge(width = 0.5)) +
+    geom_segment(aes(y = 0, yend = accuracy, xend = reorder(program_level, accuracy)),
+                position = position_dodge(width = 0.5), alpha = 0.3, linewidth = 0.5) +
+    coord_flip() +
+    scale_y_continuous(labels = scales::percent) +
+    labs(
+      title = title,
+      x = NULL,
+      y = "Accuracy",
+      color = "Week Strategy"
+    ) +
+    theme_minimal()
+
+  return(p)
+}
+
 #' Interpret Results for Multiple Groups
 #'
 #' @description
@@ -538,11 +664,29 @@ interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE)
       save = save
     )
 
-    # Add comparisons to the results
-    interpretation_list$comparisons <- list(
-      importance = importance_comparison,
-      performance = performance_comparison
-    )
+    # Compare week strategies if we have different week strategies
+    if (any(grepl("weeks_", names(interpretation_list)))) {
+      message("Comparing different week variable strategies...")
+
+      # Compare week strategies
+      week_comparison <- compare_week_strategies(
+        performance_comparison = performance_comparison,
+        save = save
+      )
+
+      # Add week comparison to results
+      interpretation_list$comparisons <- list(
+        importance = importance_comparison,
+        performance = performance_comparison,
+        week_strategies = week_comparison
+      )
+    } else {
+      # Add regular comparisons to the results
+      interpretation_list$comparisons <- list(
+        importance = importance_comparison,
+        performance = performance_comparison
+      )
+    }
   }
 
   return(interpretation_list)

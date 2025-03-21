@@ -1,5 +1,5 @@
 ---
-title: "Predictive Modeling Summary"
+title: "Student Dropout Prediction: Week Variables' Impact on Model Performance"
 author: "MBOA Analysis Team"
 date: last-modified
 format:
@@ -29,15 +29,26 @@ load_all()
 
 # Executive Summary
 
-This report summarizes the results of predictive modeling for student dropout across different educational programs and levels. We used machine learning models to identify key factors that influence student retention and to provide insights for targeted interventions.
+This report analyzes the impact of attendance data on student dropout predictions. We specifically investigated whether early attendance data (weeks 1-5) is sufficient for accurate predictions, or if longer-term attendance data provides significant improvements. Our analysis compares three modeling approaches:
+
+1. **No week variables**: Models built without any attendance data
+2. **Early weeks (1-5)**: Models using only the first five weeks of attendance data
+3. **All weeks**: Models using all available weekly attendance data
+
+This comparison helps determine the optimal timing for early intervention systems based on attendance patterns.
 
 ```{r}
 #| label: load-data
 #| include: false
 
+# Define week strategies and get model settings
+week_strategies <- c("none", "early", "all")
+model_settings <- config::get("model_settings")
+
 # Load files from the interpreted directory
 interpreted_dir <- file.path(config::get("modelled_dir"), "interpreted")
 visualizations_dir <- file.path(interpreted_dir, "visualizations")
+metrics_dir <- file.path(config::get("modelled_dir"), "run", "metrics")
 
 # Try to load all interpretations
 all_interpretations_path <- file.path(interpreted_dir, "all_interpretations.rds")
@@ -46,6 +57,16 @@ if(file.exists(all_interpretations_path)) {
   
   # Count number of models
   num_models <- length(all_interpretations)
+  
+  # Extract model metadata
+  model_metadata <- data.frame(
+    model_id = names(all_interpretations),
+    program_level = sapply(strsplit(names(all_interpretations), "_weeks_"), function(x) x[1]),
+    week_strategy = sapply(strsplit(names(all_interpretations), "_weeks_"), function(x) x[2])
+  )
+  
+  # Count models by week strategy
+  models_by_strategy <- table(model_metadata$week_strategy)
   
   # Extract top important variables
   top_vars <- NULL
@@ -65,38 +86,178 @@ if(file.exists(all_interpretations_path)) {
     
     for(model_name in names(all_interpretations)) {
       if(!is.null(all_interpretations[[model_name]]$variable_importance)) {
+        # Extract week strategy
+        week_strategy <- model_metadata$week_strategy[model_metadata$model_id == model_name]
+        
         model_importance <- all_interpretations[[model_name]]$variable_importance |>
-          mutate(model = model_name)
+          mutate(
+            model = model_name,
+            week_strategy = week_strategy
+          )
         
         all_importance <- bind_rows(all_importance, model_importance)
       }
     }
     
     if(nrow(all_importance) > 0) {
+      # Create overall top variables
       top_vars <- all_importance |>
         group_by(Variable) |>
         summarize(mean_importance = mean(Importance, na.rm = TRUE)) |>
         arrange(desc(mean_importance)) |>
         head(10)
+      
+      # Create top variables by week strategy
+      top_vars_by_strategy <- all_importance |>
+        group_by(week_strategy, Variable) |>
+        summarize(
+          mean_importance = mean(Importance, na.rm = TRUE),
+          .groups = "drop"
+        ) |>
+        group_by(week_strategy) |>
+        arrange(desc(mean_importance), .by_group = TRUE) |>
+        slice_head(n = 10)
     }
   }
 }
 
-# Load performance metrics
-metrics_path <- file.path(config::get("modelled_dir"), "run", "metrics", "performance_summary.rds")
+# Load performance metrics with week strategy information
+metrics_path <- file.path(metrics_dir, "performance_summary.rds")
 if(file.exists(metrics_path)) {
   performance_summary <- readRDS(metrics_path)
+  
+  # Extract program-level and week strategy if not already present
+  if(!("program_level" %in% names(performance_summary))) {
+    performance_summary <- performance_summary |>
+      mutate(
+        program_level = sapply(strsplit(dataset_id, "_weeks_"), function(x) x[1]),
+        week_strategy = sapply(strsplit(dataset_id, "_weeks_"), function(x) x[2])
+      )
+  }
   
   # Create a display version
   if(!is.null(performance_summary) && nrow(performance_summary) > 0) {
     performance_display <- performance_summary |>
-      select(dataset_id, .metric, .estimate) |>
+      select(dataset_id, program_level, week_strategy, .metric, .estimate) |>
       pivot_wider(
         names_from = .metric,
         values_from = .estimate
       ) |>
       arrange(desc(roc_auc))
+    
+    # Create summary by week strategy
+    strategy_summary <- performance_summary |>
+      filter(.metric == "accuracy") |>
+      group_by(week_strategy) |>
+      summarize(
+        avg_accuracy = mean(.estimate, na.rm = TRUE),
+        min_accuracy = min(.estimate, na.rm = TRUE),
+        max_accuracy = max(.estimate, na.rm = TRUE),
+        std_dev = sd(.estimate, na.rm = TRUE),
+        n_models = n()
+      )
   }
+}
+
+# Load week strategy comparison if available, otherwise generate it
+week_comparison_path <- file.path(metrics_dir, "week_strategy_comparison.rds")
+if(file.exists(week_comparison_path)) {
+  week_comparison <- readRDS(week_comparison_path)
+  
+  # Verify the comparison has the required data structure
+  has_required_columns <- all(c("none", "early", "all", "early_vs_none", "all_vs_none", "all_vs_early") %in% colnames(week_comparison))
+  
+  if(!has_required_columns || nrow(week_comparison) == 0) {
+    # If file exists but doesn't have required data, regenerate it
+    message("Week comparison file exists but doesn't have required data. Regenerating...")
+    
+    # Generate from performance summary if available
+    if(exists("performance_summary") && nrow(performance_summary) > 0) {
+      # Find program-levels with all three week strategies
+      program_levels_with_all_strategies <- performance_summary |>
+        filter(.metric == "accuracy") |>
+        group_by(program_level) |>
+        summarize(
+          n_strategies = n_distinct(week_strategy),
+          strategies = paste(sort(unique(week_strategy)), collapse = ", ")
+        ) |>
+        filter(n_strategies == length(week_strategies))
+      
+      if(nrow(program_levels_with_all_strategies) > 0) {
+        # Compare strategies directly for these program-levels
+        week_comparison <- performance_summary |>
+          filter(
+            .metric == "accuracy",
+            program_level %in% program_levels_with_all_strategies$program_level
+          ) |>
+          select(program_level, week_strategy, accuracy = .estimate) |>
+          pivot_wider(
+            names_from = week_strategy,
+            values_from = accuracy
+          ) |>
+          mutate(
+            early_vs_none = early - none,
+            all_vs_none = all - none,
+            all_vs_early = all - early
+          ) |>
+          arrange(desc(all))
+        
+        # Save the regenerated comparison
+        saveRDS(week_comparison, week_comparison_path)
+      }
+    }
+  }
+} else if(exists("performance_summary") && nrow(performance_summary) > 0) {
+  # If file doesn't exist, generate from performance summary
+  message("Week comparison file not found. Generating from performance data...")
+  
+  # Find program-levels with all three week strategies
+  program_levels_with_all_strategies <- performance_summary |>
+    filter(.metric == "accuracy") |>
+    group_by(program_level) |>
+    summarize(
+      n_strategies = n_distinct(week_strategy),
+      strategies = paste(sort(unique(week_strategy)), collapse = ", ")
+    ) |>
+    filter(n_strategies == length(week_strategies))
+  
+  if(nrow(program_levels_with_all_strategies) > 0) {
+    # Compare strategies directly for these program-levels
+    week_comparison <- performance_summary |>
+      filter(
+        .metric == "accuracy",
+        program_level %in% program_levels_with_all_strategies$program_level
+      ) |>
+      select(program_level, week_strategy, accuracy = .estimate) |>
+      pivot_wider(
+        names_from = week_strategy,
+        values_from = accuracy
+      ) |>
+      mutate(
+        early_vs_none = early - none,
+        all_vs_none = all - none,
+        all_vs_early = all - early
+      ) |>
+      arrange(desc(all))
+    
+    # Save the generated comparison
+    saveRDS(week_comparison, week_comparison_path)
+  }
+}
+
+# Calculate summary statistics if we have week comparison data
+if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_comparison) > 0) {
+  strategy_diff_summary <- week_comparison |>
+    summarize(
+      avg_early_vs_none = mean(early_vs_none, na.rm = TRUE),
+      avg_all_vs_none = mean(all_vs_none, na.rm = TRUE),
+      avg_all_vs_early = mean(all_vs_early, na.rm = TRUE),
+      
+      # Count how many times each strategy is best
+      none_best = sum(none > early & none > all, na.rm = TRUE),
+      early_best = sum(early > none & early > all, na.rm = TRUE),
+      all_best = sum(all > none & all > early, na.rm = TRUE)
+    )
 }
 
 # Load baseline accuracies if available
@@ -117,107 +278,230 @@ if(file.exists(baseline_path)) {
 
 ## Key Findings
 
-Our analysis revealed several important insights about student dropout:
+Our analysis comparing different attendance data strategies revealed several important insights:
 
 ```{r}
 #| label: key-findings
 #| echo: false
 
-if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
-  top_3_vars <- head(top_vars, 3)
+# If we have week strategy comparison data
+if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_comparison) > 0 && 
+   exists("strategy_diff_summary") && !is.null(strategy_diff_summary)) {
   
-  cat("1. The top 3 factors influencing student dropout are:\n")
-  for(i in 1:min(3, nrow(top_3_vars))) {
-    cat("   - **", top_3_vars$Variable[i], "**\n", sep = "")
+  # Determine which strategy performed best on average
+  best_strategy <- names(which.max(c(
+    "none" = mean(week_comparison$none, na.rm = TRUE),
+    "early" = mean(week_comparison$early, na.rm = TRUE),
+    "all" = mean(week_comparison$all, na.rm = TRUE)
+  )))
+  
+  # Count how many times each strategy was best
+  count_best <- c(
+    strategy_diff_summary$none_best,
+    strategy_diff_summary$early_best,
+    strategy_diff_summary$all_best
+  )
+  names(count_best) <- c("none", "early", "all")
+  
+  # Format as percentage
+  pct_best <- paste0(round(100 * count_best / sum(count_best)), "%")
+  
+  cat("1. **Impact of attendance data on prediction accuracy:**\n")
+  
+  # Report average differences
+  cat("   - Models using early attendance data (weeks 1-5) showed an average ", 
+      ifelse(strategy_diff_summary$avg_early_vs_none < 0, "improvement of ", "decrease of "),
+      scales::percent(abs(strategy_diff_summary$avg_early_vs_none), accuracy = 0.1), 
+      " compared to models without attendance data.\n", sep = "")
+  
+  cat("   - Models using all attendance data showed an average ", 
+      ifelse(strategy_diff_summary$avg_all_vs_none < 0, "improvement of ", "decrease of "),
+      scales::percent(abs(strategy_diff_summary$avg_all_vs_none), accuracy = 0.1), 
+      " compared to models without attendance data.\n", sep = "")
+  
+  cat("\n2. **Best performing strategy:**\n")
+  cat("   - The **", best_strategy, " weeks** strategy achieved the highest accuracy in ", 
+      pct_best[best_strategy], " of cases.\n", sep = "")
+  
+  # If we have strategy summary
+  if(exists("strategy_summary") && !is.null(strategy_summary) && nrow(strategy_summary) > 0) {
+    cat("   - Average accuracy by strategy: ")
+    for(i in 1:nrow(strategy_summary)) {
+      cat("**", strategy_summary$week_strategy[i], "**: ", 
+          scales::percent(strategy_summary$avg_accuracy[i], accuracy = 0.1),
+          ifelse(i < nrow(strategy_summary), ", ", ""), sep = "")
+    }
+    cat("\n")
   }
   
-  cat("\n2. Our models achieved an average accuracy of ")
-  if(exists("performance_display") && !is.null(performance_display)) {
-    cat(round(mean(performance_display$accuracy, na.rm = TRUE) * 100), "% ")
-  } else {
-    cat("significant ")
-  }
-  cat("improvement over baseline predictions.\n")
+  cat("\n3. **Top factors influencing dropout prediction:**\n")
   
-  if(exists("performance_with_baseline") && !is.null(performance_with_baseline)) {
-    best_model <- performance_with_baseline |> 
-      filter(accuracy_gain == max(accuracy_gain, na.rm = TRUE)) |>
-      slice(1)
+  if(exists("top_vars_by_strategy") && !is.null(top_vars_by_strategy) && nrow(top_vars_by_strategy) > 0) {
+    # Show top 3 variables for each strategy
+    for(strategy in c("none", "early", "all")) {
+      strategy_vars <- top_vars_by_strategy |>
+        filter(week_strategy == strategy) |>
+        head(3)
+      
+      if(nrow(strategy_vars) > 0) {
+        cat("   - **", strategy, " weeks strategy**: ", 
+            paste(strategy_vars$Variable, collapse = ", "), "\n", sep = "")
+      }
+    }
+  } else if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
+    # Fall back to overall top variables
+    top_3_vars <- head(top_vars, 3)
+    cat("   - Overall top factors: ", paste(top_3_vars$Variable, collapse = ", "), "\n", sep = "")
+  }
+} else if(exists("strategy_summary") && !is.null(strategy_summary) && nrow(strategy_summary) > 0) {
+  # If we don't have direct comparison but have strategy summary
+  cat("1. **Week variable strategy performance:**\n")
+  
+  # Show average accuracy by strategy
+  for(i in 1:nrow(strategy_summary)) {
+    cat("   - **", strategy_summary$week_strategy[i], "** strategy achieved an average accuracy of ", 
+        scales::percent(strategy_summary$avg_accuracy[i], accuracy = 0.1),
+        " across ", strategy_summary$n_models[i], " models.\n", sep = "")
+  }
+  
+  # Find best strategy
+  best_strategy <- strategy_summary$week_strategy[which.max(strategy_summary$avg_accuracy)]
+  cat("\n   The **", best_strategy, "** strategy showed the highest average accuracy.\n", sep = "")
+  
+  # If we have top variables
+  if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
+    top_3_vars <- head(top_vars, 3)
     
-    if(nrow(best_model) > 0) {
-      cat("\n3. The model for **", best_model$dataset_id, "** showed the highest improvement, with a ", 
-          round(best_model$accuracy_gain * 100, 1), "% gain in accuracy over the baseline.\n", sep = "")
+    cat("\n2. **Top factors influencing student dropout:**\n")
+    for(i in 1:min(3, nrow(top_3_vars))) {
+      cat("   - **", top_3_vars$Variable[i], "**\n", sep = "")
     }
   }
 } else {
-  cat("Our analysis revealed several important patterns in student dropout, particularly related to factors such as attendance, prior education performance, and timing of application.\n")
+  # Fallback if no strategy-specific data is available
+  cat("Our analysis revealed several important patterns in student dropout, particularly related to factors such as attendance, prior education performance, and timing of application. While we compared different approaches to including attendance data in our models, more analysis is needed to draw definitive conclusions about the optimal timing of attendance data collection for dropout prediction.\n")
 }
 ```
 
-## Model Performance
+## Week Strategy Performance Comparison
 
-The following chart shows the performance of our predictive models compared to baseline predictions (guessing the most common outcome):
+The following charts show how different attendance data strategies affect model performance:
 
 ```{r}
-#| label: model-performance
+#| label: week-strategy-performance
 #| echo: false
-#| fig-cap: "Model Accuracy Compared to Baseline"
+#| fig-cap: "Comparison of Week Variable Strategies"
 #| out-width: "100%"
 
-if(exists("performance_with_baseline") && !is.null(performance_with_baseline) && nrow(performance_with_baseline) > 0) {
-  # Create performance plot
-  p <- ggplot(head(performance_with_baseline, 10), 
-              aes(x = reorder(dataset_id, accuracy_gain))) +
-    geom_col(aes(y = baseline_accuracy), fill = "grey80") +
-    geom_col(aes(y = accuracy), fill = "steelblue", alpha = 0.7) +
-    geom_text(aes(y = accuracy, label = scales::percent(accuracy, accuracy = 0.1)), 
-              hjust = -0.2) +
-    coord_flip() +
+# If we have week comparison data
+if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_comparison) > 0) {
+  # Create long format data for plotting
+  week_comparison_long <- week_comparison |>
+    select(program_level, none, early, all) |>
+    pivot_longer(
+      cols = c(none, early, all),
+      names_to = "week_strategy",
+      values_to = "accuracy"
+    ) |>
+    mutate(
+      week_strategy = factor(week_strategy, 
+                          levels = c("none", "early", "all"),
+                          labels = c("No weeks", "Early weeks", "All weeks"))
+    )
+  
+  # Plot 1: Line plot showing direct comparison for each program-level
+  p1 <- ggplot(week_comparison_long, aes(x = week_strategy, y = accuracy, group = program_level)) +
+    geom_line(alpha = 0.3, aes(color = program_level)) +
+    geom_point(alpha = 0.5) +
+    stat_summary(fun = mean, geom = "point", size = 4, color = "red") +
+    stat_summary(fun = mean, geom = "line", linewidth = 1.5, color = "red", group = 1) +
     labs(
-      x = NULL,
+      title = "Model Accuracy by Week Strategy",
+      subtitle = "Each gray line represents one program-level, red line shows average",
+      x = "Week Variable Strategy",
       y = "Accuracy"
     ) +
+    scale_y_continuous(labels = scales::percent) +
     theme_minimal() +
-    ylim(0, max(1, max(performance_with_baseline$accuracy) * 1.2))
+    theme(legend.position = "none")
+  
+  print(p1)
+  
+  # Plot 2: Boxplot showing distribution of accuracies by strategy
+  p2 <- ggplot(week_comparison_long, aes(x = week_strategy, y = accuracy, fill = week_strategy)) +
+    geom_boxplot() +
+    labs(
+      title = "Distribution of Model Accuracies by Week Strategy",
+      x = "Week Variable Strategy",
+      y = "Accuracy"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_minimal() +
+    theme(legend.position = "none")
+  
+  print(p2)
+  
+  # Plot 3: Paired differences
+  week_comparison_diff <- week_comparison |>
+    select(program_level, early_vs_none, all_vs_none, all_vs_early) |>
+    pivot_longer(
+      cols = c(early_vs_none, all_vs_none, all_vs_early),
+      names_to = "comparison",
+      values_to = "difference"
+    ) |>
+    mutate(
+      comparison = factor(comparison,
+                       levels = c("early_vs_none", "all_vs_none", "all_vs_early"),
+                       labels = c("Early vs None", "All vs None", "All vs Early"))
+    )
+  
+  p3 <- ggplot(week_comparison_diff, aes(x = comparison, y = difference, fill = comparison)) +
+    geom_boxplot() +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(
+      title = "Accuracy Differences Between Week Strategies",
+      subtitle = "Values above zero indicate first strategy outperforms second",
+      x = "Comparison",
+      y = "Accuracy Difference"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_minimal() +
+    theme(legend.position = "none")
+  
+  print(p3)
+} else if(exists("performance_display") && !is.null(performance_display) && nrow(performance_display) > 0 &&
+          "week_strategy" %in% names(performance_display)) {
+  # If no direct comparison but we have week strategy in performance data
+  strategy_performance <- performance_display |>
+    filter(!is.na(accuracy)) |>
+    mutate(
+      week_strategy = factor(week_strategy,
+                          levels = c("none", "early", "all"),
+                          labels = c("No weeks", "Early weeks", "All weeks"))
+    )
+  
+  # Create boxplot of accuracies by strategy
+  p <- ggplot(strategy_performance, aes(x = week_strategy, y = accuracy, fill = week_strategy)) +
+    geom_boxplot() +
+    labs(
+      title = "Model Accuracy by Week Strategy",
+      x = "Week Variable Strategy",
+      y = "Accuracy"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_minimal()
   
   print(p)
 } else if(file.exists(file.path(visualizations_dir, "accuracy_comparison.png"))) {
-  # Display saved plot
+  # Fallback to saved plot
   knitr::include_graphics(file.path(visualizations_dir, "accuracy_comparison.png"))
 } else {
   cat("*No performance comparison visualization available.*")
 }
 ```
 
-# Factors Influencing Student Dropout
+The charts above provide insight into how the inclusion of attendance data affects prediction accuracy. By comparing models with no attendance data, early attendance data (weeks 1-5), and all attendance data, we can determine the optimal timing for attendance-based interventions.
 
-We identified the key variables that influence student dropout across different educational programs:
-
-```{r}
-#| label: importance-plot
-#| echo: false
-#| fig-cap: "Top Factors Influencing Student Dropout"
-#| out-width: "100%"
-
-if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
-  # Create importance plot
-  p <- ggplot(top_vars, aes(x = reorder(Variable, mean_importance), y = mean_importance)) +
-    geom_col(fill = "steelblue") +
-    coord_flip() +
-    labs(
-      x = NULL,
-      y = "Average Importance"
-    ) +
-    theme_minimal()
-  
-  print(p)
-} else if(file.exists(file.path(visualizations_dir, "importance_comparison.png"))) {
-  # Display saved plot
-  knitr::include_graphics(file.path(visualizations_dir, "importance_comparison.png"))
-} else {
-  cat("*No variable importance visualization available.*")
-}
-```
 
 ## Variable Descriptions
 
@@ -347,30 +631,30 @@ if(exists("performance_with_baseline") && !is.null(performance_with_baseline) &&
 }
 ```
 
-# Recommendations
+# Recommendations 
 
-Based on our analysis, we recommend the following interventions to reduce student dropout:
+Based on our analysis of different attendance data strategies, we recommend the following:
 
-1. **Early Identification**: Monitor students with risk factors identified in our models, especially those related to application timing and prior education.
+1. **Optimized Data Collection**: Focus attendance tracking efforts on the most informative time periods identified in our analysis, balancing prediction accuracy with administrative efficiency.
 
-2. **Targeted Support**: Provide additional support for students in programs with historically higher dropout rates, focusing on the program-specific factors identified.
+2. **Early Warning System**: Implement an early warning system that incorporates the optimal attendance data strategy along with other key predictors identified in our models.
 
-3. **Application Process**: Review the application process to ensure students are placed at appropriate education levels based on their prior education.
+3. **Program-Specific Approaches**: Adapt attendance monitoring strategies based on the program-specific findings, recognizing that different programs may benefit from different approaches.
 
-4. **Continuous Monitoring**: Implement a monitoring system to track student progress and provide timely interventions when risk factors are identified.
+4. **Integrated Risk Assessment**: Combine attendance data with other strong predictors like prior education, application timing, and demographic factors for a comprehensive risk assessment.
 
-5. **Program-Specific Strategies**: Develop tailored retention strategies for each program based on the specific factors that influence dropout in that program.
+5. **Intervention Timing**: Align intervention timing with the attendance data strategy - if early weeks provide sufficient signal, interventions can begin sooner.
 
 # Next Steps
 
 To build on this analysis, we suggest the following next steps:
 
-1. **Validate Models**: Test model predictions on new cohorts to validate their accuracy and adjust as needed.
+1. **Expanded Program Coverage**: Extend this analysis to additional programs and levels to validate the findings and identify any program-specific patterns.
 
-2. **Develop Dashboard**: Create an interactive dashboard for educators to monitor dropout risk factors in real-time.
+2. **Time-Series Analysis**: Conduct more detailed time-series analysis of attendance patterns to identify specific thresholds or turning points that strongly predict dropout.
 
-3. **Evaluate Interventions**: Implement targeted interventions based on our findings and measure their effectiveness.
+3. **Intervention Testing**: Design and test interventions based on the identified optimal timing for attendance data collection and prediction.
 
-4. **Expand Analysis**: Include additional variables and data sources to further refine our understanding of student dropout.
+4. **Combined Model Development**: Develop an integrated predictive model that optimally combines attendance data with other predictors.
 
-5. **Regular Updates**: Update models annually with new data to ensure they remain accurate and relevant.
+5. **Operational Implementation**: Translate these findings into operational procedures for attendance tracking and early intervention processes.
