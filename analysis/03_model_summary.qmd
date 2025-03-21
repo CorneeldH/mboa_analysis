@@ -547,8 +547,34 @@ variable_dict <- data.frame(
   )
 )
 
+# Load variable descriptions from the reference file
+mapping_file <- file.path(config::get("data_reference_dir", "data/reference"), "variable_descriptions.csv")
+if(file.exists(mapping_file)) {
+  var_mapping <- readr::read_delim(mapping_file, delim = ";", show_col_types = FALSE)
+  
+  # Update the variable dictionary with user-friendly names where available
+  for(i in 1:nrow(variable_dict)) {
+    var_name <- variable_dict$Variable[i]
+    idx <- match(var_name, var_mapping$variable_name)
+    if(!is.na(idx)) {
+      variable_dict$Variable[i] <- var_mapping$user_friendly_name[idx]
+    }
+  }
+}
+
 # Display top variables with descriptions
 if(exists("top_vars") && !is.null(top_vars) && nrow(top_vars) > 0) {
+  # First replace the variable names in top_vars with friendly names
+  if(file.exists(mapping_file)) {
+    for(i in 1:nrow(top_vars)) {
+      var_name <- top_vars$Variable[i]
+      idx <- match(var_name, var_mapping$variable_name)
+      if(!is.na(idx)) {
+        top_vars$Variable[i] <- var_mapping$user_friendly_name[idx]
+      }
+    }
+  }
+  
   top_vars_with_desc <- top_vars |>
     select(Variable, mean_importance) |>
     left_join(variable_dict, by = "Variable") |>
@@ -627,8 +653,21 @@ if(exists("performance_with_baseline") && !is.null(performance_with_baseline) &&
             head(3)
           
           cat("- Top factors for this program:\n")
-          for(j in 1:nrow(top_program_vars)) {
-            cat("  - ", top_program_vars$Variable[j], "\n", sep = "")
+          # Apply friendly variable names to top program variables
+          if(exists("var_mapping") && !is.null(var_mapping)) {
+            for(j in 1:nrow(top_program_vars)) {
+              var_name <- top_program_vars$Variable[j]
+              idx <- match(var_name, var_mapping$variable_name)
+              if(!is.na(idx)) {
+                cat("  - ", var_mapping$user_friendly_name[idx], "\n", sep = "")
+              } else {
+                cat("  - ", var_name, "\n", sep = "")
+              }
+            }
+          } else {
+            for(j in 1:nrow(top_program_vars)) {
+              cat("  - ", top_program_vars$Variable[j], "\n", sep = "")
+            }
           }
         }
       }

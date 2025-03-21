@@ -495,3 +495,69 @@ save_config <- function(data, filename, ..., path = NULL, config_data_path = NUL
             version = 3,
             ...)
 }
+
+#' Load Variable Descriptions
+#'
+#' @description
+#' Loads the variable descriptions from the reference CSV file
+#'
+#' @param file_path Optional. Path to the CSV file with variable descriptions
+#'
+#' @returns
+#' A data frame with columns: variable_name, user_friendly_name, and description
+#'
+#' @importFrom readr read_delim
+#'
+#' @export
+load_variable_descriptions <- function(file_path = NULL) {
+    # Set default file path if not provided
+    if (is.null(file_path)) {
+        file_path <- file.path(config::get("data_reference_dir", "data/reference"),
+                               "variable_descriptions.csv")
+    }
+
+    # Check if file exists
+    if (!file.exists(file_path)) {
+        warning("Variable descriptions file not found at: ", file_path)
+        return(data.frame(
+            variable_name = character(),
+            user_friendly_name = character(),
+            description = character()
+        ))
+    }
+
+    # Read the CSV file
+    var_desc <- read_delim(file_path,
+                           delim = ";",
+                           col_types = cols(.default = col_character()),
+                           trim_ws = TRUE)
+
+    return(var_desc)
+}
+
+#' Replace technical variable names with user-friendly names
+#'
+#' @param df Data frame with technical column names
+#' @return Data frame with user-friendly column names
+#'
+#' @export
+replace_with_friendly_names <- function(df) {
+    # Load the mapping
+    mapping_file <- file.path(config::get("data_reference_dir", "data/reference"), "variable_descriptions.csv")
+    if (!file.exists(mapping_file)) {
+        warning("Variable descriptions file not found at: ", mapping_file)
+        return(df)
+    }
+
+    # Read mapping and create a named vector
+    mapping <- readr::read_delim(mapping_file, delim = ";", show_col_types = FALSE)
+    name_map <- setNames(mapping$user_friendly_name, mapping$variable_name)
+
+    # Replace column names that are in the mapping
+    cols_to_rename <- intersect(names(df), names(name_map))
+    if (length(cols_to_rename) > 0) {
+        df <- df |> rename(!!!setNames(cols_to_rename, name_map[cols_to_rename]))
+    }
+
+    return(df)
+}

@@ -376,6 +376,21 @@ if(length(interpretation_results) >= 2) {
   
   # Display overall comparison
   if(!is.null(importance_comparison) && nrow(importance_comparison) > 0) {
+          # Hier kun je de variabelenamen vervangen voordat je ze weergeeft
+    # Laad je variabelenmapping
+    mapping_file <- file.path(config::get("data_reference_dir", "data/reference"), "variable_descriptions.csv")
+    var_mapping <- NULL
+    
+    if(file.exists(mapping_file)) {
+      var_mapping <- readr::read_delim(mapping_file, delim = ";", show_col_types = FALSE)
+      
+      # Vervang de variabelenamen in de Variable kolom
+      importance_comparison$Variable <- sapply(importance_comparison$Variable, function(var_name) {
+        idx <- match(var_name, var_mapping$variable_name)
+        if(!is.na(idx)) var_mapping$user_friendly_name[idx] else var_name
+      })
+    }
+    
     cat("\nVariable importance comparison across all models:\n")
     print(knitr::kable(importance_comparison, digits = 4))
     
@@ -387,6 +402,7 @@ if(length(interpretation_results) >= 2) {
     )
     
     # Create a long format for visualization with metadata
+    # Ensure we're using user-friendly variable names from the mapping file
     importance_long <- importance_comparison |>
       pivot_longer(
         cols = -Variable,
@@ -399,7 +415,7 @@ if(length(interpretation_results) >= 2) {
         importance = replace_na(importance, 0),
         week_strategy = factor(week_strategy, 
                              levels = c("none", "early", "all"),
-                             labels = c("No weeks", "Early weeks", "All weeks"))
+                             labels = c("Start", "Na 5 weken", "Na 10 weken"))
       )
     
     # We've removed the top variables by week strategy section as requested

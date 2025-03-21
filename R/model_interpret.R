@@ -277,6 +277,7 @@ save_model_interpretation <- function(interpretation, program_filter = NULL, lev
 #' @param var_importance Variable importance data frame from extract_variable_importance()
 #' @param title Optional title for the plot
 #' @param color Optional color for the bars
+#' @param use_friendly_names Logical indicating whether to use user-friendly variable names (default: TRUE)
 #'
 #' @return A ggplot object
 #'
@@ -284,10 +285,20 @@ save_model_interpretation <- function(interpretation, program_filter = NULL, lev
 #' @importFrom stats reorder
 #'
 #' @export
-create_importance_plot <- function(var_importance, title = NULL, color = "steelblue") {
+create_importance_plot <- function(var_importance, title = NULL, color = "steelblue", use_friendly_names = TRUE) {
   # Set default title if not provided
   if (is.null(title)) {
     title <- "Variable Importance"
+  }
+  
+  # Convert Variable column to data frame format for replacement if necessary
+  if (use_friendly_names) {
+    # Create temporary data frame with Variable column
+    temp_df <- data.frame(Variable = var_importance$Variable)
+    # Replace with friendly names
+    temp_df <- replace_with_friendly_names(temp_df)
+    # Update original data frame
+    var_importance$Variable <- temp_df$Variable
   }
 
   # Create the plot
@@ -311,6 +322,7 @@ create_importance_plot <- function(var_importance, title = NULL, color = "steelb
 #' @param n_vars Number of top variables to include (default: 10)
 #' @param save Logical indicating whether to save the comparison (default: TRUE)
 #' @param path Optional custom path to save the comparison
+#' @param use_friendly_names Logical indicating whether to use user-friendly variable names (default: TRUE)
 #'
 #' @return A data frame with importance comparisons across groups
 #'
@@ -321,7 +333,8 @@ create_importance_plot <- function(var_importance, title = NULL, color = "steelb
 compare_group_importance <- function(interpretation_list,
                                   n_vars = 10,
                                   save = TRUE,
-                                  path = NULL) {
+                                  path = NULL,
+                                  use_friendly_names = TRUE) {
   # Extract variable importance for each group
   group_importance <- list()
 
@@ -353,6 +366,27 @@ compare_group_importance <- function(interpretation_list,
   # Filter to only include top variables
   comparison <- combined_importance |>
     filter(Variable %in% top_vars)
+
+  # Apply friendly variable names if requested
+  if (use_friendly_names) {
+    # Get unique variable names
+    unique_vars <- unique(comparison$Variable)
+    
+    # Create mapping table
+    var_mapping <- data.frame(
+      original = unique_vars,
+      stringsAsFactors = FALSE
+    )
+    
+    # Apply replacement
+    var_mapping_friendly <- replace_with_friendly_names(var_mapping)
+    
+    # Create a mapping vector
+    name_map <- setNames(var_mapping_friendly$original, var_mapping$original)
+    
+    # Replace variable names 
+    comparison$Variable <- name_map[comparison$Variable]
+  }
 
   # Create wide format for easier comparison
   comparison_wide <- comparison |>
@@ -666,11 +700,12 @@ create_week_strategy_plot <- function(week_comparison, title = NULL) {
 #' @param model_results_list A list of model results from run_model() or run_group_models()
 #' @param n_vars Number of top variables to extract (default: 10)
 #' @param save Logical indicating whether to save the interpretations (default: TRUE)
+#' @param use_friendly_names Logical indicating whether to use user-friendly variable names (default: TRUE)
 #'
 #' @return A list of interpretation results for each group
 #'
 #' @export
-interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE) {
+interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE, use_friendly_names = TRUE) {
   # Initialize results list
   interpretation_list <- list()
 
@@ -684,6 +719,16 @@ interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE)
       n_vars = n_vars,
       save = save
     )
+    
+    # Apply friendly variable names if requested
+    if (use_friendly_names && !is.null(interpretation_list[[group_name]]$variable_importance)) {
+      # Create temporary data frame with Variable column
+      temp_df <- data.frame(Variable = interpretation_list[[group_name]]$variable_importance$Variable)
+      # Replace with friendly names
+      temp_df <- replace_with_friendly_names(temp_df)
+      # Update original data frame
+      interpretation_list[[group_name]]$variable_importance$Variable <- temp_df$Variable
+    }
   }
 
   # Run comparisons across groups
@@ -696,6 +741,16 @@ interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE)
       n_vars = n_vars,
       save = save
     )
+    
+    # Apply friendly variable names to the importance comparison if requested
+    if (use_friendly_names && !is.null(importance_comparison) && nrow(importance_comparison) > 0) {
+      # Create temporary data frame with Variable column
+      temp_df <- data.frame(Variable = importance_comparison$Variable)
+      # Replace with friendly names
+      temp_df <- replace_with_friendly_names(temp_df)
+      # Update original data frame
+      importance_comparison$Variable <- temp_df$Variable
+    }
 
     # Compare model performance
     performance_comparison <- compare_group_performance(
