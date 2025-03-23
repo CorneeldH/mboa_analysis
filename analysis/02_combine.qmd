@@ -226,15 +226,15 @@ Nu we twee data bestanden met verbintenissen en medewerkers hebben, kunnen we de
 
 Hierbij filteren we verbintenissen op basis van
 
--   startjaar –\> 2019 t/m 2023, de meest recente, complete jaren. We behouden ook 2018 om groei opleiding te berekenen.
+-   startjaar –-> 2019 t/m 2023, de meest recente, complete jaren. We behouden ook 2018 om groei opleiding te berekenen.
 
--   begindatum –\> Er zaten ook studenten in met verbintenissen die jaren later begonnen dan cohort startdatum. Dit is opgelost, door te filteren op een marge van 2 maanden voor en 10 maanden na de cohort startdatum.
+-   begindatum –-> Er zaten ook studenten in met verbintenissen die jaren later begonnen dan cohort startdatum. Dit is opgelost, door te filteren op een marge van 2 maanden voor en 10 maanden na de cohort startdatum.
 
--   intensiteit –\> Voltijd. Deeltijd studenten doen langer over hun studie, dus dit vertroebeld.
+-   intensiteit –-> Voltijd. Deeltijd studenten doen langer over hun studie, dus dit vertroebeld.
 
--    niveau –\> Geen entree. De inspectie heeft hierbij geen norm en zij zitten dan ook niet in het startersresultaat.
+-    niveau –-> Geen entree. De inspectie heeft hierbij geen norm en zij zitten dan ook niet in het startersresultaat.
 
--    peildatum -\> 1 oktober. Dit is de peildatum voor de telling van de studenten.
+-    peildatum --> 1 oktober. Dit is de peildatum voor de telling van de studenten.
 
 ```{r}
 

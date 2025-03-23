@@ -1,5 +1,5 @@
 ---
-title: "Correlaties"
+title: "Correlaties obv team data"
 ---
 
 ## Plot
@@ -180,19 +180,4 @@ Wat eruit springt is dat de JOB vooral gaat over algemene tevredenheid, sfeer en
 ### Data kwaliteit
 
 Om te begrijpen wat er gebeurt en welke factoren echt van belang zijn is het noodzakelijk om over meerdere jaren te kijken. Op dit moment zijn de rapportage- en data-structuren hiervoor niet ingericht. Dit is een aandachtspunt voor de toekomst.
-
-
-## Test
-
-```{r}
-
-teams_correlation_result <- teams_selected |>
-    select(where(is.numeric)) |>
-    select(
-         !matches("JOB|MWO"),
-         any_of(variables_job),
-         any_of(variables_MWO))
-
-
-```
 
