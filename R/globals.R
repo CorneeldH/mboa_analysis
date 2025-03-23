@@ -2,10 +2,10 @@
 utils::globalVariables(
     c(
         # Model variables
-        ".estimate", ".metric", "Importance", "Variable", "avg_importance", 
+        ".estimate", ".metric", "Importance", "Variable", "avg_importance",
         "baseline", "group", "pct", "reorder", "tune", "ylim", "geom_vline",
         "%+%",
-        
+
         # From add_grouped_enrollment_dates
         "OPLEIDING_bc_code",
 
@@ -502,7 +502,43 @@ utils::globalVariables(
         "niveau",
         "leerjaar",
         "attribute",
-        "value"
+        "value",
+
+        # compare_week_strategies
+        "program_level",
+        "week_strategy",
+        "weeks_early",
+        "weeks_none",
+        "weeks_all",
+
+        # create_all_strategy_lift_charts
+        "rank_pct",
+        "cum_dropout_pct",
+
+        # create_lift_chart
+        "actual_dropout",
+        "cum_dropouts",
+        "rank_pct",
+        "cum_dropout_pct",
+
+        # create_top_programs_lift_charts
+        "dataset_id",
+
+        # create_week_strategy_plot
+        "weeks_none",
+        "weeks_early",
+        "weeks_all",
+        "strategy",
+        "program_level",
+
+        # ingest_student_postcode_ses
+        "Viercijferige postcode",
+        "Gemiddelde SES WOA totaalscore",
+        "Spreiding van de SES WOA score",
+
+        # get_tbl_summary
+        "Retentie"
+
 
     )
 )
