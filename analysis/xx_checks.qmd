@@ -1314,14 +1314,103 @@ test2 <- enrollments_combined_filtered |>
 
 ```
 
-## 
+## Jaar en diploma resultaat
 
 
 ```{r}
+#| include: false
+
+teams_selected <- readRDS(file.path(config::get("data_analysed_dir"), "teams_selected.rds"))
+
+teams_correlation_all <- correlate_teams_and_filter(teams_selected, "TEAM_startersresultaat_1_jaars", matches("JOB|MWO"))
 
 
+plot_teams_correlations(teams_correlation_all, "TEAM_startersresultaat_1_jaars", "Middelhoge correlatie met Startersresultaat 1 jaar")
+
+
+```
+
+### Jaar resultaat
+
+#### zonder MWO en JOB
+
+```{r}
+#| include: false
+
+print(glimpse(teams_selected))
+
+teams_correlation_result_year <- correlate_teams_and_filter(teams_selected,
+                                                            "TEAM_jaarresultaat_1_jaars",
+                                                            !matches("JOB|MWO"),
+                                                            filter_type = "outside")
+
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high-year-not-MWO-JOB
+#| column-scroll-x: true
+
+plot_teams_correlations(teams_correlation_result_year, "TEAM_jaarresultaat_1_jaars", "Hoge correlatie met Jaarresultaat 1 jaar")
+
+```
+
+#### MWO en JOB
+
+```{r}
+#| include: false
+
+teams_correlation_result_year_MWO_JOB <- correlate_teams_and_filter(teams_selected, "TEAM_jaarresultaat_1_jaars", matches("JOB|MWO"), filter_type = "outside")
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high-year-MWO-JOB
+#| column-scroll-x: true
+
+plot_teams_correlations(teams_correlation_result_year_MWO_JOB, "TEAM_jaarresultaat_1_jaars", "Hoge correlatie met Jaarresultaat 1 jaar")
 
 
 
 ```
+
+
+### Diploma resultaat
+
+#### zonder MWO en JOB
+
+```{r}
+#| include: false
+
+teams_correlation_result_degree <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MWO"), filter_type = "outside")
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high-degree-not-MWO-JOB
+#| column-scroll-x: true
+
+plot_teams_correlations(teams_correlation_result_degree, "TEAM_diplomaresultaat_1_jaars", "Hoge correlatie met Diplomaresultaat 1 jaar")
+
+```
+
+#### MWO en JOB
+
+```{r}
+#| include: false
+
+teams_correlation_result_degree_MWO_JBO <- correlate_teams_and_filter(teams_selected, "TEAM_diplomaresultaat_1_jaars", matches("JOB|MWO"), filter_type = "outside")
+
+
+```
+
+```{r}
+#| label: fig-plot-correlation-high-degree-MWO-JOB
+#| column-scroll-x: true
+#| layout-ncol: 1
+
+plot_teams_correlations(teams_correlation_result_degree_MWO_JBO, "TEAM_diplomaresultaat_1_jaars", "Hoge correlatie met Diplomaresultaat 1 jaar")
+
+```
+
 

@@ -2521,4 +2521,89 @@ ingest_mapping_employees_satisfaction <- function(..., filename = NULL, path = N
 
 }
 
+#' Ingest Student Postal Code APCG Data
+#'
+#' @description
+#' Reads and processes data about postal codes and APCG (Aandachtsgebieden Postcodegebieden) from a CSV file.
+#' APCG identifies areas that require special attention based on socio-economic factors.
+#'
+#' @param filename Optional. A string specifying the name of the CSV file to read.
+#' @param path Optional. A string specifying the path to the CSV file.
+#' @param config_key Optional. A string specifying the configuration key (defaults to "student_postcode_apcg").
+#' @param config_data_path Optional. A string specifying the config path for raw data (defaults to "data_raw_dir").
+#' @param ... Additional arguments passed to the data loading function.
+#'
+#' @returns
+#' A tibble containing:
+#' \itemize{
+#'   \item DEELNEMER_postcode4: 4-digit postal code
+#'   \item DEELNEMER_postcode4_apcg: Boolean indicating if the postal code is in an APCG area
+#' }
+#'
+#' @export
+ingest_student_postcode_apcg <- function(..., filename = NULL, path = NULL, config_key = "student_postcode_apcg", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                         ...,
+                         filename = filename,
+                         path = path,
+                         config_data_path = config_data_path)
+
+    # The file contains APCG postcodes, one per line
+    data_clean <- data_raw |>
+        rename(DEELNEMER_postcode4 = 1) |>
+        mutate(DEELNEMER_postcode4_apcg = TRUE)
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+}
+
+#' Ingest Student Postal Code SES Data
+#'
+#' @description
+#' Reads and processes data about postal codes and socioeconomic status (SES) from a CSV file.
+#' This data includes SES scores for each postal code area based on CBS (Central Bureau of Statistics) data.
+#'
+#' @param filename Optional. A string specifying the name of the CSV file to read.
+#' @param path Optional. A string specifying the path to the CSV file.
+#' @param config_key Optional. A string specifying the configuration key (defaults to "student_postcode_ses").
+#' @param config_data_path Optional. A string specifying the config path for raw data (defaults to "data_raw_dir").
+#' @param ... Additional arguments passed to the data loading function.
+#'
+#' @returns
+#' A tibble containing:
+#' \itemize{
+#'   \item DEELNEMER_postcode4: 4-digit postal code
+#'   \item DEELNEMER_postcode4_ses_score: The average socioeconomic status score for the postal code
+#'   \item DEELNEMER_postcode4_ses_spreiding: The spread (variation) of SES scores within the postal code
+#' }
+#'
+#' @export
+ingest_student_postcode_ses <- function(..., filename = NULL, path = NULL, config_key = "student_postcode_ses", config_data_path = "data_raw_dir") {
+
+    # Name arguments since order behind ... is not guaranteed
+    data_raw <- load_data(config_key,
+                         ...,
+                         filename = filename,
+                         path = path,
+                         config_data_path = config_data_path)
+
+    data_clean <- data_raw |>
+        rename(
+            DEELNEMER_postcode4 = `Viercijferige postcode`,
+            DEELNEMER_postcode4_ses_score = `Gemiddelde SES WOA totaalscore`,
+            DEELNEMER_postcode4_ses_spreiding = `Spreiding van de SES WOA score`
+        )
+
+    # keep the config with the data for later use
+    comment(data_clean) <- config_key
+    save_ingested(data_clean)
+
+    return(data_clean)
+}
+
 

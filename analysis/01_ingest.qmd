@@ -59,12 +59,28 @@ print("BPV data succesvol ingeladen en getransformeerd naar verbintenis.")
 ```{r}
 #' *INFO* An enrollment can be longer or shorter than one year
 student_demographics_yearly <- ingest_students_demographics() |>
+    mutate(DEELNEMER_postcode4 = suppressWarnings(as.numeric(DEELNEMER_postcode4))) |>
     transform_students_to_student_year()
 student_prior_education_yearly <- ingest_students_prior_education() |>
     transform_prior_education_to_student_year() |>
     transform_prior_education_vo_and_highest_degree()
 
 print("Demografie en vooropleiding succesvol ingeladen en getransformeerd naar verbintenis en student-schooljaar.")
+```
+
+```{r}
+# Load postal code related data
+# APCG (Armoede Probleem Cumulatie Gebieden) indicates areas that need special attention
+# SES data contains socioeconomic status scores from CBS per postal code
+student_postcode_apcg <- ingest_student_postcode_apcg()
+student_postcode_ses <- ingest_student_postcode_ses() |>
+        mutate(
+            # Convert SES score and spread to numeric values
+            DEELNEMER_postcode4_ses_score = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_score)),
+            DEELNEMER_postcode4_ses_spreiding = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_spreiding))
+        ) |> save_prepared_and_return()
+
+print("Postcode-gerelateerde data (APCG en SES informatie) succesvol ingeladen.")
 
 ```
 

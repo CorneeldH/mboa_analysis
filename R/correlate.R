@@ -18,6 +18,7 @@
 #' @importFrom dplyr select filter arrange mutate sym
 #' @importFrom stringr str_replace_all
 #' @importFrom tidyselect matches
+#' @importFrom stats setNames
 #'
 #' @export
 correlate_teams_and_filter <- function(df,

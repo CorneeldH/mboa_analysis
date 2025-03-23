@@ -115,6 +115,13 @@ enrollments_combined  <- enrollments_extra_id_joins |>
     left_join_load("student_demographics_yearly",
           by = join_by(DEELNEMER_ID, COHORT_naam),
           relationship = "many-to-one") |>
+    left_join_load("student_postcode_ses",
+          by = join_by(DEELNEMER_postcode4),
+          relationship = "many-to-one") |>
+    left_join_load("student_postcode_apcg",
+          by = join_by(DEELNEMER_postcode4),
+          relationship = "many-to-one",
+          .config_data_path = "data_ingested_dir") |>
     left_join_load("enrollment_years_attendance",
               by = join_by(VERBINTENIS_ID, COHORT_naam == SCHOOLJAAR_naam),
               relationship = "one-to-one") |>
