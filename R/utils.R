@@ -539,6 +539,7 @@ load_variable_descriptions <- function(file_path = NULL) {
 #'
 #' @param df Data frame with technical column names
 #' @return Data frame with user-friendly column names
+#' @importFrom stats setNames
 #'
 #' @export
 replace_with_friendly_names <- function(df) {

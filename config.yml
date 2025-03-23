@@ -13,8 +13,20 @@ default:
   data_analysed_dir: "data/analysed"
   data_test_dir: "data/test"
   modelled_dir: "data/modelled"
+  data_reference_dir: "data/reference"
   first_year: 2019
   last_year: 2023
+
+  # Modeling settings
+  model_settings:
+    test_run: false  # Set to true for test runs with limited programs
+    test_programs: ["Helpende Zorg en Welzijn (23181)", "Juridische administratief (23152)"]  # Programs to use for test runs
+    test_levels: [2, 3]  # Education levels to use for test runs
+    training_cohort_years: [2020, 2021, 2022]  # Years to use for training data
+    test_cohort_year: 2023  # Year to use for test data
+    min_training_samples: 40  # Minimum number of training samples required
+    min_test_samples: 15  # Minimum number of test samples required
+    min_minority_class: 5  # Minimum number of samples in minority class
 
   # The following settings are general settings that determine which data sources are use
 
@@ -265,5 +277,13 @@ default:
     name: "codebook_employee_satisfaction_mapping"
     filename: "MTO_vragen_gedeeltelijke_mapping.csv"
 
+  # Student postcode-related data files
+  student_postcode_apcg:
+    name: "student_postcode_apcg"
+    filename: "DEELNEMER_postcode_APCG_CBS.csv"
+
+  student_postcode_ses:
+    name: "student_postcode_ses"
+    filename: "DEELNEMER_postcode_ses_CBS.csv"
 
 
