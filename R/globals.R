@@ -546,7 +546,13 @@ utils::globalVariables(
         "DEELNEMER_postcode4_apcg",
 
         # process_all_program_charts
-        "all_model_results"
+        "all_model_results",
+
+        # create_performance_plot
+        "coord_flip",
+
+        # process_all_program_charts
+        "collect_predictions"
 
     )
 )
