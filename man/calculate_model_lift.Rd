@@ -4,16 +4,19 @@
 \alias{calculate_model_lift}
 \title{Calculate Model Lift Over Baseline}
 \usage{
-calculate_model_lift(model_accuracy, baseline_accuracy)
+calculate_model_lift(model_metric, baseline_metric, metric_type = "roc_auc")
 }
 \arguments{
-\item{model_accuracy}{Model accuracy value}
+\item{model_metric}{Model performance metric value (ROC AUC or accuracy)}
 
-\item{baseline_accuracy}{Baseline accuracy value}
+\item{baseline_metric}{Baseline metric value (0.5 for ROC AUC)}
+
+\item{metric_type}{Type of metric being used (default: "roc_auc")}
 }
 \value{
 A list with lift values and descriptive text
 }
 \description{
 Calculate how much better the model performs compared to the baseline.
+For ROC AUC, the baseline is always 0.5 (random classifier).
 }

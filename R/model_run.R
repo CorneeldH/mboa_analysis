@@ -39,20 +39,20 @@ run_model <- function(data_list,
   data_train <- data_list$train
   data_test <- data_list$test
   filter_info <- data_list$filter_info
-  
+
   # Check if we have both classes in the training data
   if (outcome_var %in% colnames(data_train)) {
     class_counts <- table(data_train[[outcome_var]])
     if (length(class_counts) < 2) {
-      stop(paste0("Cannot train a model: training data only contains one class (", 
-                 paste(names(class_counts), collapse = ", "), 
+      stop(paste0("Cannot train a model: training data only contains one class (",
+                 paste(names(class_counts), collapse = ", "),
                  "). A predictive model requires examples of both classes."))
     } else {
       # Check if the minimum class count is sufficient
       min_class_count <- min(class_counts)
       if (min_class_count < 5) {  # Using 5 as a minimum threshold
-        warning(paste0("Training data contains very few examples of class '", 
-                      names(which.min(class_counts)), "' (only ", min_class_count, 
+        warning(paste0("Training data contains very few examples of class '",
+                      names(which.min(class_counts)), "' (only ", min_class_count,
                       " instances). Model performance may be unreliable."))
       }
     }
@@ -157,7 +157,7 @@ create_cv_folds <- function(data, outcome_var = "DEELNEMER_BC_uitval", n_folds =
 #'
 #' @return A recipe object for preprocessing data
 #'
-#' @importFrom recipes recipe step_rm step_normalize step_unknown step_zv all_nominal_predictors all_numeric_predictors
+#' @importFrom recipes recipe step_rm step_normalize step_unknown step_zv all_nominal_predictors all_numeric_predictors all_predictors
 #'
 #' @export
 create_model_recipe <- function(data, outcome_var = "DEELNEMER_BC_uitval") {
@@ -442,7 +442,7 @@ run_group_models <- function(data,
     for (level in levels) {
       # Base group identifier
       base_group_id <- paste0(program, "_level", level)
-      
+
       for (week_strategy in week_strategies) {
         # Build complete group identifier including week strategy
         group_id <- paste0(base_group_id, "_weeks_", week_strategy)
@@ -474,7 +474,7 @@ run_group_models <- function(data,
     for (week_strategy in week_strategies) {
       aggregate_id <- paste0("all_programs_all_levels_weeks_", week_strategy)
       message("Processing aggregate model: ", aggregate_id)
-      
+
       # Prepare data for all programs and levels with the current week strategy
       prepared_all_data <- prepare_model_data(
         data = data,

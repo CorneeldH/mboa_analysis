@@ -36,11 +36,11 @@ Als eerste laden we de gecombineerde en verrijkte inschrijvingsgegevens uit onze
 #| label: load-data
 
 # Load the data
-enrollments_combined_enriched <- readRDS(file.path(config::get("data_combined_dir"),
-                                                 "enrollments_combined_enriched.rds"))
+enrollments_raw <- readRDS(file.path(config::get("data_combined_dir"),
+                                     "enrollments_combined_enriched.rds"))
 
-enrollments_combined_enriched <- enrollments_combined_enriched %>%
-  # Create shortened names
+# Create shortened names for teams and programs
+enrollments_with_short_names <- enrollments_raw %>%
   mutate(
     TEAM_naam_kort = case_when(
       str_detect(TEAM_naam, "Beveiliging/Toezicht en Veiligheid") ~ "Beveiliging",
@@ -148,14 +148,14 @@ categorize_reasons <- function(reason) {
 ```
 
 ```{r}
-# Add categorized reasons
-enrollments_combined_enriched <- enrollments_combined_enriched |>
+# Add categorized reasons for leaving
+enrollments_with_categories <- enrollments_with_short_names |>
   mutate(
     VERBINTENIS_reden_uitschrijving_categorie = categorize_reasons(VERBINTENIS_reden_uitschrijving)
   )
 
 # Add dropout indicators per student and BC code
-enrollments_combined_enriched <- enrollments_combined_enriched |>
+enrollments_with_dropout_indicators <- enrollments_with_categories |>
   # Sort by student ID and start date to get chronological order
   arrange(DEELNEMER_ID, VERBINTENIS_begindatum) |>
   # Group by student and BC code
@@ -186,10 +186,12 @@ enrollments_combined_enriched <- enrollments_combined_enriched |>
 
 ```
 
+## Variabelen selecteren
+
 ```{r}
 
-# Calculate age and add additional fields
-enrollments_combined_enriched <- enrollments_combined_enriched |>
+# Calculate age and select relevant variables for modeling
+enrollments_selected <- enrollments_with_dropout_indicators |>
   mutate(DEELNEMER_leeftijd = DEELNEMER_BC_begindatum_eerst - DEELNEMER_geboorte_jaarmaand, 
          DEELNEMER_leeftijd = as.numeric(DEELNEMER_leeftijd, units = "days") / 365.25) |>
      select(DEELNEMER_ID,
@@ -209,15 +211,49 @@ enrollments_combined_enriched <- enrollments_combined_enriched |>
            DEELNEMER_BC_begindatum_eerst,
            DEELNEMER_BC_einddatum_laatst,
            DEELNEMER_BC_inschrijvingsduur,
+           DEELNEMER_postcode4_ses_score,
+           DEELNEMER_postcode4_ses_spreiding,
+           DEELNEMER_postcode4_apcg,
            matches("VERBINTENIS_waarneming_pct_ongeoorloofd_week"),
            matches("VERBINTENIS_waarneming_pct_geoorloofd_week"),
            DEELNEMER_vooropleiding_categorie,
            DEELNEMER_passend_niveau,
            DEELNEMER_plaatsing,
            DEELNEMER_havo_vwo_is_gezakt,
-           start_kwalificatie
-           )
+           start_kwalificatie,
+           # Variables to filter on
+           VERBINTENIS_intensiteit, 
+           VERBINTENIS_bekostigd, 
+           OPLEIDING_leerweg,
+           VERBINTENIS_begindatum,
+           ) |>
+    mutate(DEELNEMER_postcode4_apcg = if_else(is.na(DEELNEMER_postcode4_apcg), FALSE, DEELNEMER_postcode4_apcg))
 ```
+
+## Variabelen filteren
+
+Selecteer alleen studenten die officieel in augustus beginnen, voltijd studeren (BOL) en bekostigd zijn.
+
+```{r}
+
+enrollments_filtered <- enrollments_selected |>
+    filter(
+        DEELNEMER_BC_begindatum_eerst >= as.Date("2021-08-01", format = "%Y-%m-%d"),
+        DEELNEMER_BC_begindatum_eerst <= as.Date("2023-08-31", format = "%Y-%m-%d"),
+        # VERBINTENIS_actief_op_1_okt_peildatum == TRUE,
+        month(VERBINTENIS_begindatum) == 8,
+        month(DEELNEMER_BC_begindatum_eerst) == 8,
+        DEELNEMER_BC_begindatum_eerst == VERBINTENIS_begindatum,
+        VERBINTENIS_bekostigd == "Ja",
+        VERBINTENIS_intensiteit == "Voltijd",
+        OPLEIDING_leerweg == "BOL"
+    ) |>
+    select(-c(VERBINTENIS_intensiteit, VERBINTENIS_bekostigd, OPLEIDING_leerweg))
+
+```
+
+### Aanwezigheid per week filteren
+De aanwezigheid variablen beginnen vanaf 1 augustus. Echter, onderwijs begint dan nog niet altijd. We verwijderen daarom de weken zonder onderwijs per opleidingsprogramma en de overgebleven weken om deze bij 1 te laten beginnen.
 
 ```{r}
 # Function to reorganize week variables by removing all-NA columns and renumbering
@@ -435,10 +471,10 @@ reorganize_week_variables <- function(data, group_vars = c("COHORT_startjaar", "
 }
 
 # Reorganize the week variables in the dataset
-enrollments_combined_enriched <- reorganize_week_variables(enrollments_combined_enriched)
+enrollments_filtered_weeks_fix <- reorganize_week_variables(enrollments_filtered)
 
 # Show basic data dimensions
-cat("Loaded dataset dimensions:", dim(enrollments_combined_enriched), "\n")
+cat("Loaded dataset dimensions:", dim(enrollments_filtered_weeks_fix), "\n")
 ```
 
 ## Identificeren van programma's en niveaus
@@ -455,7 +491,7 @@ min_samples <- model_settings$min_training_samples
 test_cohort_year <- model_settings$test_cohort_year
 
 # Get unique programs and their counts, filtering for model-eligible cohort years
-programs_level_count <- enrollments_combined_enriched |>
+programs_level_count <- enrollments_filtered_weeks_fix |>
   filter(COHORT_startjaar %in% c(model_settings$training_cohort_years, test_cohort_year)) |>
   count(OPLEIDING_naam_kort, VERBINTENIS_niveau, COHORT_startjaar) |>
   pivot_wider(
@@ -530,7 +566,7 @@ for(week_strategy in week_strategies) {
   cat("\n--- Preparing all programs data with week strategy:", week_strategy, "---\n")
   
   all_data_preps[[week_strategy]] <- prepare_model_data(
-    data = enrollments_combined_enriched,
+    data = enrollments_filtered_weeks_fix,
     program_filter = NULL,
     level_filter = NULL,
     test_cohort = test_cohort_year,
@@ -593,12 +629,11 @@ for (program in selected_programs) {
     for (week_strategy in week_strategies) {
       # Create full identifier including week strategy
       combo_id <- paste0(base_combo_id, "_weeks_", week_strategy)
-      cat("\n--- Week strategy:", week_strategy, "---\n")
       
       # Try to prepare data for this combination
       tryCatch({
         program_level_data[[combo_id]] <- prepare_model_data(
-          data = enrollments_combined_enriched,
+          data = enrollments_filtered_weeks_fix,
           program_filter = program,
           level_filter = level,
           test_cohort = test_cohort_year,
@@ -659,7 +694,7 @@ for (i in seq_along(week_strategies)) {
 
 cat("\n===== Summary of prepared datasets =====\n")
 for (i in seq_along(week_strategies)) {
-  cat("Week strategy '", week_strategies[i], "': ", valid_datasets_by_strategy[i], 
+  cat("Week keuze '", week_strategies[i], "': ", valid_datasets_by_strategy[i], 
       " valid program-level datasets\n", sep="")
 }
 
@@ -749,10 +784,63 @@ print(knitr::kable(dataset_summary_by_strategy, digits = 1))
 # Show detailed table of valid datasets
 cat("\nValid datasets meeting minimum requirements:\n")
 valid_summary <- valid_datasets |>
-  select(id, program_level, week_strategy, train_rows, test_rows, week_vars, min_class_count) |>
+  select(program_level, train_rows, test_rows, week_vars, min_class_count) |>
   arrange(program_level, week_strategy)
 
-print(knitr::kable(valid_summary, digits = 0))
+print(knitr::kable(valid_summary, digits = 0, row.names = FALSE))
+```
+
+## Verkenning
+
+```{r}
+#| label: exploration
+
+# Grote opleidingen
+filename <- "Dienstverlening (25498)_level2_weeks_all_cohort2023.rds"
+#filename <- "Sociaal (25615)_level4_weeks_all_cohort2023.rds"
+#filename <- "Ondernemer (25184)_level4_weeks_all_cohort2023.rds"
+
+file_path <- file.path(config::get("modelled_dir"), "prepared", filename)
+
+program_info <- readRDS(file_path)
+df <- bind_rows(program_info$train, program_info$test)
+
+# First identify the week columns
+geoorloofd_cols <- grep("VERBINTENIS_waarneming_pct_geoorloofd_week_", names(df), value = TRUE)
+ongeoorloofd_cols <- grep("VERBINTENIS_waarneming_pct_ongeoorloofd_week_", names(df), value = TRUE)
+
+# Now create a dataframe with additional aggregated columns
+df_predictors <- df |>
+    mutate(
+        # Calculate mean for geoorloofd and ongeoorloofd absences
+        VERBINTENIS_waarneming_pct_geoorloofd = rowMeans(as.matrix(select(df, all_of(geoorloofd_cols))), na.rm = TRUE),
+        VERBINTENIS_waarneming_pct_ongeoorloofd = rowMeans(as.matrix(select(df, all_of(ongeoorloofd_cols))), na.rm = TRUE),
+        Retentie = ifelse(DEELNEMER_BC_uitval == "Geen uitval", 1, 0),
+        DEELNEMER_postcode4_ses_score = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_score)),
+        DEELNEMER_postcode4_ses_spreiding = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_spreiding))
+    ,
+    DEELNEMER_postcode4_apcg = if_else(DEELNEMER_postcode4_apcg == 1, "Ja", "Nee")) |>
+    select(
+        -DEELNEMER_BC_uitval,
+        -matches("_ID$"),
+        -matches("datum"),
+        -matches("naam"),
+        -matches("duur"),
+        -matches("jaar"),
+        -all_of(geoorloofd_cols),
+        -all_of(ongeoorloofd_cols)
+    )
+
+# Load variable descriptions for user-friendly names
+var_descriptions <- load_variable_descriptions()
+
+# Apply user-friendly names
+df_predictors_friendly <- replace_with_friendly_names(df_predictors)
+
+df_predictors_friendly |>
+    get_tbl_summary()
+
+
 ```
 
 ## Volgende stappen

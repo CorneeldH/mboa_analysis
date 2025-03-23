@@ -385,7 +385,7 @@ if(exists("week_comparison") && !is.null(week_comparison) && nrow(week_compariso
 }
 ```
 
-## Vergelijking van weekstrategieprestaties
+## Vergelijking van voorspelling vermogen per tijdstip
 
 De volgende grafieken tonen hoe verschillende aanwezigheidsgegevensstrategieën de modelprestaties beïnvloeden:
 
@@ -409,7 +409,7 @@ week_comparison_long <- week_comparison |>
   mutate(
     week_strategy = factor(week_strategy, 
                         levels = c("none", "early", "all"),
-                        labels = c("No weeks", "Early weeks", "All weeks"))
+                        labels = c("Bij start", "Na 5 weken", "Na 10 weken"))
   )
 
 # Plot with modified styling
@@ -419,9 +419,9 @@ p1 <- ggplot(week_comparison_long, aes(x = week_strategy, y = roc_auc, group = p
   #stat_summary(fun = mean, geom = "point", size = 3, color = "black") +  # Fully opaque black average points
   stat_summary(fun = mean, geom = "line", linewidth = 1, color = "black", group = 1) +  # Fully opaque black average line
   labs(
-    title = "Model ROC AUC per weekstrategie",
-    subtitle = "Elke grijze lijn vertegenwoordigt één programma-niveau, zwarte lijn toont gemiddelde\nHogere waarden duiden op betere studentenrangschikkingscapaciteit",
-    x = "Weekvariabelestrategie",
+    title = "Model ROC AUC per tijdstip",
+    subtitle = "Elke grijze lijn vertegenwoordigt één programma-niveau, zwarte lijn toont gemiddelde\nHogere waarden duiden op betere voorspelling",
+    x = "Tijdstippen",
     y = "ROC AUC"
   ) +
   scale_y_continuous(labels = scales::percent) +
@@ -436,9 +436,9 @@ print(p1)
     # Add reference line at 0.5 for random classifier
     geom_hline(yintercept = 0.5, linetype = "dashed", color = "darkred") +
     labs(
-      title = "Verdeling van model ROC AUC per weekstrategie",
-      subtitle = "Hogere waarden duiden op betere studentenrangschikkingscapaciteit\nStippellijn bij 0,5 vertegenwoordigt willekeurige rangschikking (baseline)",
-      x = "Weekvariabelestrategie",
+      title = "Verdeling van model ROC AUC per tijdstip",
+      subtitle = "Hogere waarden duiden op betere voorspelling)",
+      x = "Tijdstip",
       y = "ROC AUC"
     ) +
     scale_y_continuous(labels = scales::percent) +
@@ -458,15 +458,15 @@ print(p1)
     mutate(
       comparison = factor(comparison,
                        levels = c("early_vs_none", "all_vs_none", "all_vs_early"),
-                       labels = c("Early vs None", "All vs None", "All vs Early"))
+                       labels = c("5 weken vs start", "10 weken vs start", "10 weken vs 5 weken"))
     )
   
   p3 <- ggplot(week_comparison_diff, aes(x = comparison, y = difference, fill = comparison)) +
     geom_boxplot() +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(
-      title = "ROC AUC-verschillen tussen weekstrategieën",
-      subtitle = "Waarden boven nul geven aan dat de eerste strategie betere studentenrangschikking biedt\nGrotere verschillen vertegenwoordigen substantiëlere verbeteringen in voorspellend vermogen",
+      title = "ROC AUC-verschillen tussen tijdstippen",
+      subtitle = "Waarden boven nul geven aan dat de eerste strategie betere voorspelling biedt\nGrotere verschillen vertegenwoordigen substantiëlere verbeteringen in voorspellend vermogen",
       x = "Vergelijking",
       y = "ROC AUC-verschil"
     ) +
@@ -483,7 +483,7 @@ print(p1)
     mutate(
       week_strategy = factor(week_strategy,
                           levels = c("none", "early", "all"),
-                          labels = c("No weeks", "Early weeks", "All weeks"))
+                          labels = c("Bij start", "Na 5 weken", "Na 10 weken"))
     )
   
   # Create boxplot of ROC AUC by strategy

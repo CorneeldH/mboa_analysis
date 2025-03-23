@@ -13,7 +13,7 @@ prepare_model_data(
   program_filter = NULL,
   level_filter = NULL,
   test_cohort = 2023,
-  remove_patterns = c("week"),
+  week_vars = "none",
   save = TRUE,
   path = NULL
 )
@@ -35,7 +35,7 @@ prepare_model_data(
 
 \item{test_cohort}{The cohort year to use as test data (default: 2023)}
 
-\item{remove_patterns}{Character vector of variable patterns to exclude (default: c("week"))}
+\item{week_vars}{Strategy for handling week variables: "none" = exclude all, "early" = keep weeks 1-5, "all" = keep all (default: "none")}
 
 \item{save}{Logical indicating whether to save the prepared data (default: TRUE)}
 

@@ -4,10 +4,12 @@
 \alias{select_best_params}
 \title{Select Best Parameters from Tuning Results}
 \usage{
-select_best_params(tuned_results)
+select_best_params(tuned_results, metric = "roc_auc")
 }
 \arguments{
 \item{tuned_results}{Tuning results from tune_model()}
+
+\item{metric}{Metric to optimize, defaults to "roc_auc" which is best for ranking students}
 }
 \value{
 The best hyperparameter values

@@ -4,7 +4,12 @@
 \alias{interpret_group_models}
 \title{Interpret Results for Multiple Groups}
 \usage{
-interpret_group_models(model_results_list, n_vars = 10, save = TRUE)
+interpret_group_models(
+  model_results_list,
+  n_vars = 10,
+  save = TRUE,
+  use_friendly_names = TRUE
+)
 }
 \arguments{
 \item{model_results_list}{A list of model results from run_model() or run_group_models()}
@@ -12,6 +17,8 @@ interpret_group_models(model_results_list, n_vars = 10, save = TRUE)
 \item{n_vars}{Number of top variables to extract (default: 10)}
 
 \item{save}{Logical indicating whether to save the interpretations (default: TRUE)}
+
+\item{use_friendly_names}{Logical indicating whether to use user-friendly variable names (default: TRUE)}
 }
 \value{
 A list of interpretation results for each group

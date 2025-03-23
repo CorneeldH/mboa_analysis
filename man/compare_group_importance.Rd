@@ -8,7 +8,8 @@ compare_group_importance(
   interpretation_list,
   n_vars = 10,
   save = TRUE,
-  path = NULL
+  path = NULL,
+  use_friendly_names = TRUE
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ compare_group_importance(
 \item{save}{Logical indicating whether to save the comparison (default: TRUE)}
 
 \item{path}{Optional custom path to save the comparison}
+
+\item{use_friendly_names}{Logical indicating whether to use user-friendly variable names (default: TRUE)}
 }
 \value{
 A data frame with importance comparisons across groups

@@ -175,23 +175,23 @@ if(file.exists(week_comparison_path)) {
     pivot_longer(
       cols = c(none, early, all),
       names_to = "week_strategy",
-      values_to = "accuracy"
+      values_to = "roc_auc"
     ) |>
     mutate(
       week_strategy = factor(week_strategy, 
                           levels = c("none", "early", "all"),
-                          labels = c("No weeks", "Early weeks", "All weeks"))
+                          labels = c("Bij start", "Na 5 weken", "Na 10 weken"))
     )
   
-  ggplot(week_comparison_long, aes(x = week_strategy, y = accuracy, group = program_level)) +
+  ggplot(week_comparison_long, aes(x = week_strategy, y = roc_auc, group = program_level)) +
     geom_line(alpha = 0.3, aes(color = program_level)) +
-    geom_point(alpha = 0.5) +
-    stat_summary(fun = mean, geom = "point", size = 4, color = "red") +
-    stat_summary(fun = mean, geom = "line", linewidth = 1.5, color = "red", group = 1) +
+    geom_point(alpha = 0.3, aes(color = program_level)) +
+    #stat_summary(fun = mean, geom = "point", size = 4, color = "red") +
+    stat_summary(fun = mean, geom = "line", linewidth = 1.5, color = "black", group = 1) +
     labs(
-      title = "Modelnauwkeurigheid per weekstrategie",
-      x = "Weekvariabelestrategie",
-      y = "Nauwkeurigheid",
+      title = "Model ROC AUC over tijd",
+      x = "Tijdstip",
+      y = "ROC AUC",
       color = "Programma-niveau"
     ) +
     scale_y_continuous(labels = scales::percent) +
@@ -214,29 +214,11 @@ interpretation_results <- list()
 
 # Select models to interpret
 if(exists("performance_display") && nrow(performance_display) > 0) {
-  # Two approaches for model selection:
-  # 1. Select top model for each week strategy
-  # 2. Select all models for top N program-levels
-  
-  # 1. Select top model for each week strategy
-  top_by_strategy <- list()
-  for(strategy in week_strategies) {
-    strategy_models <- performance_display |>
-      filter(week_strategy == strategy) |>
-      arrange(desc(roc_auc))  # Sort by ROC AUC for better ranking capability
-    
-    if(nrow(strategy_models) > 0) {
-      top_by_strategy[[strategy]] <- head(strategy_models$dataset_id, 1)
-    }
-  }
-  
-  # 2. Select all models for top program-levels with all strategies
   if(exists("week_comparison") && nrow(week_comparison) > 0) {
     # Find top 3 program-levels with best overall performance
     top_program_levels <- week_comparison |>
       mutate(avg_roc_auc = (none + early + all)/3) |>
       arrange(desc(avg_roc_auc)) |>
-      head(3) |>
       pull(program_level)
     
     # Find all models for these program-levels
@@ -411,24 +393,23 @@ if(length(interpretation_results) >= 2) {
       ) |>
       left_join(model_metadata, by = "model_id") |>
       mutate(
-        Variable = fct_reorder(Variable, importance, .fun = mean, na.rm = TRUE, .na_rm = TRUE),
+        Variable = fct_reorder(Variable, importance, .fun = max, na.rm = TRUE, .na_rm = TRUE),
         importance = replace_na(importance, 0),
         week_strategy = factor(week_strategy, 
                              levels = c("none", "early", "all"),
-                             labels = c("Start", "Na 5 weken", "Na 10 weken"))
+                             labels = c("Bij start", "Na 5 weken", "Na 10 weken"))
       )
     
-    # We've removed the top variables by week strategy section as requested
-    
-    # 2. Overall top variables across all models (traditional comparison)
+    # Overall top variables across all models (traditional comparison)
     p2 <- ggplot(importance_long, aes(x = Variable, y = importance, fill = week_strategy)) +
       geom_col(position = "dodge") +
       coord_flip() +
       labs(
-        title = "Vergelijking van variabele-importantie per weekstrategie",
+        title = "Vergelijking van belang variabele over tijd",
         x = NULL,
-        y = "Importantie"
+        y = "Belang"
       ) +
+      scale_fill_discrete(name = "Tijdstip") + 
       theme_minimal() +
       theme(legend.position = "bottom")
     
@@ -519,7 +500,10 @@ Om interventies te plannen op basis van uitvalrisico, maken we liftgrafieken die
 # Parameter: specify the program name pattern to analyze
 program_name <- "Keuken.*25180.*level2"  # Can be changed to any program pattern
 program_name <- "Leidinggeven.*25160.*level4"
-program_name <- "Dienstverlening (25636)_level4"
+program_name <- "Dienstverlening (25498)_level2"
+#program_name <- "Pedagogisch (25698)_level4"
+#program_name <- "Business (25727)_level4"
+#program_name <- "Sociaal (25615)_level4"
 
 
 # Create a function to generate comparison chart for any program
@@ -528,7 +512,7 @@ create_program_comparison <- function(program_name) {
     program_pattern <- str_replace(program_pattern, "\\)_", ".*")
     
   # Find models matching the pattern
-  model_ids <- names(all_model_results)[grep(paste0(program_pattern, ".*weeks"), names(all_model_results))]
+  model_ids <- names(all_model_results)[str_detect(names(all_model_results), program_pattern)]
   
   if(length(model_ids) == 0) {
     cat("Models for", program_pattern, "not found\n")
@@ -582,23 +566,22 @@ create_program_comparison <- function(program_name) {
     chart_data <- chart_data |>
       mutate(strategy = factor(strategy, 
                             levels = c("none", "early", "all"),
-                            labels = c("No Weeks", "Early Weeks", "All Weeks")))
+                            labels = c("Bij start", "Na 5 weken", "Na 10 weken")))
     
     # Clean program name for display
     clean_program <- gsub("\\.\\.+", " ", program_display_name)
+    clean_program <- str_replace(clean_program , "_level", " niveau ")
     
     # Create the chart
     comparison_chart <- ggplot(chart_data, aes(x = rank_pct, y = cum_dropout_pct, color = strategy)) +
-      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray70") +
+      #geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray70") +
       geom_line(linewidth = 1.2) +
-      geom_point(aes(shape = strategy), size = 3) +
       labs(
-        title = paste0(clean_program, ": Vergelijking van interventie-efficiëntie"),
-        subtitle = "Toont % uitvallers bereikt bij interventie met % studenten met hoogste risico",
-        x = "Percentage benaderde studenten (hoogste risico eerst)",
+        title = clean_program,
+        subtitle = "Toont % uitvallers bereikt bij interventie met % studenten",
+        x = "Percentage benaderde studenten",
         y = "Percentage bereikte uitvallers",
-        color = "Weekstrategie",
-        shape = "Weekstrategie",
+        color = "Tijdstip",
         caption = paste("Programma:", clean_program, "| Gerangschikt op ROC AUC")
       ) +
       scale_x_continuous(labels = scales::percent) +

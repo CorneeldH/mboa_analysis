@@ -30,6 +30,8 @@ Imports:
     vip,
     workflows,
     yardstick,
-    scales
+    scales,
+    gtsummary,
+    gt
 Suggests:
     testthat (>= 3.0.0)

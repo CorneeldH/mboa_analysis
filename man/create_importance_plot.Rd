@@ -4,7 +4,12 @@
 \alias{create_importance_plot}
 \title{Create Visualization of Variable Importance}
 \usage{
-create_importance_plot(var_importance, title = NULL, color = "steelblue")
+create_importance_plot(
+  var_importance,
+  title = NULL,
+  color = "steelblue",
+  use_friendly_names = TRUE
+)
 }
 \arguments{
 \item{var_importance}{Variable importance data frame from extract_variable_importance()}
@@ -12,6 +17,8 @@ create_importance_plot(var_importance, title = NULL, color = "steelblue")
 \item{title}{Optional title for the plot}
 
 \item{color}{Optional color for the bars}
+
+\item{use_friendly_names}{Logical indicating whether to use user-friendly variable names (default: TRUE)}
 }
 \value{
 A ggplot object

@@ -316,9 +316,9 @@ if(nrow(performance_summary) > 0) {
          aes(x = week_strategy, y = .estimate, fill = week_strategy)) +
     geom_boxplot() +
     labs(
-      title = "Model ROC AUC per weekvariabelestrategie",
+      title = "Model ROC AUC score over tijd",
       subtitle = "Hogere waarden geven betere studentenrangschikkingscapaciteit aan",
-      x = "Weekstrategie",
+      x = "Verloop over tijd",
       y = "ROC AUC"
     ) +
     theme_minimal()
@@ -356,8 +356,8 @@ if(nrow(performance_summary) > 0) {
       ) |>
       arrange(desc(all))
     
-    cat("\nDirect comparison of week strategies by ROC AUC (first 10 program-levels):\n")
-    print(knitr::kable(head(direct_comparison, 10), digits = 4))
+    cat("\nDirecte vergelijking van week variabelen bij ROC AUC:\n")
+    print(knitr::kable(direct_comparison), digits = 2)
     
     # Save this comparison for use in interpretation
     saveRDS(direct_comparison, 

@@ -6,7 +6,7 @@
 \usage{
 compare_group_performance(
   interpretation_list,
-  metric = "accuracy",
+  metric = "roc_auc",
   save = TRUE,
   path = NULL
 )
@@ -14,7 +14,7 @@ compare_group_performance(
 \arguments{
 \item{interpretation_list}{A list of interpretation results from interpret_model()}
 
-\item{metric}{Performance metric to compare (default: "accuracy")}
+\item{metric}{Performance metric to compare (default: "roc_auc")}
 
 \item{save}{Logical indicating whether to save the comparison (default: TRUE)}
 

@@ -35,11 +35,11 @@ packages_cran <- c(
     "usethis",
     "roxygen2",
     "this.path",
+    "config",         # Set up configuration files and functions
 
     # quarto
     "quarto",
     "here",
-
 
     "cli",            # Create command line interfaces
     "ggplot2" ,       # Create plots
@@ -47,12 +47,13 @@ packages_cran <- c(
     "ggalluvial",     # Create alluvial plots
     "shiny",          # Create shiny apps
     "DT",             # Create display tables
-    "forcats",       # Work with factors
-
-    "vip",            # Variable importance plots
+    "gt",             # Create display tables
+    "gtsummary",      # Create summary tables
+    "corrr",          # Correlation matrix
 
     # models
     "ranger",
+    "vip",            # Variable importance plots
     # tidymodels
     "rsample",        # Create resamples
     "parsnip",        # Create models
@@ -67,7 +68,7 @@ packages_cran <- c(
     #"LaF",            # Read data files without encoding (like ASCII)
     #"dataReporter",   # Create a data audit report
     # "rlang",          # Enable complex operations
-    "config",         # Set up configuration files and functions
+    "forcats",       # Work with factors
     "janitor",        # Clean up names from special characters
     "lubridate",      # Work with dates and times
     "purrr",          # Work with functions and vectors
@@ -81,10 +82,10 @@ packages_cran <- c(
     "tibble",         # Edit and create tibbles
     "tidyr",          # Tidy data in the tidyverse environment
     #"fst",            # Perform operations with large data files
-    "dplyr",          # Utilise the dplyr environment
+    "dplyr"          # Utilise the dplyr environment
     #"vvmover",
     #"vvconverter",
-    "corrr"           # Correlation matrix
+
 )
 
 # Include both the package name (for loading) and the account name (for renv snapshot)

@@ -6,7 +6,7 @@
 \usage{
 create_performance_plot(
   performance_comparison,
-  metric = "accuracy",
+  metric = "roc_auc",
   title = NULL
 )
 }

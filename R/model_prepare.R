@@ -72,27 +72,27 @@ prepare_model_data <- function(data,
   } else {
     stop("Invalid week_vars parameter. Must be 'none', 'early', or 'all'.")
   }
-  
+
   prepared_data <- filter_model_variables(filtered_data, remove_patterns)
   prepared_data <- encode_model_factors(prepared_data, outcome_var)
 
   # Step 3: Split the data into training and test sets
   split_data <- split_model_data(prepared_data, cohort_var, test_cohort)
-  
+
   # Step 3.5: Check that both classes exist in the training data
   if (outcome_var %in% colnames(split_data$train)) {
     class_counts <- table(split_data$train[[outcome_var]])
     if (length(class_counts) < 2) {
-      warning(paste0("Training data only contains one class (", 
-                    paste(names(class_counts), collapse = ", "), 
+      warning(paste0("Training data only contains one class (",
+                    paste(names(class_counts), collapse = ", "),
                     "). A predictive model requires both classes."))
     } else {
       # Also check the minimum class count
       min_class_count <- min(class_counts)
       min_class_name <- names(which.min(class_counts))
       if (min_class_count < 5) {  # Using 5 as a minimum threshold
-        warning(paste0("Training data contains very few examples of class '", 
-                      min_class_name, "' (only ", min_class_count, 
+        warning(paste0("Training data contains very few examples of class '",
+                      min_class_name, "' (only ", min_class_count,
                       " instances). Model may be unreliable."))
       }
     }
@@ -132,7 +132,7 @@ filter_model_variables <- function(data, remove_patterns = c("week")) {
   } else {
     # Create a pattern for matches() function
     pattern_expr <- paste(remove_patterns, collapse = "|")
-  
+
     filtered_data <- data |>
       # Remove specified patterns
       select(-matches(pattern_expr)) |>
@@ -251,10 +251,10 @@ save_model_data <- function(data_list, program_filter = NULL, level_filter = NUL
   program_str <- if (is.null(program_filter)) "all_programs" else paste0(program_filter, collapse = "_")
   level_str <- if (is.null(level_filter)) "all_levels" else paste0("level", paste0(level_filter, collapse = "_"))
   cohort_str <- paste0("cohort", data_list$filter_info$test_cohort)
-  
+
   # Add info about which week variables are included
   week_str <- paste0("weeks_", data_list$filter_info$week_vars)
-  
+
   filename <- paste0(program_str, "_", level_str, "_", week_str, "_", cohort_str, ".rds")
 
   # Determine the path for saving
@@ -318,4 +318,87 @@ create_model_metadata <- function(data, program_info, level_info, cohort_info, n
   )
 
   return(metadata)
+}
+
+
+#' Create a Summary Table for Student Retention Analysis
+#'
+#' @description
+#' Creates a formatted summary table comparing student characteristics against retention status
+#'
+#' @param df A data frame containing student data with a 'Retentie' column and various
+#'   student characteristics to be summarized
+#'
+#' @returns
+#' A object containing the formatted summary statistics, including means
+#' and standard deviations for continuous variables, counts and percentages for
+#' categorical variables, with p-values and Bonferroni-adjusted q-values
+#'
+#' @importFrom gtsummary tbl_summary modify_header modify_spanning_header bold_labels
+#'   modify_caption add_p add_q add_significance_stars add_overall as_gt
+#'   all_continuous all_categorical style_pvalue all_stat_cols all_tests
+#' @importFrom gt tab_options
+#'
+#'
+#' @export
+get_tbl_summary <- function(df) {
+    # Try to load variable descriptions for friendly labels
+    var_descriptions <- tryCatch({
+        load_variable_descriptions()
+    }, error = function(e) {
+        NULL
+    })
+
+    # Create label mapping if descriptions are available
+    label_list <- NULL
+    if (!is.null(var_descriptions) && nrow(var_descriptions) > 0) {
+        # Create a named list for variable labels
+        tech_names <- intersect(names(df), var_descriptions$variable_name)
+        if (length(tech_names) > 0) {
+            friendly_names <- var_descriptions$user_friendly_name[
+                match(tech_names, var_descriptions$variable_name)
+            ]
+            label_list <- setNames(as.list(friendly_names), tech_names)
+        }
+    }
+
+    # Create the summary table with labels if available
+    df_summary <- df |>
+        tbl_summary(
+            by = Retentie,
+            label = label_list,  # This will be NULL if no matching labels were found
+            statistic = list(
+                all_continuous() ~ "{mean} ({sd})",
+                all_categorical() ~ "{n} ({p}%)"
+            ),
+            digits = all_continuous() ~ 2,
+            missing = "no",
+            percent = "row"
+        ) |>
+        # Organize the design of the table
+        modify_header(all_stat_cols() ~ "**{level}**, N={n} ({style_percent(p)}%)") |>
+        modify_spanning_header(c("stat_1", "stat_2") ~ "**Retentie**") |>
+        modify_header(label = "**Variabele**") |>
+        bold_labels() |>
+        modify_caption("**Studentkenmerken versus Retentie**") |>
+        add_p(pvalue_fun = ~ style_pvalue(.x, digits = 2),
+              test.args = list(
+                  all_tests("fisher.test") ~ list(simulate.p.value = TRUE),
+                  all_tests("wilcox.test") ~ list(exact = FALSE)
+              )) |>
+        add_q(method = "bonferroni",
+              pvalue_fun = ~ style_pvalue(.x, digits = 2)) |>
+        add_significance_stars(
+            hide_p = FALSE,
+            pattern = "{q.value}{stars}"
+        ) |>
+        add_overall(last = TRUE, col_label = "**Totaal**, N = {N}") |>
+        # To use tab_options, we would need to convert to gt object first:
+        as_gt() |>
+        tab_options(table.width = gt::pct(80))
+        #as_flex_table() |>
+        #flextable::border(border.top = fp_border(color = "grey")) |>
+        #set_table_properties(width = 0.8, layout = "autofit")
+
+    return(df_summary)
 }

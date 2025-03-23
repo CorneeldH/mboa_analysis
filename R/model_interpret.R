@@ -290,7 +290,7 @@ create_importance_plot <- function(var_importance, title = NULL, color = "steelb
   if (is.null(title)) {
     title <- "Variable Importance"
   }
-  
+
   # Convert Variable column to data frame format for replacement if necessary
   if (use_friendly_names) {
     # Create temporary data frame with Variable column
@@ -328,6 +328,7 @@ create_importance_plot <- function(var_importance, title = NULL, color = "steelb
 #'
 #' @importFrom dplyr bind_rows mutate group_by summarize arrange desc
 #' @importFrom tidyr pivot_wider pivot_longer
+#' @importFrom stats setNames
 #'
 #' @export
 compare_group_importance <- function(interpretation_list,
@@ -371,20 +372,20 @@ compare_group_importance <- function(interpretation_list,
   if (use_friendly_names) {
     # Get unique variable names
     unique_vars <- unique(comparison$Variable)
-    
+
     # Create mapping table
     var_mapping <- data.frame(
       original = unique_vars,
       stringsAsFactors = FALSE
     )
-    
+
     # Apply replacement
     var_mapping_friendly <- replace_with_friendly_names(var_mapping)
-    
+
     # Create a mapping vector
     name_map <- setNames(var_mapping_friendly$original, var_mapping$original)
-    
-    # Replace variable names 
+
+    # Replace variable names
     comparison$Variable <- name_map[comparison$Variable]
   }
 
@@ -592,7 +593,7 @@ compare_group_performance <- function(interpretation_list,
 #'
 #' @return A ggplot object
 #'
-#' @importFrom ggplot2 ggplot aes geom_col geom_text position_stack labs theme_minimal
+#' @importFrom ggplot2 ggplot aes geom_col geom_text geom_hline position_stack labs theme_minimal
 #' @importFrom scales percent
 #'
 #' @export
@@ -609,7 +610,7 @@ create_performance_plot <- function(performance_comparison, metric = "roc_auc", 
 
   # Calculate baseline performance if available
   has_baseline <- "baseline" %in% colnames(performance_comparison)
-  
+
   # If there's no baseline but we're using ROC AUC, add a reference line at 0.5
   add_roc_baseline <- (metric == "roc_auc" && !has_baseline)
 
@@ -719,7 +720,7 @@ interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE,
       n_vars = n_vars,
       save = save
     )
-    
+
     # Apply friendly variable names if requested
     if (use_friendly_names && !is.null(interpretation_list[[group_name]]$variable_importance)) {
       # Create temporary data frame with Variable column
@@ -741,7 +742,7 @@ interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE,
       n_vars = n_vars,
       save = save
     )
-    
+
     # Apply friendly variable names to the importance comparison if requested
     if (use_friendly_names && !is.null(importance_comparison) && nrow(importance_comparison) > 0) {
       # Create temporary data frame with Variable column
@@ -804,24 +805,24 @@ interpret_group_models <- function(model_results_list, n_vars = 10, save = TRUE,
 #' @return A ggplot object showing the lift chart or NULL if unable to extract predictions
 #'
 #' @importFrom tune collect_predictions
-#' @importFrom dplyr arrange mutate select bind_rows filter left_join
-#' @importFrom tidyr group_by summarize
+#' @importFrom dplyr arrange mutate select bind_rows bind_cols filter left_join group_by summarize
 #' @importFrom ggplot2 ggplot aes geom_line geom_area geom_abline labs theme_minimal
 #' @importFrom scales percent
+#' @importFrom stats predict
 #'
 #' @export
-create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = NULL, 
+create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = NULL,
                              filename = NULL, program_id = NULL, week_strategy = NULL) {
   # Set default title
   if (is.null(title)) {
     title <- "Intervention Efficiency: Dropout Capture Rate vs. Students Targeted"
   }
-  
+
   # Extract predictions
   predictions <- tryCatch({
     # Try collect_predictions first
     preds <- collect_predictions(model_results$final_model)
-    
+
     # If empty, try alternative locations
     if (nrow(preds) == 0) {
       if ("predictions" %in% names(model_results)) {
@@ -837,38 +838,38 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
   }, error = function(e) {
     return(NULL)
   })
-  
+
   # Check if we have predictions
   if (is.null(predictions) || nrow(predictions) == 0) {
     return(NULL)
   }
-  
+
   # Find probability column
   dropout_prob_col <- grep("^.pred_", colnames(predictions), value = TRUE)[1]
   if (is.na(dropout_prob_col)) {
     return(NULL)
   }
-  
+
   # Find outcome column
   outcome_col <- intersect(
-    colnames(predictions), 
+    colnames(predictions),
     c(".outcome", "DEELNEMER_BC_uitval", "truth", "actual", "y")
   )[1]
   if (is.na(outcome_col)) {
     return(NULL)
   }
-  
+
   # Determine positive class values
   unique_outcomes <- unique(predictions[[outcome_col]])
   pos_values <- c("Uitval", "1", 1, TRUE)
   positive_class <- pos_values[which(pos_values %in% unique_outcomes)[1]]
-  
+
   # If can't identify positive class, use least frequent class
   if (is.na(positive_class)) {
     outcome_counts <- table(predictions[[outcome_col]])
     positive_class <- names(outcome_counts)[which.min(outcome_counts)]
   }
-  
+
   # Prepare lift chart data
   lift_data <- predictions |>
     arrange(desc(!!sym(dropout_prob_col))) |>
@@ -877,7 +878,7 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
       rank = row_number(),
       rank_pct = rank / n()
     )
-  
+
   # Calculate cumulative metrics
   if (sum(lift_data$actual_dropout) > 0) {
     lift_data <- lift_data |>
@@ -889,7 +890,7 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
   } else {
     return(NULL)
   }
-  
+
   # Add reference points
   reference_points <- data.frame(
     rank_pct = seq(0, 1, by = 0.1),
@@ -901,7 +902,7 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
         group_by(rank_pct = floor(rank_pct * 10) / 10) |>
         summarize(cum_dropout_pct = max(cum_dropout_pct), .groups = "drop")
     )
-  
+
   # Create plot
   p <- ggplot(lift_data, aes(x = rank_pct, y = cum_dropout_pct)) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray70") +
@@ -917,25 +918,25 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
     scale_x_continuous(labels = scales::percent) +
     scale_y_continuous(labels = scales::percent) +
     theme_minimal()
-  
+
   # Save if requested
   if (save) {
     # Get save directory
     if (is.null(path)) {
       modelled_dir <- tryCatch(
-        config::get("modelled_dir"), 
+        config::get("modelled_dir"),
         error = function(e) file.path("data", "modelled")
       )
       vis_dir <- file.path(modelled_dir, "interpreted", "visualizations")
     } else {
       vis_dir <- path
     }
-    
+
     # Create directory if needed
     if (!dir.exists(vis_dir)) {
       dir.create(vis_dir, recursive = TRUE)
     }
-    
+
     # Generate filename
     if (is.null(filename)) {
       # Auto-extract program and strategy if not provided
@@ -945,7 +946,7 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
       if (is.null(week_strategy) && !is.null(model_results$filter_info)) {
         week_strategy <- model_results$filter_info$week_vars
       }
-      
+
       # Build filename with available info
       parts <- c("lift_chart")
       if (!is.null(program_id)) {
@@ -957,12 +958,12 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
       if (length(parts) == 1) {
         parts <- c(parts, format(Sys.time(), "%Y%m%d_%H%M%S"))
       }
-      
+
       output_filename <- paste0(paste(parts, collapse = "_"), ".png")
     } else {
       output_filename <- paste0(filename, ".png")
     }
-    
+
     # Save plot
     ggsave(
       file.path(vis_dir, output_filename),
@@ -971,7 +972,7 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
       height = 7
     )
   }
-  
+
   return(p)
 }
 
@@ -994,12 +995,12 @@ create_lift_chart <- function(model_results, title = NULL, save = TRUE, path = N
 create_all_strategy_lift_charts <- function(models_by_strategy, save = TRUE, path = NULL, program_filter = NULL) {
   # Initialize results and create individual charts
   lift_charts <- list()
-  
+
   # Process each strategy
   for (strategy in names(models_by_strategy)) {
-    title <- paste0("Intervention Efficiency: ", toupper(substr(strategy, 1, 1)), 
+    title <- paste0("Intervention Efficiency: ", toupper(substr(strategy, 1, 1)),
                    substr(strategy, 2, nchar(strategy)), " Week Strategy")
-    
+
     # Create individual chart
     chart <- tryCatch({
       create_lift_chart(
@@ -1012,27 +1013,27 @@ create_all_strategy_lift_charts <- function(models_by_strategy, save = TRUE, pat
         week_strategy = strategy
       )
     }, error = function(e) NULL)
-    
+
     if (!is.null(chart)) {
       lift_charts[[strategy]] <- chart
     }
   }
-  
+
   # Create comparison chart if we have multiple strategies
   if (length(lift_charts) >= 2) {
     # Extract and combine data
     comparison_data <- data.frame()
-    
+
     for (strategy in names(lift_charts)) {
       if (strategy != "comparison" && !is.null(lift_charts[[strategy]]$data)) {
         strategy_data <- lift_charts[[strategy]]$data |>
-          mutate(strategy = factor(strategy, 
+          mutate(strategy = factor(strategy,
                                  levels = c("none", "early", "all"),
-                                 labels = c("No Weeks", "Early Weeks", "All Weeks")))
+                                 labels = c("Bij start", "Na 5 weken", "Na 10 weken")))
         comparison_data <- bind_rows(comparison_data, strategy_data)
       }
     }
-    
+
     # Create comparison plot if we have data
     if (nrow(comparison_data) > 0) {
       combined_plot <- ggplot(comparison_data, aes(x = rank_pct, y = cum_dropout_pct, color = strategy)) +
@@ -1051,7 +1052,7 @@ create_all_strategy_lift_charts <- function(models_by_strategy, save = TRUE, pat
         scale_y_continuous(labels = scales::percent) +
         theme_minimal() +
         theme(legend.position = "bottom")
-      
+
       # Save comparison plot
       if (save) {
         # Get path and create directory if needed
@@ -1064,17 +1065,17 @@ create_all_strategy_lift_charts <- function(models_by_strategy, save = TRUE, pat
         } else {
           path
         }
-        
+
         if (!dir.exists(vis_dir)) {
           dir.create(vis_dir, recursive = TRUE)
         }
-        
+
         # Create filename
         filename <- "lift_chart_strategy_comparison"
         if (!is.null(program_filter)) {
           filename <- paste0(filename, "_", gsub("[^a-zA-Z0-9]", "_", program_filter))
         }
-        
+
         # Save plot
         ggsave(
           file.path(vis_dir, paste0(filename, ".png")),
@@ -1083,12 +1084,12 @@ create_all_strategy_lift_charts <- function(models_by_strategy, save = TRUE, pat
           height = 7
         )
       }
-      
+
       # Add to results
       lift_charts$comparison <- combined_plot
     }
   }
-  
+
   return(lift_charts)
 }
 
@@ -1108,11 +1109,11 @@ create_all_strategy_lift_charts <- function(models_by_strategy, save = TRUE, pat
 #' @importFrom ggplot2 ggsave element_text
 #'
 #' @export
-create_top_programs_lift_charts <- function(top_model_results, performance_display, 
+create_top_programs_lift_charts <- function(top_model_results, performance_display,
                                           save = TRUE, path = NULL) {
   # Initialize results list
   lift_charts <- list()
-  
+
   # Get default programs directory
   programs_dir <- if(is.null(path)) {
     modelled_dir <- tryCatch(
@@ -1123,18 +1124,18 @@ create_top_programs_lift_charts <- function(top_model_results, performance_displ
   } else {
     file.path(path, "programs")
   }
-  
+
   # Create directory if needed
   if(save && !dir.exists(programs_dir)) {
     dir.create(programs_dir, recursive = TRUE)
   }
-  
+
   # Process each model
   for (model_id in names(top_model_results)) {
     # Extract program and strategy info
     program_level <- NA
     week_strategy <- NA
-    
+
     # Try to get from performance display first
     if(!is.null(performance_display)) {
       program_info <- performance_display |> filter(dataset_id == model_id)
@@ -1143,7 +1144,7 @@ create_top_programs_lift_charts <- function(top_model_results, performance_displ
         week_strategy <- program_info$week_strategy[1]
       }
     }
-    
+
     # Fall back to extracting from model_id
     if(is.na(program_level) || is.na(week_strategy)) {
       parts <- strsplit(model_id, "_weeks_")[[1]]
@@ -1152,12 +1153,12 @@ create_top_programs_lift_charts <- function(top_model_results, performance_displ
         week_strategy <- parts[2]
       }
     }
-    
+
     # Skip if missing key info
     if(is.na(program_level) || is.na(week_strategy)) {
       next
     }
-    
+
     # Create enhanced chart
     chart <- tryCatch({
       create_lift_chart(
@@ -1170,7 +1171,7 @@ create_top_programs_lift_charts <- function(top_model_results, performance_displ
         week_strategy = week_strategy
       ) +
       labs(
-        subtitle = paste0("Week Strategy: ", toupper(substr(week_strategy, 1, 1)), 
+        subtitle = paste0("Week Strategy: ", toupper(substr(week_strategy, 1, 1)),
                         substr(week_strategy, 2, nchar(week_strategy)), " Weeks"),
         caption = paste("Program:", program_level)
       ) +
@@ -1179,12 +1180,12 @@ create_top_programs_lift_charts <- function(top_model_results, performance_displ
         plot.subtitle = element_text(face = "italic", size = 12)
       )
     }, error = function(e) NULL)
-    
+
     # Store chart if successful
     if(!is.null(chart)) {
       lift_charts[[model_id]] <- chart
     }
   }
-  
+
   return(lift_charts)
 }
