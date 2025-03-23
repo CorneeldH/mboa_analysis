@@ -982,56 +982,6 @@ summarise_employee_absence_to_years <- function(employee_absences) {
     return(employees_absence_yearly)
 }
 
-#' Pivot Weekly Data to Yearly Format
-#'
-#' @description
-#' Transforms weekly employee absence data from long to wide format
-#'
-#' @param employee_absence_in_weeks A tibble containing employee absence data with columns:
-#'   MEDEWERKER_ID, TEAM_kostenplaats_code, SCHOOLJAAR_naam,
-#'   MEDEWERKER_verzuim_week_nummer, MEDEWERKER_verzuim_totaal,
-#'   MEDEWERKER_verzuim_percentage, MEDEWERKER_verzuim_duur
-#'
-#' @returns
-#' A wide-format tibble with employee identifiers as rows and weekly metrics
-#' as columns
-#'
-#' @importFrom tidyr pivot_wider
-#'
-#' @export
-pivot_weeks_to_years <- function(employee_absence_in_weeks) {
-
-    employee_years_absence_weekly <- employee_absence_in_weeks |>
-        # First pivot the week numbers and their corresponding values
-        pivot_wider(
-            id_cols = c(MEDEWERKER_ID,
-                        # TEAM_kostenplaats_code,
-                        SCHOOLJAAR_naam),
-            names_from = MEDEWERKER_verzuim_week_nummer,
-            values_from = c(MEDEWERKER_verzuim_totaal,
-                            MEDEWERKER_verzuim_percentage,
-                            MEDEWERKER_verzuim_duur),
-            names_glue = "{.value}_{MEDEWERKER_verzuim_week_nummer}"
-        )
-    ## TODO DRY
-    num_years <- employee_absences_in_weeks |>
-        distinct(SCHOOLJAAR_naam) |>
-        nrow()
-
-    if (num_years == 1) {
-        year <- parse_number(unique(employee_absences_in_weeks$SCHOOLJAAR_naam))
-        filename <- paste0("employee_absences_in_weeks_", year)
-        save_transformed_and_comment(employee_absences_in_weeks, filename = filename)
-    } else {
-        save_transformed_and_comment(employee_absences_in_weeks)
-    }
-
-
-    save_transformed_and_comment(employee_years_absence_weekly)
-
-    return(employee_years_absence_weekly)
-}
-
 #' Transform BPV Statuses to Enrollments
 #'
 #' @description
@@ -1170,38 +1120,6 @@ pivot_answers_to_students <- function(student_answers_satisfaction) {
 
     return(students_satisfaction)
 }
-
-
-#' Summarize Employee Satisfaction by Groups
-#'
-#' @description
-#' Groups employee satisfaction data by school year, organization, and characteristics
-#'
-#' @param employee_answers_satisfaction A data frame containing employee satisfaction data
-#'
-#' @returns
-#' A data frame grouped by SCHOOLJAAR_startjaar, Organisatie, Characteristic 1,
-#' Characteristic 2, and group_number, with count information removed.
-#'
-#' @importFrom dplyr count select
-#'
-#' @export
-summarise_satisfaction_to_groups <- function(employee_answers_satisfaction) {
-
-    employee_satisfaction_group <- employee_answers_satisfaction |>
-    count(
-        SCHOOLJAAR_startjaar,
-        Organisatie,
-        `Characteristic 1`,
-        `Characteristic 2`,
-        group_number
-    ) |>
-        select(-n)
-
-    return(employee_satisfaction_group)
-}
-
-
 
 #' Pivot Categorical Values to Percentages
 #'

@@ -292,35 +292,6 @@ save_model_data <- function(data_list, program_filter = NULL, level_filter = NUL
   invisible(full_path)
 }
 
-#' Create Metadata for Model Files
-#'
-#' @description
-#' Generate consistent metadata for model files to track data provenance.
-#'
-#' @param data The data being used
-#' @param program_info Program filter information
-#' @param level_info Level filter information
-#' @param cohort_info Cohort year information
-#' @param notes Optional additional notes
-#'
-#' @return A list containing metadata
-#'
-#' @export
-create_model_metadata <- function(data, program_info, level_info, cohort_info, notes = NULL) {
-  metadata <- list(
-    creation_date = Sys.time(),
-    n_observations = nrow(data),
-    n_variables = ncol(data),
-    program_filter = program_info,
-    level_filter = level_info,
-    cohort_info = cohort_info,
-    notes = notes
-  )
-
-  return(metadata)
-}
-
-
 #' Create a Summary Table for Student Retention Analysis
 #'
 #' @description
