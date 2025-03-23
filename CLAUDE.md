@@ -42,17 +42,22 @@
 - Handle conditional package loading with `requireNamespace()`
 
 ## Error Handling
-- Use validation checks before operations
-- Employ tryCatch blocks for file operations
 - Format error and warnings with messages from cli-package
 - Use rlang::abort instead of stop
-- Handle NULL values defensively
 
 ## Quarto style
 - All codeblocks should start with `#| label:` and then a descriptive and unique label
-- Think of code blocks as a first iteration towards a stand-alone function
+- Think of code blocks as a first iteration towards a stand-alone function (or as just calling a function from R/)
 - Preparation and visualisation should often have different codeblocks
-- Use Dutch language in between code blocks to explain the rationale, not the code
+- Code blocks should be relatively short
+
+## Language Guidelines
+- All code comments must be in English
+- All variable names and function names must be in English
+- All documentation in R files (Roxygen) must be in English
+- All text in Quarto documents between code blocks must be in Dutch
+- All output text visible to end users (figure/chart titles, labels, legends) should be in Dutch
+- Technical terms in code or comments remain in English, but should be translated when used in Dutch explanatory text
 
 ## Git Workflow
 - Always pull before committing: `git pull`
