@@ -1189,3 +1189,110 @@ create_top_programs_lift_charts <- function(top_model_results, performance_displ
 
   return(lift_charts)
 }
+
+#' Process Program Charts for Model Comparisons
+#'
+#' @description
+#' Generate and save lift charts comparing model performance across different
+#' timing strategies for all educational programs
+#'
+#' @returns
+#' A list of ggplot objects, one for each program. Charts are also saved to disk
+#' as PNG files and the complete list is saved as an RDS file.
+#'
+#' @importFrom dplyr arrange mutate row_number n select bind_rows
+#' @importFrom ggplot2 ggplot aes geom_abline geom_line labs scale_x_continuous scale_y_continuous theme_minimal theme ggsave
+#' @importFrom stringr str_replace
+#' @importFrom config get
+#' @importFrom rlang sym
+#'
+#' @export
+process_all_program_charts <- function() {
+    # Get all unique program levels from models
+    all_programs <- unique(sapply(strsplit(names(all_model_results), "_weeks_"), function(x) x[1]))
+    cat("Found", length(all_programs), "unique programs\n")
+
+    # Directory for visualizations
+    vis_dir <- file.path(config::get("modelled_dir"), "interpreted", "visualizations", "programs")
+    if(!dir.exists(vis_dir)) {
+        dir.create(vis_dir, recursive = TRUE)
+    }
+
+    # Process each program
+    all_charts <- list()
+    for(program_name in all_programs) {
+        cat("Processing:", program_name, "\n")
+
+        # Find models matching this program
+        model_ids <- names(all_model_results)[startsWith(names(all_model_results), paste0(program_name, "_weeks_"))]
+
+        if(length(model_ids) == 0) next
+
+        # Collect data from all week strategies
+        chart_data <- data.frame()
+        for(model_id in model_ids) {
+            week_strategy <- sub(".*weeks_", "", model_id)
+            predictions <- collect_predictions(all_model_results[[model_id]]$final_model)
+
+            # Find columns
+            outcome_col <- grep("DEELNEMER_BC_uitval|.outcome|truth", colnames(predictions), value = TRUE)[1]
+            prob_col <- grep("^.pred_Uitval|^.pred_TRUE", colnames(predictions), value = TRUE)[1]
+
+            # Calculate lift data
+            lift_data <- predictions |>
+                arrange(desc(!!sym(prob_col))) |>
+                mutate(
+                    actual_dropout = as.numeric(!!sym(outcome_col) %in% c("Uitval", "TRUE", "1", 1, TRUE)),
+                    rank = row_number(),
+                    rank_pct = rank / n(),
+                    cum_dropouts = cumsum(actual_dropout),
+                    cum_dropout_pct = cum_dropouts / sum(actual_dropout)
+                ) |>
+                select(rank_pct, cum_dropout_pct) |>
+                mutate(strategy = week_strategy)
+
+            chart_data <- bind_rows(chart_data, lift_data)
+        }
+
+        # Format strategy names
+        chart_data <- chart_data |>
+            mutate(strategy = factor(strategy,
+                                     levels = c("none", "early", "all"),
+                                     labels = c("Bij start", "Na 5 weken", "Na 10 weken")))
+
+        # Clean program name for display
+        clean_program <- str_replace(program_name, "_level", " niveau ")
+
+        # Create and save chart
+        comparison_chart <- ggplot(chart_data, aes(x = rank_pct, y = cum_dropout_pct, color = strategy)) +
+            geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray70") +
+            geom_line(linewidth = 1.2) +
+            labs(
+                title = clean_program,
+                subtitle = "Toont % uitvallers bereikt bij interventie met % studenten",
+                x = "Percentage benaderde studenten",
+                y = "Percentage bereikte uitvallers",
+                color = "Tijdstip"
+            ) +
+            scale_x_continuous(labels = scales::percent) +
+            scale_y_continuous(labels = scales::percent) +
+            theme_minimal() +
+            theme(legend.position = "bottom")
+
+        # Save chart
+        clean_filename <- gsub("[^a-zA-Z0-9]", "_", clean_program)
+        ggsave(
+            file.path(vis_dir, paste0("lift_chart_", clean_filename, "_comparison.png")),
+            comparison_chart,
+            width = 10,
+            height = 7
+        )
+
+        all_charts[[program_name]] <- comparison_chart
+    }
+
+    # Save all charts
+    saveRDS(all_charts, file.path(config::get("modelled_dir"), "interpreted", "all_program_charts.rds"))
+
+    return(all_charts)
+}

@@ -402,3 +402,102 @@ get_tbl_summary <- function(df) {
 
     return(df_summary)
 }
+
+#' Process Program Data File
+#'
+#' @description
+#' Processes an RDS file containing program data, computing absence statistics
+#' and creating summary tables with friendly variable names
+#'
+#' @param filename A string specifying the RDS file to process.
+#'
+#' @returns
+#' A list containing:
+#'   \itemize{
+#'     \item program_level: Extracted program name
+#'     \item df_predictors: Data frame with processed predictors
+#'     \item df_predictors_friendly: Data frame with user-friendly variable names
+#'     \item summary_table: Summary statistics table
+#'   }
+#' The function also saves summary tables in RDS and HTML formats.
+#'
+#' @importFrom dplyr bind_rows select mutate matches if_else all_of
+#' @importFrom stringr str_replace
+#' @importFrom config get
+#' @importFrom gt gtsave
+#'
+#' @export
+process_program_file <- function(filename) {
+    cat("\nProcessing program:", filename, "\n")
+
+    file_path <- file.path(config::get("modelled_dir"), "prepared", filename)
+
+    # Check if file exists
+    if (!file.exists(file_path)) {
+        warning("File not found: ", file_path)
+        return(NULL)
+    }
+
+    program_info <- readRDS(file_path)
+    df <- bind_rows(program_info$train, program_info$test)
+
+    # First identify the week columns
+    geoorloofd_cols <- grep("VERBINTENIS_waarneming_pct_geoorloofd_week_", names(df), value = TRUE)
+    ongeoorloofd_cols <- grep("VERBINTENIS_waarneming_pct_ongeoorloofd_week_", names(df), value = TRUE)
+
+    # Now create a dataframe with additional aggregated columns
+    df_predictors <- df |>
+        mutate(
+            # Calculate mean for geoorloofd and ongeoorloofd absences
+            VERBINTENIS_waarneming_pct_geoorloofd = rowMeans(as.matrix(select(df, all_of(geoorloofd_cols))), na.rm = TRUE),
+            VERBINTENIS_waarneming_pct_ongeoorloofd = rowMeans(as.matrix(select(df, all_of(ongeoorloofd_cols))), na.rm = TRUE),
+            Retentie = ifelse(DEELNEMER_BC_uitval == "Geen uitval", 1, 0),
+            DEELNEMER_postcode4_ses_score = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_score)),
+            DEELNEMER_postcode4_ses_spreiding = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_spreiding)),
+            DEELNEMER_postcode4_apcg = if_else(DEELNEMER_postcode4_apcg == 1, "Ja", "Nee")
+        ) |>
+        select(
+            -DEELNEMER_BC_uitval,
+            -matches("_ID$"),
+            -matches("datum"),
+            -matches("naam"),
+            -matches("duur"),
+            -matches("jaar"),
+            -all_of(geoorloofd_cols),
+            -all_of(ongeoorloofd_cols)
+        )
+
+    # Load variable descriptions for user-friendly names
+    var_descriptions <- load_variable_descriptions()
+
+    # Apply user-friendly names
+    df_predictors_friendly <- replace_with_friendly_names(df_predictors)
+
+    # Create summary table
+    summary_table <- df_predictors_friendly |>
+        get_tbl_summary()
+
+    # Extract program name from filename for saving
+    program_level <- stringr::str_replace(filename, "_weeks_all_cohort.*\\.rds$", "")
+
+    # Save the summary table as RDS
+    saveRDS(
+        summary_table,
+        file.path(config::get("modelled_dir"), "prepared", paste0(program_level, "_summary_table.rds"))
+    )
+
+    # Also save as HTML file which can be rendered
+    summary_table |>
+        #gtsummary::as_gt() |>
+        gtsave(
+            filename = file.path(config::get("modelled_dir"), "prepared", paste0(program_level, "_summary_table.html"))
+        )
+
+    # Return the processed objects for further use
+    return(list(
+        program_level = program_level,
+        df_predictors = df_predictors,
+        df_predictors_friendly = df_predictors_friendly,
+        summary_table = summary_table
+    ))
+}

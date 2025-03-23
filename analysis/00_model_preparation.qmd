@@ -30,7 +30,7 @@ Dit document bereidt gegevens voor ten behoeve van voorspellende modellering van
 
 ## Gegevens laden
 
-Als eerste laden we de gecombineerde en verrijkte inschrijvingsgegevens uit onze datapijplijn.
+Als eerste laden we de gecombineerde en verrijkte inschrijvingsgegevens uit onze datapijplijn. Dit zijn dus gegevens op studentinschrijving niveau, voordat deze zijn geaggregeerd en gefilterd voor het correlatie-onderzoek op teamniveau in een eerder stadium.
 
 ```{r}
 #| label: load-data
@@ -220,7 +220,8 @@ enrollments_selected <- enrollments_with_dropout_indicators |>
            DEELNEMER_passend_niveau,
            DEELNEMER_plaatsing,
            DEELNEMER_havo_vwo_is_gezakt,
-           start_kwalificatie,
+           # TODO Ik heb vraagtekens bij de data kwaliteit van deze variabele
+           # start_kwalificatie,
            # Variables to filter on
            VERBINTENIS_intensiteit, 
            VERBINTENIS_bekostigd, 
@@ -795,54 +796,144 @@ print(knitr::kable(valid_summary, digits = 0, row.names = FALSE))
 ```{r}
 #| label: exploration
 
-# Grote opleidingen
-filename <- "Dienstverlening (25498)_level2_weeks_all_cohort2023.rds"
-#filename <- "Sociaal (25615)_level4_weeks_all_cohort2023.rds"
-#filename <- "Ondernemer (25184)_level4_weeks_all_cohort2023.rds"
+# Get all valid program-level datasets
+valid_program_files <- valid_datasets |>
+  filter(week_strategy == "all") |>  # Use 'all' week strategy for most comprehensive data
+  mutate(
+    filename = paste0(program_level, "_weeks_all_cohort", test_cohort_year, ".rds")
+  ) |>
+  pull(filename)
 
-file_path <- file.path(config::get("modelled_dir"), "prepared", filename)
+# If no valid programs are found, just use a default example program
+if (length(valid_program_files) == 0) {
+  valid_program_files <- c("Dienstverlening (25498)_level2_weeks_all_cohort2023.rds")
+}
 
-program_info <- readRDS(file_path)
-df <- bind_rows(program_info$train, program_info$test)
+# Process the first program file to display an example
+# and save it for use in the correlation example
+example_program <- valid_program_files[1]
+processed_data <- process_program_file(example_program)
 
-# First identify the week columns
-geoorloofd_cols <- grep("VERBINTENIS_waarneming_pct_geoorloofd_week_", names(df), value = TRUE)
-ongeoorloofd_cols <- grep("VERBINTENIS_waarneming_pct_ongeoorloofd_week_", names(df), value = TRUE)
+# Display the summary table from the example program
+print(processed_data$summary_table)
 
-# Now create a dataframe with additional aggregated columns
-df_predictors <- df |>
+# Process all other program files (if more than one)
+if (length(valid_program_files) > 1) {
+  for (i in 2:min(5, length(valid_program_files))) {  # Limit to 5 to avoid excessive processing
+    process_program_file(valid_program_files[i])
+  }
+  
+  if (length(valid_program_files) > 5) {
+    cat("\nProcessed 5 out of", length(valid_program_files), "program files. Skipping the rest for brevity.\n")
+  }
+}
+
+# Continue working with the example program for the correlation section
+df_predictors <- processed_data$df_predictors
+df_predictors_friendly <- processed_data$df_predictors_friendly
+program_level <- processed_data$program_level
+```
+
+## Correlaties met retentie
+
+Laten we analyseren welke studentkenmerken het sterkst correleren met retentie. Hiervoor gebruiken we de correlatiefuncties uit het pakket.
+
+```{r}
+#| label: correlations-with-retention
+
+# Function to create and save correlation analysis for a program
+analyze_correlations <- function(df_predictors, program_level) {
+  df_correlation <- df_predictors |>
     mutate(
-        # Calculate mean for geoorloofd and ongeoorloofd absences
-        VERBINTENIS_waarneming_pct_geoorloofd = rowMeans(as.matrix(select(df, all_of(geoorloofd_cols))), na.rm = TRUE),
-        VERBINTENIS_waarneming_pct_ongeoorloofd = rowMeans(as.matrix(select(df, all_of(ongeoorloofd_cols))), na.rm = TRUE),
-        Retentie = ifelse(DEELNEMER_BC_uitval == "Geen uitval", 1, 0),
-        DEELNEMER_postcode4_ses_score = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_score)),
-        DEELNEMER_postcode4_ses_spreiding = suppressWarnings(as.numeric(DEELNEMER_postcode4_ses_spreiding))
-    ,
-    DEELNEMER_postcode4_apcg = if_else(DEELNEMER_postcode4_apcg == 1, "Ja", "Nee")) |>
-    select(
-        -DEELNEMER_BC_uitval,
-        -matches("_ID$"),
-        -matches("datum"),
-        -matches("naam"),
-        -matches("duur"),
-        -matches("jaar"),
-        -all_of(geoorloofd_cols),
-        -all_of(ongeoorloofd_cols)
+      # Ensure categorical variables are converted properly for correlation
+      DEELNEMER_postcode4_apcg = case_when(
+        DEELNEMER_postcode4_apcg == "Ja" ~ 1,
+        DEELNEMER_postcode4_apcg == "Nee" ~ 0,
+        .default = NA_integer_)
     )
+  
+  # Select all categorical variables for encoding
+  categorical_data <- df_correlation |>
+    select(where(is.character) | where(is.factor))
+  
+  # Skip problematic variables if needed
+  if ("DEELNEMER_vooropleiding_categorie" %in% names(categorical_data)) {
+    categorical_data <- categorical_data |> select(-DEELNEMER_vooropleiding_categorie)
+  }
+  
+  # Create dummy variables from categorical data
+  if (ncol(categorical_data) > 0) {
+    # Use model.matrix for efficient one-hot encoding
+    formula_text <- paste("~ +", paste(colnames(categorical_data), collapse = " + "))
+    dummy_encoded <- as.data.frame(model.matrix(as.formula(formula_text), data = categorical_data))
+  } else {
+    dummy_encoded <- data.frame()
+  }
+  
+  # Combine numeric variables with dummy variables
+  correlation_data <- df_correlation |>
+    select(where(is.numeric)) |>
+    bind_cols(dummy_encoded) |>
+    select_cols_for_correlation(na_thresh = 0.8)
+  
+  # Calculate correlations with retention
+  retention_correlations <- correlate_teams_and_filter(
+    correlation_data,
+    target_var = "Retentie",
+    filter_type = "outside",
+    correlation_limits = c(-0.15, 0.15),
+    # Exclude terms directly related to the outcome to avoid tautological correlations
+    exclude_terms = c("DEELNEMER_BC_uitval", "Retentie")
+  )
+  
+  # Format program name for display
+  program_name_display <- str_replace(program_level, "_level", " - Niveau ")
+  
+  # Plot the correlations
+  retention_correlation_plot <- plot_teams_correlations(
+    retention_correlations,
+    target_var = "Retentie",
+    title_text = paste0("Kenmerken met sterkste relatie tot retentie - ", program_name_display)
+  )
+  
+  # Save the correlation results as RDS
+  saveRDS(
+    retention_correlations,
+    file.path(config::get("modelled_dir"), "prepared", paste0(program_level, "_correlations.rds"))
+  )
+  
+  # Save the correlation plot as PNG
+  ggsave(
+    file.path(config::get("modelled_dir"), "prepared", paste0(program_level, "_correlations_plot.png")),
+    retention_correlation_plot,
+    width = 12,
+    height = 8
+  )
+  
+  return(list(
+    correlations = retention_correlations,
+    plot = retention_correlation_plot
+  ))
+}
 
-# Load variable descriptions for user-friendly names
-var_descriptions <- load_variable_descriptions()
+# Run correlation analysis for the example program
+correlation_results <- analyze_correlations(df_predictors, program_level)
 
-# Apply user-friendly names
-df_predictors_friendly <- replace_with_friendly_names(df_predictors)
+# Display the plot
+print(correlation_results$plot)
 
-df_predictors_friendly |>
-    get_tbl_summary()
-
+# If we have valid_program_files data, we can process all programs
+# But we're reusing the function for each program vs creating a new loop
+# to avoid duplicating too much code
 
 ```
 
+In de bovenstaande grafiek zien we welke studentkenmerken het sterkst correleren met de retentie van studenten. Deze inzichten kunnen gebruikt worden om:
+
+1. De belangrijkste factoren voor het voorspellen van uitval te identificeren
+2. Inzicht te krijgen in welke interventies mogelijk het meest effectief kunnen zijn
+3. De interpretatie van het predictieve model te ondersteunen
+
 ## Volgende stappen
 
-De voorbereide datasets zijn nu beschikbaar in de map `data/modelled/prepared` en klaar voor modeltraining. Het volgende document in deze workflow zal voorspellende modellen trainen met behulp van deze voorbereide datasets.
+De voorbereide datasets zijn nu beschikbaar in de map `data/modelled/prepared` en klaar voor modeltraining. Het volgende document in deze workflow zal voorspellende modellen trainen met behulp van deze voorbereide datasets. De samenvattingstabel en correlaties zijn ook opgeslagen voor later gebruik.

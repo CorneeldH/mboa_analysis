@@ -537,8 +537,16 @@ utils::globalVariables(
         "Spreiding van de SES WOA score",
 
         # get_tbl_summary
-        "Retentie"
+        "Retentie",
 
+        # process_program_file
+        "DEELNEMER_BC_uitval",
+        "DEELNEMER_postcode4_ses_score",
+        "DEELNEMER_postcode4_ses_spreiding",
+        "DEELNEMER_postcode4_apcg",
+
+        # process_all_program_charts
+        "all_model_results"
 
     )
 )
