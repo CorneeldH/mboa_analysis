@@ -700,6 +700,7 @@ transform_prior_education_vo_and_highest_degree <- function(student_prior_educat
             .default = "Overig"
         ))
 
+    # TODO This should be validated thoroughly, I have now excluded this from the analysis
     start_kwalificatie <- student_prior_education_yearly_expanded |>
         group_by(DEELNEMER_ID, COHORT_naam) |>
         summarise(

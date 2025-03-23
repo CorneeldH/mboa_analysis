@@ -428,6 +428,8 @@ add_grouped_enrollment_dates <- function(enrollments) {
 #' @export
 calculate_proper_placement <- function(enrollments) {
     enrollments_enriched <- enrollments |>
+        # TODO This is based upon: https://www.informatie-encyclopedie.nl/indicator/4fcb1f2f-2c31-11b2-8056-00505687193f
+        # but not validated
         mutate(DEELNEMER_passend_niveau = case_when(
             DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO_BB" ~ 2,
             DEELNEMER_vooropleiding_hoogste_diploma_soort == "VMBO_KB" ~ 3,
