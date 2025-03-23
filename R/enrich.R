@@ -450,8 +450,8 @@ calculate_proper_placement <- function(enrollments) {
         mutate(
             DEELNEMER_plaatsing = case_when(
                 DEELNEMER_passend_niveau == VERBINTENIS_niveau ~ "passend",
-                DEELNEMER_passend_niveau < VERBINTENIS_niveau ~ "onder_niveau",
-                DEELNEMER_passend_niveau > VERBINTENIS_niveau ~ "boven_niveau",
+                DEELNEMER_passend_niveau < VERBINTENIS_niveau ~ "boven niveau",
+                DEELNEMER_passend_niveau > VERBINTENIS_niveau ~ "onder niveau",
                 TRUE ~ "Onbekend"
             )
         )
